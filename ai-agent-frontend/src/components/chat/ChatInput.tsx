@@ -1,9 +1,11 @@
 import {type ChangeEvent, type FormEvent, type KeyboardEvent, useState,} from "react";
 
+import chatService from "../../services/chatService";
 import {useChatStore} from "../../store/chatStore";
 
 function ChatInput() {
     const [input, setInput] = useState("");
+    const [isSending, setIsSending] = useState(false);
 
     const addMessage = useChatStore((state) => state.addMessage);
 
@@ -11,10 +13,10 @@ function ChatInput() {
         setInput(event.target.value);
     };
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
         const trimmedInput = input.trim();
 
-        if (!trimmedInput) {
+        if (!trimmedInput || isSending) {
             return;
         }
 
@@ -26,26 +28,42 @@ function ChatInput() {
         });
 
         setInput("");
+        setIsSending(true);
 
-        window.setTimeout(() => {
+        try {
+            const response = await chatService.sendMessage({
+                message: trimmedInput,
+            });
+
             addMessage({
                 id: crypto.randomUUID(),
                 role: "ASSISTANT",
-                content: `"${trimmedInput}" 메시지를 정상적으로 받았습니다.`,
+                content: response.message,
                 createdAt: new Date().toISOString(),
             });
-        }, 500);
+        } catch (error) {
+            console.error("채팅 API 호출 중 오류가 발생했습니다.", error);
+
+            addMessage({
+                id: crypto.randomUUID(),
+                role: "ASSISTANT",
+                content: "메시지 처리 중 오류가 발생했습니다.",
+                createdAt: new Date().toISOString(),
+            });
+        } finally {
+            setIsSending(false);
+        }
     };
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        sendMessage();
+        void sendMessage();
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            sendMessage();
+            void sendMessage();
         }
     };
 
@@ -57,8 +75,13 @@ function ChatInput() {
             <textarea
                 className="chat-input"
                 value={input}
-                placeholder="메시지를 입력하세요."
+                placeholder={
+                    isSending
+                        ? "AI가 응답 중입니다."
+                        : "메시지를 입력하세요."
+                }
                 rows={1}
+                disabled={isSending}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
             />
@@ -66,9 +89,9 @@ function ChatInput() {
             <button
                 type="submit"
                 className="send-button"
-                disabled={!input.trim()}
+                disabled={!input.trim() || isSending}
             >
-                전송
+                {isSending ? "전송 중" : "전송"}
             </button>
         </form>
     );
