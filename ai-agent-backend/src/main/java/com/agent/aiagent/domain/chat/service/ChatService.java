@@ -11,14 +11,14 @@ public class ChatService {
 
     public ChatResponse chat(ChatRequest request) {
 
-        String responseMessage = String.format(
-                "\"%s\" 메시지를 Spring Boot에서 정상적으로 받았습니다.",
-                request.getMessage()
-        );
+//        String responseMessage = String.format(
+//                "\"%s\" 메시지를 Spring Boot에서 정상적으로 받았습니다.",
+//                request.getMessage()
+//        );
 
         log.info("ChatService 호출!!");
 
-        return new ChatResponse(responseMessage);
+        return new ChatResponse(null);
 
     }
 

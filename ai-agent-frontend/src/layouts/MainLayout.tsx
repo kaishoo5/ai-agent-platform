@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from "react-router-dom";
+import {NavLink, Outlet} from "react-router-dom";
+
+import ChatRoomList from "../components/chat/ChatRoomList";
 
 function MainLayout() {
     return (
@@ -11,17 +13,25 @@ function MainLayout() {
                 <nav className="sidebar-menu">
                     <NavLink
                         to="/"
-                        className={({ isActive }) =>
-                            isActive ? "menu-item active" : "menu-item"
+                        className={({isActive}) =>
+                            isActive
+                                ? "menu-item active"
+                                : "menu-item"
                         }
                     >
                         채팅
                     </NavLink>
 
+                    <div className="sidebar-chat-room-area">
+                        <ChatRoomList />
+                    </div>
+
                     <NavLink
                         to="/settings"
-                        className={({ isActive }) =>
-                            isActive ? "menu-item active" : "menu-item"
+                        className={({isActive}) =>
+                            isActive
+                                ? "menu-item active"
+                                : "menu-item"
                         }
                     >
                         설정

@@ -1,0 +1,31 @@
+services:
+  mariadb:
+    image: mariadb:lts
+    container_name: ai-agent-mariadb
+    restart: unless-stopped
+
+    ports:
+      - "3306:3306"
+
+    environment:
+      MARIADB_ROOT_PASSWORD: root1234
+      MARIADB_DATABASE: ai_agent
+      MARIADB_USER: ai_agent
+      MARIADB_PASSWORD: ai_agent1234
+
+    volumes:
+      - ai-agent-mariadb-data:/var/lib/mysql
+
+    healthcheck:
+      test: [
+        "CMD",
+        "healthcheck.sh",
+        "--connect",
+        "--innodb_initialized",
+      ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ai-agent-mariadb-data:

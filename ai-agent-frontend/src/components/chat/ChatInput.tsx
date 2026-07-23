@@ -1,11 +1,26 @@
-import {type ChangeEvent, type FormEvent, type KeyboardEvent, useState,} from "react";
+import {type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState,} from "react";
 
-import chatStreamService from "../../services/chatStreamService";
+import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
+import type {ChatMessage} from "../../types/chat";
 
 function ChatInput() {
     const [input, setInput] = useState("");
-    const [isSending, setIsSending] = useState(false);
+
+    const inputRef =
+        useRef<HTMLTextAreaElement | null>(null);
+
+    const refreshRooms = useChatStore(
+        (state) => state.refreshRooms,
+    );
+
+    const activeRoomId = useChatStore(
+        (state) => state.activeRoomId,
+    );
+
+    const createRoom = useChatStore(
+        (state) => state.createRoom,
+    );
 
     const addMessage = useChatStore(
         (state) => state.addMessage,
@@ -19,69 +34,196 @@ function ChatInput() {
         (state) => state.updateMessageContent,
     );
 
+    const setActiveRoom = useChatStore(
+        (state) => state.setActiveRoom,
+    );
+
+    const isGenerating = useChatStore(
+        (state) => state.isGenerating,
+    );
+
+    const startGenerating = useChatStore(
+        (state) => state.startGenerating,
+    );
+
+    const finishGenerating = useChatStore(
+        (state) => state.finishGenerating,
+    );
+
+    const stopGenerating = useChatStore(
+        (state) => state.stopGenerating,
+    );
+
+    useEffect(() => {
+        if (isGenerating) {
+            return;
+        }
+
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+        });
+    }, [
+        isGenerating,
+        activeRoomId,
+    ]);
+
     const handleChange = (
         event: ChangeEvent<HTMLTextAreaElement>,
     ) => {
         setInput(event.target.value);
     };
 
-    const sendMessage = async () => {
+    const sendMessage = async (): Promise<void> => {
         const trimmedInput = input.trim();
 
-        if (!trimmedInput || isSending) {
+        if (
+            !trimmedInput
+            || isGenerating
+        ) {
             return;
         }
 
-        const assistantMessageId = crypto.randomUUID();
+        let targetRoomId = activeRoomId;
 
-        addMessage({
+        if (!targetRoomId) {
+            targetRoomId = await createRoom();
+        }
+
+        const targetRoom = useChatStore
+            .getState()
+            .rooms
+            .find(
+                (room) =>
+                    room.id === targetRoomId,
+            );
+
+        const currentMessages =
+            targetRoom?.messages
+            ?? [];
+
+        const userMessage: ChatMessage = {
             id: crypto.randomUUID(),
+            roomId: targetRoomId,
             role: "USER",
             content: trimmedInput,
             createdAt: new Date().toISOString(),
-        });
+        };
 
-        addMessage({
-            id: assistantMessageId,
+        const assistantMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            roomId: targetRoomId,
             role: "ASSISTANT",
             content: "",
             createdAt: new Date().toISOString(),
-        });
+        };
+
+        const requestMessages: ChatMessage[] = [
+            ...currentMessages,
+            userMessage,
+        ];
+
+        addMessage(
+            targetRoomId,
+            userMessage,
+        );
+
+        addMessage(
+            targetRoomId,
+            assistantMessage,
+        );
 
         setInput("");
-        setIsSending(true);
+
+        const abortController =
+            new AbortController();
+
+        startGenerating(
+            abortController,
+        );
 
         try {
-            await chatStreamService.sendMessage(
-                {
-                    message: trimmedInput,
-                },
+            await streamChat(
+                targetRoomId,
+                requestMessages,
                 (chunk) => {
                     appendMessageContent(
-                        assistantMessageId,
+                        targetRoomId,
+                        assistantMessage.id,
                         chunk,
                     );
                 },
+                abortController.signal,
+            );
+
+            await refreshRooms();
+
+            await setActiveRoom(
+                targetRoomId,
             );
         } catch (error) {
+            if (
+                error instanceof DOMException
+                && error.name === "AbortError"
+            ) {
+                console.log(
+                    "사용자가 AI 응답 생성을 중지했습니다.",
+                );
+
+                const currentRoom = useChatStore
+                    .getState()
+                    .rooms
+                    .find(
+                        (room) =>
+                            room.id === targetRoomId,
+                    );
+
+                const currentAssistantMessage =
+                    currentRoom?.messages.find(
+                        (message) =>
+                            message.id
+                            === assistantMessage.id,
+                    );
+
+                if (
+                    !currentAssistantMessage
+                    || currentAssistantMessage
+                        .content
+                        .length === 0
+                ) {
+                    updateMessageContent(
+                        targetRoomId,
+                        assistantMessage.id,
+                        "응답이 중단되었습니다.",
+                    );
+                }
+
+                return;
+            }
+
             console.error(
-                "채팅 스트리밍 중 오류가 발생했습니다.",
+                "AI 응답 생성 중 오류가 발생했습니다.",
                 error,
             );
 
             updateMessageContent(
-                assistantMessageId,
-                "메시지 처리 중 오류가 발생했습니다.",
+                targetRoomId,
+                assistantMessage.id,
+                "응답 생성 중 오류가 발생했습니다.",
             );
         } finally {
-            setIsSending(false);
+            finishGenerating();
         }
+    };
+
+    const handleStop = (): void => {
+        stopGenerating();
     };
 
     const handleSubmit = (
         event: FormEvent<HTMLFormElement>,
     ) => {
         event.preventDefault();
+
         void sendMessage();
     };
 
@@ -93,6 +235,7 @@ function ChatInput() {
             && !event.shiftKey
         ) {
             event.preventDefault();
+
             void sendMessage();
         }
     };
@@ -103,26 +246,43 @@ function ChatInput() {
             onSubmit={handleSubmit}
         >
             <textarea
+                ref={inputRef}
                 className="chat-input"
                 value={input}
                 placeholder={
-                    isSending
+                    isGenerating
                         ? "AI가 응답 중입니다."
                         : "메시지를 입력하세요."
                 }
                 rows={1}
-                disabled={isSending}
+                disabled={isGenerating}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
             />
 
-            <button
-                type="submit"
-                className="send-button"
-                disabled={!input.trim() || isSending}
-            >
-                {isSending ? "응답 중" : "전송"}
-            </button>
+            {
+                isGenerating
+                    ? (
+                        <button
+                            type="button"
+                            className="stop-button"
+                            onClick={handleStop}
+                        >
+                            <span className="stop-button-icon" />
+
+                            중지
+                        </button>
+                    )
+                    : (
+                        <button
+                            type="submit"
+                            className="send-button"
+                            disabled={!input.trim()}
+                        >
+                            전송
+                        </button>
+                    )
+            }
         </form>
     );
 }

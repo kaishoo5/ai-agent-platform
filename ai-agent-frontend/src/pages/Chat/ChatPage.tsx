@@ -1,21 +1,25 @@
+import {useEffect} from "react";
+
 import ChatInput from "../../components/chat/ChatInput";
 import ChatMessageList from "../../components/chat/ChatMessageList";
+import {useChatStore} from "../../store/chatStore";
 
 function ChatPage() {
-    return (
-        <section className="page">
-            <header className="page-header">
-                <div>
-                    <h2>새 대화</h2>
-                    <p>AI Agent에게 궁금한 내용을 질문해보세요.</p>
-                </div>
-            </header>
+    const loadRooms = useChatStore(
+        (state) => state.loadRooms,
+    );
 
-            <div className="chat-container">
-                <ChatMessageList />
-                <ChatInput />
-            </div>
-        </section>
+    useEffect(() => {
+        void loadRooms();
+    }, [
+        loadRooms,
+    ]);
+
+    return (
+        <div className="chat-page">
+            <ChatMessageList />
+            <ChatInput />
+        </div>
     );
 }
 

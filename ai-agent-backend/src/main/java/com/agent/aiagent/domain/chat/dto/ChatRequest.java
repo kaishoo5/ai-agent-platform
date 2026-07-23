@@ -1,16 +1,23 @@
 package com.agent.aiagent.domain.chat.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
+
+import java.util.List;
 
 @Getter
-@Setter
 @NoArgsConstructor
 public class ChatRequest {
 
-    @NotBlank(message = "메시지는 필수입니다.")
-    private String message;
+    @NotBlank
+    private String roomId;
 
+    @Valid
+    @NotEmpty
+    private List<ChatMessageRequest> messages;
+
+    private boolean regenerate;
 }
