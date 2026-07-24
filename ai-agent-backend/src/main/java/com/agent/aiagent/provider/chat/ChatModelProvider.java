@@ -1,6 +1,5 @@
 package com.agent.aiagent.provider.chat;
 
-import com.agent.aiagent.infra.ollama.dto.OllamaChatResponse;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -12,7 +11,7 @@ public interface ChatModelProvider {
             List<ChatModelMessage> messages
     );
 
-    Flux<OllamaChatResponse> chat(
+    Flux<ChatModelResponse> chat(
             ChatModelType modelType,
             List<ChatModelMessage> messages
     );

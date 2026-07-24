@@ -5,6 +5,7 @@ import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatResponse;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelResponse;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,14 +32,16 @@ public class OllamaChatModelProvider
     }
 
     @Override
-    public Flux<OllamaChatResponse> chat(
+    public Flux<ChatModelResponse> chat(
             ChatModelType modelType,
             List<ChatModelMessage> messages
     ) {
-        return ollamaClient.chat(
-                resolveModel(modelType),
-                toOllamaMessages(messages)
-        );
+        return ollamaClient
+                .chat(
+                        resolveModel(modelType),
+                        toOllamaMessages(messages)
+                )
+                .map(this::toChatModelResponse);
     }
 
     private List<OllamaChatMessage> toOllamaMessages(
@@ -53,6 +56,23 @@ public class OllamaChatModelProvider
                         )
                 )
                 .toList();
+    }
+
+    private ChatModelResponse toChatModelResponse(
+            OllamaChatResponse response
+    ) {
+        String content = null;
+
+        if (response.getMessage() != null) {
+            content = response
+                    .getMessage()
+                    .getContent();
+        }
+
+        return new ChatModelResponse(
+                content,
+                response.isDone()
+        );
     }
 
     private String resolveModel(ChatModelType modelType) {

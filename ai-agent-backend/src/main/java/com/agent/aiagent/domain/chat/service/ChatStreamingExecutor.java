@@ -60,13 +60,8 @@ public class ChatStreamingExecutor {
                                 return;
                             }
 
-                            if (response.getMessage() == null) {
-                                return;
-                            }
-
-                            String chunk = response
-                                    .getMessage()
-                                    .getContent();
+                            String chunk =
+                                    response.content();
 
                             if (chunk == null || chunk.isEmpty()) {
                                 return;
@@ -84,7 +79,9 @@ public class ChatStreamingExecutor {
                                                         )
                                                 )
                                 );
-                            } catch (AsyncRequestNotUsableException exception) {
+                            } catch (
+                                    AsyncRequestNotUsableException exception
+                            ) {
                                 if (terminated.compareAndSet(false, true)) {
                                     saveInterruptedResponse(
                                             request,
@@ -121,7 +118,9 @@ public class ChatStreamingExecutor {
                                         exception
                                 );
 
-                                emitter.completeWithError(exception);
+                                emitter.completeWithError(
+                                        exception
+                                );
                             }
                         },
                         error -> {
