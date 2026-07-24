@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.rag.service;
 
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,7 @@ public class RagMultiQueryService {
 
     private static final int MAX_QUERY_COUNT = 3;
 
-    private final OllamaClient ollamaClient;
+    private final ChatModelProvider chatModelProvider;
 
     public List<String> generate(
             String searchQuestion
@@ -35,7 +36,7 @@ public class RagMultiQueryService {
 
         try {
             String response =
-                    ollamaClient.chatOnce(
+                    chatModelProvider.chatOnce(
                             OllamaClient.MODEL_TEXT,
                             messages
                     );
