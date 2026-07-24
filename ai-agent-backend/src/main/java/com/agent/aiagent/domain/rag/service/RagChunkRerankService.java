@@ -1,9 +1,9 @@
 package com.agent.aiagent.domain.rag.service;
 
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
-import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -64,7 +64,7 @@ public class RagChunkRerankService {
         try {
             String response =
                     chatModelProvider.chatOnce(
-                            OllamaClient.MODEL_TEXT,
+                            ChatModelType.TEXT,
                             messages
                     );
 

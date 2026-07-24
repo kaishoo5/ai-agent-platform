@@ -9,12 +9,12 @@ import java.util.List;
 public interface ChatModelProvider {
 
     String chatOnce(
-            String model,
+            ChatModelType modelType,
             List<OllamaChatMessage> messages
     );
 
     Flux<OllamaChatResponse> chat(
-            String model,
+            ChatModelType modelType,
             List<OllamaChatMessage> messages
     );
 }

@@ -4,6 +4,7 @@ import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatResponse;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -19,23 +20,30 @@ public class OllamaChatModelProvider
 
     @Override
     public String chatOnce(
-            String model,
+            ChatModelType modelType,
             List<OllamaChatMessage> messages
     ) {
         return ollamaClient.chatOnce(
-                model,
+                resolveModel(modelType),
                 messages
         );
     }
 
     @Override
     public Flux<OllamaChatResponse> chat(
-            String model,
+            ChatModelType modelType,
             List<OllamaChatMessage> messages
     ) {
         return ollamaClient.chat(
-                model,
+                resolveModel(modelType),
                 messages
         );
+    }
+
+    private String resolveModel(ChatModelType modelType) {
+        return switch (modelType) {
+            case TEXT -> OllamaClient.MODEL_TEXT;
+            case VISION -> OllamaClient.MODEL_VISION;
+        };
     }
 }

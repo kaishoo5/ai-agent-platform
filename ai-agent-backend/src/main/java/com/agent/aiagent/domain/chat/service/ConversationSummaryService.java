@@ -4,9 +4,9 @@ import com.agent.aiagent.domain.chat.entity.ChatMessage;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
-import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -257,7 +257,7 @@ public class ConversationSummaryService {
                 );
 
         return chatModelProvider.chatOnce(
-                        OllamaClient.MODEL_TEXT,
+                        ChatModelType.TEXT,
                         List.of(
                                 new OllamaChatMessage(
                                         SYSTEM_ROLE,

@@ -11,9 +11,9 @@ import com.agent.aiagent.domain.file.service.ChatFileService;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
 import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
 import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
-import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -80,7 +80,7 @@ public class ChatStreamService {
 
         Disposable disposable = chatModelProvider
                 .chat(
-                        ollamaRequestData.model(),
+                        ollamaRequestData.modelType(),
                         ollamaRequestData.messages()
                 )
                 .subscribe(
@@ -502,21 +502,21 @@ public class ChatStreamService {
                         encodedImages
                 );
 
-        String model =
+        ChatModelType modelType =
                 encodedImages.isEmpty()
-                        ? OllamaClient.MODEL_TEXT
-                        : OllamaClient.MODEL_VISION;
+                        ? ChatModelType.TEXT
+                        : ChatModelType.VISION;
 
         log.info(
-                "Ollama 요청 생성 완료. roomId={}, model={}, documentCount={}, imageCount={}",
+                "채팅 모델 요청 생성 완료. roomId={}, modelType={}, documentCount={}, imageCount={}",
                 request.getRoomId(),
-                model,
+                modelType,
                 documentFileIds.size(),
                 encodedImages.size()
         );
 
         return new OllamaRequestData(
-                model,
+                modelType,
                 messages
         );
     }
@@ -671,7 +671,7 @@ public class ChatStreamService {
     }
 
     private record OllamaRequestData(
-            String model,
+            ChatModelType modelType,
             List<OllamaChatMessage> messages
     ) {
     }
