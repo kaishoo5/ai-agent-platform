@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: use chat model provider in rag query rewrite">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagMultiQueryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagMultiQueryService.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: use chat model provider in rag multi query">
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagChunkRerankService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagChunkRerankService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -182,7 +181,8 @@
     <MESSAGE value="refactor: use embedding provider in file chunk search" />
     <MESSAGE value="refactor: use chat model provider in conversation summary" />
     <MESSAGE value="refactor: use chat model provider in rag query rewrite" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor: use chat model provider in rag query rewrite" />
+    <MESSAGE value="refactor: use chat model provider in rag multi query" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: use chat model provider in rag multi query" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

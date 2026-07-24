@@ -3,6 +3,7 @@ package com.agent.aiagent.domain.rag.service;
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ public class RagChunkRerankService {
     private static final Pattern NUMBER_PATTERN =
             Pattern.compile("\\d+");
 
-    private final OllamaClient ollamaClient;
+    private final ChatModelProvider chatModelProvider;
 
     public List<RetrievedChunk> rerank(
             String question,
@@ -62,7 +63,7 @@ public class RagChunkRerankService {
 
         try {
             String response =
-                    ollamaClient.chatOnce(
+                    chatModelProvider.chatOnce(
                             OllamaClient.MODEL_TEXT,
                             messages
                     );
