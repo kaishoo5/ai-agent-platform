@@ -13,6 +13,7 @@ import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
 import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -40,7 +41,7 @@ public class ChatStreamService {
     private static final String USER_ROLE = "user";
     private static final String ASSISTANT_ROLE = "assistant";
 
-    private final OllamaClient ollamaClient;
+    private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -77,7 +78,7 @@ public class ChatStreamService {
                         request
                 );
 
-        Disposable disposable = ollamaClient
+        Disposable disposable = chatModelProvider
                 .chat(
                         ollamaRequestData.model(),
                         ollamaRequestData.messages()
