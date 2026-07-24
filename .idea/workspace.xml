@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: replace ollama response dto with provider model">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagPromptBuilder.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: extract rag prompt builder">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/model/ChatAttachmentContext.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatAttachmentContextFactory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
     </list>
@@ -193,7 +194,8 @@
     <MESSAGE value="refactor: extract chat streaming executor" />
     <MESSAGE value="refactor: replace ollama message dto with provider model" />
     <MESSAGE value="refactor: replace ollama response dto with provider model" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor: replace ollama response dto with provider model" />
+    <MESSAGE value="refactor: extract rag prompt builder" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: extract rag prompt builder" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

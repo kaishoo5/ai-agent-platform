@@ -1,13 +1,10 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
-import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.chat.model.ChatAttachmentContext;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.file.service.ChatFileService;
-import com.agent.aiagent.domain.file.service.FilePromptBuilder;
-import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
 import com.agent.aiagent.domain.rag.service.RagPromptBuilder;
-import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import com.agent.aiagent.provider.chat.ChatModelType;
@@ -24,83 +21,45 @@ public class ChatModelRequestFactory {
 
     private static final String USER_ROLE = "user";
 
-    private final FilePromptBuilder filePromptBuilder;
-    private final RagQueryRewriteService ragQueryRewriteService;
-    private final RagMultiQueryService ragMultiQueryService;
     private final ChatFileService chatFileService;
     private final ChatFileRepository chatFileRepository;
     private final ConversationSummaryService conversationSummaryService;
     private final ChatImageEncoder chatImageEncoder;
     private final RagPromptBuilder ragPromptBuilder;
+    private final ChatAttachmentContextFactory chatAttachmentContextFactory;
 
     public ChatModelRequest create(
             ChatRequest request
     ) {
-        List<ChatFile> chatFiles =
-                findRequestFiles(
+        ChatAttachmentContext attachmentContext =
+                chatAttachmentContextFactory.create(
                         request
                 );
-
-        List<ChatFile> imageFiles =
-                chatFiles.stream()
-                        .filter(chatImageEncoder::isImage)
-                        .toList();
-
-        List<String> documentFileIds =
-                chatFiles.stream()
-                        .filter(file ->
-                                !chatImageEncoder.isImage(file)
-                        )
-                        .map(ChatFile::getId)
-                        .toList();
-
-        List<String> encodedImages =
-                imageFiles.stream()
-                        .map(chatImageEncoder::encode)
-                        .toList();
 
         List<ChatModelMessage> messages =
                 createMessages(
                         request.getRoomId(),
                         request.isRegenerate(),
-                        documentFileIds,
-                        encodedImages
+                        attachmentContext.documentFileIds(),
+                        attachmentContext.encodedImages()
                 );
 
         ChatModelType modelType =
-                encodedImages.isEmpty()
-                        ? ChatModelType.TEXT
-                        : ChatModelType.VISION;
+                attachmentContext.hasImages()
+                        ? ChatModelType.VISION
+                        : ChatModelType.TEXT;
 
         log.info(
                 "AI 요청 생성 완료. roomId={}, modelType={}, documentCount={}, imageCount={}",
                 request.getRoomId(),
                 modelType,
-                documentFileIds.size(),
-                encodedImages.size()
+                attachmentContext.documentFileIds().size(),
+                attachmentContext.encodedImages().size()
         );
 
         return new ChatModelRequest(
                 modelType,
                 messages
-        );
-    }
-
-    private List<ChatFile> findRequestFiles(
-            ChatRequest request
-    ) {
-        if (
-                request.getFileIds() == null
-                        || request.getFileIds().isEmpty()
-        ) {
-            return chatFileRepository.findAllByRoomIdOrderByCreatedAtAsc(
-                    request.getRoomId()
-            );
-        }
-
-        return chatFileService.findFiles(
-                request.getRoomId(),
-                request.getFileIds()
         );
     }
 
