@@ -3,7 +3,7 @@ package com.agent.aiagent.domain.file.service;
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
 import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
-import com.agent.aiagent.infra.ollama.OllamaClient;
+import com.agent.aiagent.provider.embedding.EmbeddingProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class EmbeddingFileChunkSearchService {
     private static final double MIN_EMBEDDING_SCORE = 0.43;
     private static final double MIN_KEYWORD_SCORE = 0.70;
     private final ChatFileChunkRepository chatFileChunkRepository;
-    private final OllamaClient ollamaClient;
+    private final EmbeddingProvider embeddingProvider;
     private final EmbeddingJsonConverter embeddingJsonConverter;
 
     public List<RetrievedChunk> search(
@@ -49,7 +49,7 @@ public class EmbeddingFileChunkSearchService {
         }
 
         List<List<Double>> questionEmbeddings =
-                ollamaClient.embed(
+                embeddingProvider.embed(
                         List.of(question)
                 );
 
