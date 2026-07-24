@@ -54,6 +54,7 @@ public class ChatFileService {
             );
 
     private final ChatFileRepository chatFileRepository;
+    private final ChatFileChunkService chatFileChunkService;
 
     @Value("${app.file.upload-dir}")
     private String uploadDirectory;
@@ -124,9 +125,15 @@ public class ChatFileService {
         ChatFile savedFile;
 
         try {
-            savedFile = chatFileRepository.save(
+            savedFile = chatFileRepository.saveAndFlush(
                     chatFile
             );
+
+            if (isExtractableDocument(savedFile.getExtension())) {
+                chatFileChunkService.saveChunks(
+                        savedFile
+                );
+            }
         } catch (RuntimeException exception) {
             deleteStoredFile(
                     targetPath
@@ -178,6 +185,30 @@ public class ChatFileService {
                             + extension
             );
         }
+    }
+
+    private boolean isExtractableDocument(
+            String extension
+    ) {
+        return Set.of(
+                "txt",
+                "md",
+                "java",
+                "js",
+                "ts",
+                "tsx",
+                "json",
+                "sql",
+                "xml",
+                "yaml",
+                "yml",
+                "properties",
+                "pdf",
+                "docx",
+                "xlsx"
+        ).contains(
+                extension
+        );
     }
 
     private String getExtension(

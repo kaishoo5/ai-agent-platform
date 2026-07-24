@@ -6,8 +6,11 @@ import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
 import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.file.service.ChatFileService;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
+import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
+import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +49,10 @@ public class ChatStreamService {
     private final ChatMessageRepository chatMessageRepository;
     private final TransactionTemplate transactionTemplate;
     private final FilePromptBuilder filePromptBuilder;
+    private final RagQueryRewriteService ragQueryRewriteService;
+    private final RagMultiQueryService ragMultiQueryService;
     private final ChatFileService chatFileService;
+    private final ChatFileRepository chatFileRepository;
 
     public SseEmitter stream(ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
@@ -517,7 +523,12 @@ public class ChatStreamService {
                 request.getFileIds() == null
                         || request.getFileIds().isEmpty()
         ) {
-            return List.of();
+            List<ChatFile> roomFiles =
+                    chatFileRepository.findAllByRoomIdOrderByCreatedAtAsc(
+                            request.getRoomId()
+                    );
+
+            return roomFiles;
         }
 
         return chatFileService.findFiles(
@@ -571,14 +582,25 @@ public class ChatStreamService {
             String content =
                     message.getContent();
 
-            log.info(content);
-
             if (!documentFileIds.isEmpty()) {
+                String searchQuestion =
+                        ragQueryRewriteService.rewrite(
+                                messages,
+                                content
+                        );
+
+                List<String> searchQuestions =
+                        ragMultiQueryService.generate(
+                                searchQuestion
+                        );
+
                 content =
                         filePromptBuilder.build(
                                 request.getRoomId(),
                                 documentFileIds,
-                                content
+                                content,
+                                searchQuestion,
+                                searchQuestions
                         );
             }
 

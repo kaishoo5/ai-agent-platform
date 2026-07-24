@@ -15,7 +15,8 @@ public class OllamaRequestBuilder {
 
     public OllamaChatRequest build(
             String model,
-            List<OllamaChatMessage> messages
+            List<OllamaChatMessage> messages,
+            boolean stream
     ) {
         int contextSize =
                 OllamaClient.MODEL_VISION.equals(model)
@@ -30,7 +31,18 @@ public class OllamaRequestBuilder {
                                 contextSize
                         )
                 )
-                .stream(true)
+                .stream(stream)
                 .build();
+    }
+
+    public OllamaChatRequest build(
+            String model,
+            List<OllamaChatMessage> messages
+    ) {
+        return build(
+                model,
+                messages,
+                true
+        );
     }
 }
