@@ -1,7 +1,7 @@
 package com.agent.aiagent.domain.chat.controller;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
-import com.agent.aiagent.domain.chat.service.ChatStreamService;
+import com.agent.aiagent.domain.chat.service.ChatOrchestrator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -16,7 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class ChatStreamController {
 
-    private final ChatStreamService chatStreamService;
+    private final ChatOrchestrator chatOrchestrator;
 
     @PostMapping(
             value = "/stream",
@@ -26,7 +26,7 @@ public class ChatStreamController {
     public SseEmitter stream(
             @Valid @RequestBody ChatRequest request
     ) {
-        return chatStreamService.stream(request);
+        return chatOrchestrator.stream(request);
     }
 
 }

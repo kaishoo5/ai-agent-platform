@@ -12,11 +12,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ChatStreamService {
+public class ChatOrchestrator {
 
-    private static final long SSE_TIMEOUT = 300_000L;
     private static final String USER_ROLE = "user";
-    private static final String ASSISTANT_ROLE = "assistant";
 
     private final ConversationSummaryService conversationSummaryService;
     private final ChatPersistenceService chatPersistenceService;

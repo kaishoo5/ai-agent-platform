@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: extract chat attachment context factory">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: extract chat message context factory">
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -170,7 +168,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: connect frontend and backend chat api" />
     <MESSAGE value="feat: add real-time streaming response with SSE" />
     <MESSAGE value="feat: connect Ollama with SSE streaming" />
     <MESSAGE value="feat: 복사 기능까지 완료" />
@@ -195,7 +192,8 @@
     <MESSAGE value="refactor: replace ollama response dto with provider model" />
     <MESSAGE value="refactor: extract rag prompt builder" />
     <MESSAGE value="refactor: extract chat attachment context factory" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor: extract chat attachment context factory" />
+    <MESSAGE value="refactor: extract chat message context factory" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: extract chat message context factory" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
