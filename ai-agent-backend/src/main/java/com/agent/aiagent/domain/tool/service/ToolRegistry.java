@@ -1,5 +1,6 @@
 package com.agent.aiagent.domain.tool.service;
 
+import com.agent.aiagent.domain.tool.model.ToolSpecification;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -47,6 +48,15 @@ public class ToolRegistry {
                 tools.size(),
                 tools.keySet()
         );
+    }
+
+    public List<ToolSpecification> getSpecifications() {
+        return tools.values()
+                .stream()
+                .map(
+                        AgentTool::getSpecification
+                )
+                .toList();
     }
 
     public List<AgentTool> getTools() {

@@ -1,7 +1,8 @@
 package com.agent.aiagent.domain.tool.service;
 
+import com.agent.aiagent.domain.tool.model.ToolParameter;
 import com.agent.aiagent.domain.tool.model.ToolResult;
-import lombok.extern.slf4j.Slf4j;
+import com.agent.aiagent.domain.tool.model.ToolSpecification;
 import org.springframework.stereotype.Component;
 
 import java.time.DateTimeException;
@@ -10,90 +11,90 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
-@Slf4j
 @Component
 public class CurrentTimeTool implements AgentTool {
 
-    private static final String DEFAULT_ZONE_ID =
-            "Asia/Seoul";
+    private static final String DEFAULT_ZONE_ID = "Asia/Seoul";
 
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+    private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern(
                     "yyyy-MM-dd HH:mm:ss z"
             );
 
-    @Override
-    public String getName() {
-        return "current_time";
-    }
+    private static final ToolSpecification SPECIFICATION =
+            new ToolSpecification(
+                    "current_time",
+                    "지정한 시간대의 현재 시간을 조회합니다.",
+                    Map.of(
+                            "zoneId",
+                            new ToolParameter(
+                                    "string",
+                                    "IANA 시간대 ID입니다. 예: Asia/Seoul",
+                                    false
+                            )
+                    )
+            );
 
     @Override
-    public String getDescription() {
-        return "지정한 시간대의 현재 날짜와 시간을 조회합니다. "
-                + "인자로 zoneId를 받을 수 있으며, 기본값은 Asia/Seoul입니다.";
+    public ToolSpecification getSpecification() {
+        return SPECIFICATION;
     }
 
     @Override
     public ToolResult execute(
             Map<String, Object> arguments
     ) {
-        String zoneId =
-                getZoneId(
+        String zoneIdValue =
+                getZoneIdValue(
                         arguments
                 );
 
         try {
+            ZoneId zoneId =
+                    ZoneId.of(
+                            zoneIdValue
+                    );
+
             ZonedDateTime currentTime =
                     ZonedDateTime.now(
-                            ZoneId.of(zoneId)
+                            zoneId
                     );
-
-            String formattedTime =
-                    currentTime.format(
-                            DATE_TIME_FORMATTER
-                    );
-
-            log.info(
-                    "현재 시간 Tool 실행 완료. zoneId={}, currentTime={}",
-                    zoneId,
-                    formattedTime
-            );
 
             return ToolResult.success(
-                    formattedTime
+                    currentTime.format(
+                            FORMATTER
+                    )
             );
         } catch (DateTimeException exception) {
-            log.warn(
-                    "유효하지 않은 시간대가 입력되었습니다. zoneId={}",
-                    zoneId
-            );
-
             return ToolResult.failure(
                     "유효하지 않은 시간대입니다: "
-                            + zoneId
+                            + zoneIdValue
             );
         }
     }
 
-    private String getZoneId(
+    private String getZoneIdValue(
             Map<String, Object> arguments
     ) {
-        if (
-                arguments == null
-                        || arguments.get("zoneId") == null
-        ) {
+        if (arguments == null) {
             return DEFAULT_ZONE_ID;
         }
 
-        String zoneId =
-                arguments.get("zoneId")
-                        .toString()
+        Object zoneId =
+                arguments.get(
+                        "zoneId"
+                );
+
+        if (zoneId == null) {
+            return DEFAULT_ZONE_ID;
+        }
+
+        String value =
+                zoneId.toString()
                         .trim();
 
-        if (zoneId.isEmpty()) {
-            return DEFAULT_ZONE_ID;
-        }
-
-        return zoneId;
+        return value.isBlank()
+                ? DEFAULT_ZONE_ID
+                : value;
     }
 }
