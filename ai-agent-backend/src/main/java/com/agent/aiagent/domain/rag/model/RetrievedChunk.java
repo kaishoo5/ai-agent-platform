@@ -1,4 +1,4 @@
-package com.agent.aiagent.domain.file.service;
+package com.agent.aiagent.domain.rag.model;
 
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
 

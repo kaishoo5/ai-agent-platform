@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.file.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
+import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.domain.rag.service.RagChunkRerankService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

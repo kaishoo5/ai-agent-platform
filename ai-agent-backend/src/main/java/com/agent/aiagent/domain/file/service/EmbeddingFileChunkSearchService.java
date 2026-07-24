@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.file.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
 import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
+import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

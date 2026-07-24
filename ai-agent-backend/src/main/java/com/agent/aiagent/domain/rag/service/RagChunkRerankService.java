@@ -1,6 +1,6 @@
 package com.agent.aiagent.domain.rag.service;
 
-import com.agent.aiagent.domain.file.service.RetrievedChunk;
+import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import lombok.RequiredArgsConstructor;
