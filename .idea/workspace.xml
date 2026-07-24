@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: replace ollama message dto with provider model">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelResponse.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: replace ollama response dto with provider model">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagPromptBuilder.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelProvider.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -194,7 +192,8 @@
     <MESSAGE value="refactor: extract chat model request factory" />
     <MESSAGE value="refactor: extract chat streaming executor" />
     <MESSAGE value="refactor: replace ollama message dto with provider model" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor: replace ollama message dto with provider model" />
+    <MESSAGE value="refactor: replace ollama response dto with provider model" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: replace ollama response dto with provider model" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

@@ -6,6 +6,7 @@ import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.file.service.ChatFileService;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
 import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
+import com.agent.aiagent.domain.rag.service.RagPromptBuilder;
 import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
@@ -30,6 +31,7 @@ public class ChatModelRequestFactory {
     private final ChatFileRepository chatFileRepository;
     private final ConversationSummaryService conversationSummaryService;
     private final ChatImageEncoder chatImageEncoder;
+    private final RagPromptBuilder ragPromptBuilder;
 
     public ChatModelRequest create(
             ChatRequest request
@@ -134,29 +136,12 @@ public class ChatModelRequestFactory {
             }
 
             String content =
-                    message.getContent();
-
-            if (!documentFileIds.isEmpty()) {
-                String searchQuestion =
-                        ragQueryRewriteService.rewrite(
-                                messages,
-                                content
-                        );
-
-                List<String> searchQuestions =
-                        ragMultiQueryService.generate(
-                                searchQuestion
-                        );
-
-                content =
-                        filePromptBuilder.build(
-                                roomId,
-                                documentFileIds,
-                                content,
-                                searchQuestion,
-                                searchQuestions
-                        );
-            }
+                    ragPromptBuilder.build(
+                            roomId,
+                            documentFileIds,
+                            messages,
+                            message.getContent()
+                    );
 
             List<String> images =
                     encodedImages.isEmpty()
