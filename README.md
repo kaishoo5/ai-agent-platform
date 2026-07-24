@@ -27,6 +27,6 @@
 - [x] Ollama 연동
 - [ ] Dify 연동
 - [x] Streaming
-- [ ] File Upload
-- [ ] RAG
+- [x] File Upload
+- [x] RAG
 - [ ] Tool Calling
