@@ -27,12 +27,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -53,6 +50,7 @@ public class ChatStreamService {
     private final RagMultiQueryService ragMultiQueryService;
     private final ChatFileService chatFileService;
     private final ChatFileRepository chatFileRepository;
+    private final ConversationSummaryService conversationSummaryService;
 
     public SseEmitter stream(ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
@@ -62,6 +60,11 @@ public class ChatStreamService {
         if (!request.isRegenerate()) {
             saveUserMessage(roomId, userContent);
         }
+
+        conversationSummaryService.refreshSummaryIfNeeded(
+                roomId,
+                request.isRegenerate()
+        );
 
         StringBuilder assistantContent = new StringBuilder();
 
@@ -492,7 +495,8 @@ public class ChatStreamService {
 
         List<OllamaChatMessage> messages =
                 createOllamaMessages(
-                        request,
+                        request.getRoomId(),
+                        request.isRegenerate(),
                         documentFileIds,
                         encodedImages
                 );
@@ -538,27 +542,16 @@ public class ChatStreamService {
     }
 
     private List<OllamaChatMessage> createOllamaMessages(
-            ChatRequest request,
+            String roomId,
+            boolean regenerate,
             List<String> documentFileIds,
             List<String> encodedImages
     ) {
         List<OllamaChatMessage> messages =
-                request.getMessages()
-                        .stream()
-                        .map(message ->
-                                new OllamaChatMessage(
-                                        message.getRole().toLowerCase(
-                                                Locale.ROOT
-                                        ),
-                                        message.getContent(),
-                                        null
-                                )
-                        )
-                        .collect(
-                                Collectors.toCollection(
-                                        ArrayList::new
-                                )
-                        );
+                conversationSummaryService.createConversationContext(
+                        roomId,
+                        regenerate
+                );
 
         if (
                 documentFileIds.isEmpty()
@@ -596,7 +589,7 @@ public class ChatStreamService {
 
                 content =
                         filePromptBuilder.build(
-                                request.getRoomId(),
+                                roomId,
                                 documentFileIds,
                                 content,
                                 searchQuestion,
@@ -620,6 +613,13 @@ public class ChatStreamService {
 
             break;
         }
+
+        log.info(
+                "대화 메모리 기반 Ollama 메시지 생성 완료. roomId={}, messageCount={}, regenerate={}",
+                roomId,
+                messages.size(),
+                regenerate
+        );
 
         return messages;
     }

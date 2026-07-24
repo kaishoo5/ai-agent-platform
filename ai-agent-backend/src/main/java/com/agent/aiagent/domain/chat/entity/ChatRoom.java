@@ -21,6 +21,12 @@ public class ChatRoom {
     @Column(name = "TITLE", length = 200, nullable = false)
     private String title;
 
+    @Column(name = "SUMMARY", columnDefinition = "LONGTEXT")
+    private String summary;
+
+    @Column(name = "SUMMARY_UPDATED_AT")
+    private LocalDateTime summaryUpdatedAt;
+
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -30,6 +36,13 @@ public class ChatRoom {
     public ChatRoom(String title) {
         this.id = UUID.randomUUID().toString();
         this.title = title;
+    }
+
+    public void updateSummary(
+            String summary
+    ) {
+        this.summary = summary;
+        this.summaryUpdatedAt = LocalDateTime.now();
     }
 
     public void updateTitle(String title) {
