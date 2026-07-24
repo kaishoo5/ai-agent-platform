@@ -1,6 +1,6 @@
 package com.agent.aiagent.domain.rag.service;
 
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class RagQueryRewriteService {
     private final ChatModelProvider chatModelProvider;
 
     public String rewrite(
-            List<OllamaChatMessage> messages,
+            List<ChatModelMessage> messages,
             String currentQuestion
     ) {
         if (!StringUtils.hasText(currentQuestion)) {
@@ -32,7 +32,7 @@ public class RagQueryRewriteService {
             return currentQuestion;
         }
 
-        List<OllamaChatMessage> rewriteMessages =
+        List<ChatModelMessage> rewriteMessages =
                 createRewriteMessages(
                         messages,
                         currentQuestion
@@ -72,15 +72,15 @@ public class RagQueryRewriteService {
         }
     }
 
-    private List<OllamaChatMessage> createRewriteMessages(
-            List<OllamaChatMessage> messages,
+    private List<ChatModelMessage> createRewriteMessages(
+            List<ChatModelMessage> messages,
             String currentQuestion
     ) {
-        List<OllamaChatMessage> rewriteMessages =
+        List<ChatModelMessage> rewriteMessages =
                 new ArrayList<>();
 
         rewriteMessages.add(
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "system",
                         """
                         당신은 RAG 문서 검색용 질문 재작성기입니다.
@@ -110,7 +110,7 @@ public class RagQueryRewriteService {
                 index < messages.size();
                 index++
         ) {
-            OllamaChatMessage message =
+            ChatModelMessage message =
                     messages.get(index);
 
             if (!StringUtils.hasText(message.getContent())) {
@@ -118,7 +118,7 @@ public class RagQueryRewriteService {
             }
 
             rewriteMessages.add(
-                    new OllamaChatMessage(
+                    new ChatModelMessage(
                             message.getRole(),
                             message.getContent(),
                             null
@@ -127,7 +127,7 @@ public class RagQueryRewriteService {
         }
 
         rewriteMessages.add(
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "user",
                         """
                         최신 사용자 질문을 문서 검색용 독립 질문으로 재작성하세요.

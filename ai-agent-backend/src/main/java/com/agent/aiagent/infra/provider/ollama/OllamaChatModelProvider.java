@@ -3,6 +3,7 @@ package com.agent.aiagent.infra.provider.ollama;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatResponse;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -21,23 +22,37 @@ public class OllamaChatModelProvider
     @Override
     public String chatOnce(
             ChatModelType modelType,
-            List<OllamaChatMessage> messages
+            List<ChatModelMessage> messages
     ) {
         return ollamaClient.chatOnce(
                 resolveModel(modelType),
-                messages
+                toOllamaMessages(messages)
         );
     }
 
     @Override
     public Flux<OllamaChatResponse> chat(
             ChatModelType modelType,
-            List<OllamaChatMessage> messages
+            List<ChatModelMessage> messages
     ) {
         return ollamaClient.chat(
                 resolveModel(modelType),
-                messages
+                toOllamaMessages(messages)
         );
+    }
+
+    private List<OllamaChatMessage> toOllamaMessages(
+            List<ChatModelMessage> messages
+    ) {
+        return messages.stream()
+                .map(message ->
+                        new OllamaChatMessage(
+                                message.getRole(),
+                                message.getContent(),
+                                message.getImages()
+                        )
+                )
+                .toList();
     }
 
     private String resolveModel(ChatModelType modelType) {

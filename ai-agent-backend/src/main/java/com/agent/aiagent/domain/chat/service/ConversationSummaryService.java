@@ -4,7 +4,7 @@ import com.agent.aiagent.domain.chat.entity.ChatMessage;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -84,7 +84,7 @@ public class ConversationSummaryService {
         }
     }
 
-    public List<OllamaChatMessage> createConversationContext(
+    public List<ChatModelMessage> createConversationContext(
             String roomId,
             boolean regenerate
     ) {
@@ -119,12 +119,12 @@ public class ConversationSummaryService {
                         chatMessages.size()
                 );
 
-        List<OllamaChatMessage> contextMessages =
+        List<ChatModelMessage> contextMessages =
                 new ArrayList<>();
 
         if (StringUtils.hasText(chatRoom.getSummary())) {
             contextMessages.add(
-                    new OllamaChatMessage(
+                    new ChatModelMessage(
                             SYSTEM_ROLE,
                             createSummaryMemoryPrompt(
                                     chatRoom.getSummary()
@@ -136,7 +136,7 @@ public class ConversationSummaryService {
 
         recentMessages.stream()
                 .map(chatMessage ->
-                        new OllamaChatMessage(
+                        new ChatModelMessage(
                                 chatMessage.getRole().toLowerCase(
                                         Locale.ROOT
                                 ),
@@ -259,7 +259,7 @@ public class ConversationSummaryService {
         return chatModelProvider.chatOnce(
                         ChatModelType.TEXT,
                         List.of(
-                                new OllamaChatMessage(
+                                new ChatModelMessage(
                                         SYSTEM_ROLE,
                                         """
                                         당신은 장기 대화를 압축하는 Conversation Memory 요약기입니다.
@@ -267,7 +267,7 @@ public class ConversationSummaryService {
                                         """,
                                         null
                                 ),
-                                new OllamaChatMessage(
+                                new ChatModelMessage(
                                         "user",
                                         prompt,
                                         null

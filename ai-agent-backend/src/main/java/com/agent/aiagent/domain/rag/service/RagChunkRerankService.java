@@ -1,7 +1,7 @@
 package com.agent.aiagent.domain.rag.service;
 
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +54,7 @@ public class RagChunkRerankService {
             );
         }
 
-        List<OllamaChatMessage> messages =
+        List<ChatModelMessage> messages =
                 createRerankMessages(
                         question,
                         candidates,
@@ -104,7 +104,7 @@ public class RagChunkRerankService {
         }
     }
 
-    private List<OllamaChatMessage> createRerankMessages(
+    private List<ChatModelMessage> createRerankMessages(
             String question,
             List<RetrievedChunk> candidates,
             int topK
@@ -180,7 +180,7 @@ public class RagChunkRerankService {
                 );
 
         return List.of(
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "system",
                         """
                         당신은 RAG 검색 결과 재정렬기입니다.
@@ -189,7 +189,7 @@ public class RagChunkRerankService {
                         """,
                         null
                 ),
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "user",
                         userPrompt,
                         null

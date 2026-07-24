@@ -7,7 +7,7 @@ import com.agent.aiagent.domain.file.service.ChatFileService;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
 import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
 import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +57,7 @@ public class ChatModelRequestFactory {
                         .map(chatImageEncoder::encode)
                         .toList();
 
-        List<OllamaChatMessage> messages =
+        List<ChatModelMessage> messages =
                 createMessages(
                         request.getRoomId(),
                         request.isRegenerate(),
@@ -102,13 +102,13 @@ public class ChatModelRequestFactory {
         );
     }
 
-    private List<OllamaChatMessage> createMessages(
+    private List<ChatModelMessage> createMessages(
             String roomId,
             boolean regenerate,
             List<String> documentFileIds,
             List<String> encodedImages
     ) {
-        List<OllamaChatMessage> messages =
+        List<ChatModelMessage> messages =
                 conversationSummaryService.createConversationContext(
                         roomId,
                         regenerate
@@ -126,7 +126,7 @@ public class ChatModelRequestFactory {
                 index >= 0;
                 index--
         ) {
-            OllamaChatMessage message =
+            ChatModelMessage message =
                     messages.get(index);
 
             if (!USER_ROLE.equalsIgnoreCase(message.getRole())) {
@@ -165,7 +165,7 @@ public class ChatModelRequestFactory {
 
             messages.set(
                     index,
-                    new OllamaChatMessage(
+                    new ChatModelMessage(
                             message.getRole(),
                             content,
                             images

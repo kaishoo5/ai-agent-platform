@@ -1,6 +1,6 @@
 package com.agent.aiagent.domain.rag.service;
 
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class RagMultiQueryService {
             return List.of();
         }
 
-        List<OllamaChatMessage> messages =
+        List<ChatModelMessage> messages =
                 createMultiQueryMessages(
                         searchQuestion
                 );
@@ -67,7 +67,7 @@ public class RagMultiQueryService {
         }
     }
 
-    private List<OllamaChatMessage> createMultiQueryMessages(
+    private List<ChatModelMessage> createMultiQueryMessages(
             String searchQuestion
     ) {
         String userPrompt =
@@ -95,7 +95,7 @@ public class RagMultiQueryService {
                 );
 
         return List.of(
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "system",
                         """
                         당신은 RAG 문서 검색용 Multi Query 생성기입니다.
@@ -104,7 +104,7 @@ public class RagMultiQueryService {
                         """,
                         null
                 ),
-                new OllamaChatMessage(
+                new ChatModelMessage(
                         "user",
                         userPrompt,
                         null
