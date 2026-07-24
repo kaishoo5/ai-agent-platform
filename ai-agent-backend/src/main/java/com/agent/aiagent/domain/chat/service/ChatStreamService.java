@@ -1,8 +1,6 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
-import com.agent.aiagent.domain.chat.entity.ChatMessage;
-import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
 import com.agent.aiagent.domain.file.entity.ChatFile;
@@ -50,6 +48,7 @@ public class ChatStreamService {
     private final ChatFileRepository chatFileRepository;
     private final ConversationSummaryService conversationSummaryService;
     private final ChatImageEncoder chatImageEncoder;
+    private final ChatPersistenceService chatPersistenceService;
 
     public SseEmitter stream(ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
@@ -57,7 +56,10 @@ public class ChatStreamService {
         String userContent = getLastUserMessageContent(request);
 
         if (!request.isRegenerate()) {
-            saveUserMessage(roomId, userContent);
+            chatPersistenceService.saveUserMessage(
+                    roomId,
+                    userContent
+            );
         }
 
         conversationSummaryService.refreshSummaryIfNeeded(
@@ -113,7 +115,7 @@ public class ChatStreamService {
                                 );
                             } catch (AsyncRequestNotUsableException exception) {
                                 if (terminated.compareAndSet(false, true)) {
-                                    saveInterruptedAssistantMessage(
+                                    chatPersistenceService.saveInterruptedAssistantMessage(
                                             request,
                                             roomId,
                                             assistantContent,
@@ -127,7 +129,7 @@ public class ChatStreamService {
                                 );
                             } catch (IOException exception) {
                                 if (terminated.compareAndSet(false, true)) {
-                                    saveInterruptedAssistantMessage(
+                                    chatPersistenceService.saveInterruptedAssistantMessage(
                                             request,
                                             roomId,
                                             assistantContent,
@@ -178,12 +180,12 @@ public class ChatStreamService {
                             try {
                                 if (responseSaved.compareAndSet(false, true)) {
                                     if (request.isRegenerate()) {
-                                        replaceLastAssistantMessage(
+                                        chatPersistenceService.replaceLastAssistantMessage(
                                                 roomId,
                                                 assistantContent.toString()
                                         );
                                     } else {
-                                        saveAssistantMessage(
+                                        chatPersistenceService.saveAssistantMessage(
                                                 roomId,
                                                 assistantContent.toString()
                                         );
@@ -230,7 +232,7 @@ public class ChatStreamService {
                     !completed.get()
                             && terminated.compareAndSet(false, true)
             ) {
-                saveInterruptedAssistantMessage(
+                chatPersistenceService.saveInterruptedAssistantMessage(
                         request,
                         roomId,
                         assistantContent,
@@ -245,7 +247,7 @@ public class ChatStreamService {
 
         emitter.onTimeout(() -> {
             if (terminated.compareAndSet(false, true)) {
-                saveInterruptedAssistantMessage(
+                chatPersistenceService.saveInterruptedAssistantMessage(
                         request,
                         roomId,
                         assistantContent,
@@ -269,7 +271,7 @@ public class ChatStreamService {
 
         emitter.onError(error -> {
             if (terminated.compareAndSet(false, true)) {
-                saveInterruptedAssistantMessage(
+                chatPersistenceService.saveInterruptedAssistantMessage(
                         request,
                         roomId,
                         assistantContent,
@@ -303,70 +305,6 @@ public class ChatStreamService {
         return emitter;
     }
 
-    private void replaceLastAssistantMessage(
-            String roomId,
-            String content
-    ) {
-        if (content == null || content.isBlank()) {
-            log.warn(
-                    "교체할 AI 응답이 비어 있습니다. roomId={}",
-                    roomId
-            );
-
-            return;
-        }
-
-        transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
-
-            chatMessageRepository
-                    .findFirstByRoomIdAndRoleOrderByCreatedAtDesc(
-                            roomId,
-                            ASSISTANT_ROLE
-                    )
-                    .ifPresent(chatMessageRepository::delete);
-
-            ChatMessage newAssistantMessage = new ChatMessage(
-                    chatRoom,
-                    ASSISTANT_ROLE,
-                    content
-            );
-
-            chatMessageRepository.save(newAssistantMessage);
-            chatRoom.touch();
-        });
-    }
-
-    private void saveInterruptedAssistantMessage(
-            ChatRequest request,
-            String roomId,
-            StringBuilder assistantContent,
-            AtomicBoolean responseSaved
-    ) {
-        if (request.isRegenerate()) {
-            return;
-        }
-
-        if (!responseSaved.compareAndSet(false, true)) {
-            return;
-        }
-
-        String content = assistantContent.length() > 0
-                ? assistantContent.toString()
-                : "응답이 중단되었습니다.";
-
-        saveAssistantMessage(
-                roomId,
-                content
-        );
-
-        log.info(
-                "중단된 AI 응답을 저장했습니다. roomId={}, contentLength={}",
-                roomId,
-                content.length()
-        );
-    }
-
     private String getLastUserMessageContent(ChatRequest request) {
         return request.getMessages()
                 .stream()
@@ -379,90 +317,6 @@ public class ChatStreamService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "사용자 메시지가 없습니다."
-                ));
-    }
-
-    private void saveUserMessage(
-            String roomId,
-            String content
-    ) {
-        transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
-
-            boolean isFirstUserMessage =
-                    !chatMessageRepository.existsByRoomIdAndRole(
-                            roomId,
-                            USER_ROLE
-                    );
-
-            ChatMessage chatMessage = new ChatMessage(
-                    chatRoom,
-                    USER_ROLE,
-                    content
-            );
-
-            chatMessageRepository.save(chatMessage);
-
-            if (
-                    isFirstUserMessage
-                            && "새 채팅".equals(chatRoom.getTitle())
-            ) {
-                chatRoom.changeTitle(
-                        createRoomTitle(content)
-                );
-            }
-
-            chatRoom.touch();
-        });
-    }
-
-    private String createRoomTitle(
-            String content
-    ) {
-        String normalizedContent = content
-                .replaceAll("\\s+", " ")
-                .trim();
-
-        if (normalizedContent.length() <= 25) {
-            return normalizedContent;
-        }
-
-        return normalizedContent.substring(0, 25) + "...";
-    }
-
-    private void saveAssistantMessage(
-            String roomId,
-            String content
-    ) {
-        if (content == null || content.isBlank()) {
-            log.warn(
-                    "저장할 AI 응답이 비어 있습니다. roomId={}",
-                    roomId
-            );
-
-            return;
-        }
-
-        transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
-
-            ChatMessage chatMessage = new ChatMessage(
-                    chatRoom,
-                    ASSISTANT_ROLE,
-                    content
-            );
-
-            chatMessageRepository.save(chatMessage);
-            chatRoom.touch();
-        });
-    }
-
-    private ChatRoom findRoom(String roomId) {
-        return chatRoomRepository
-                .findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "채팅방을 찾을 수 없습니다."
                 ));
     }
 
