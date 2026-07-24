@@ -13,6 +13,8 @@ public class OllamaChatRequest {
 
     private List<OllamaChatMessage> messages;
 
+    private OllamaChatOptions options;
+
     private boolean stream;
 
 }

@@ -66,3 +66,79 @@ export async function deleteChatRoom(
         `/rooms/${roomId}`,
     );
 }
+
+export interface ChatFileUploadResponse {
+    id: string;
+    roomId: string;
+    originalName: string;
+    contentType: string | null;
+    extension: string;
+    size: number;
+}
+
+export async function uploadChatFile(
+    roomId: string,
+    file: File,
+): Promise<ChatFileUploadResponse> {
+    const formData = new FormData();
+
+    formData.append(
+        "roomId",
+        roomId,
+    );
+
+    formData.append(
+        "file",
+        file,
+    );
+
+    const response = await axios.post<ChatFileUploadResponse>(
+        "http://localhost:8080/api/files",
+        formData,
+    );
+
+    return response.data;
+}
+
+export interface ChatFileResponse {
+    id: string;
+    roomId: string;
+    originalName: string;
+    contentType: string | null;
+    extension: string;
+    size: number;
+    status: string;
+    createdAt: string;
+}
+
+export async function getChatFiles(
+    roomId: string,
+): Promise<ChatFileResponse[]> {
+
+    const response =
+        await axios.get<ChatFileResponse[]>(
+            "http://localhost:8080/api/files",
+            {
+                params: {
+                    roomId,
+                },
+            },
+        );
+
+    return response.data;
+}
+
+export async function deleteChatFile(
+    roomId: string,
+    fileId: string,
+): Promise<void> {
+
+    await axios.delete(
+        `http://localhost:8080/api/files/${fileId}`,
+        {
+            params: {
+                roomId,
+            },
+        },
+    );
+}

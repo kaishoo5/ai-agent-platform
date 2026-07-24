@@ -4,17 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class OllamaChatMessage {
+public class OllamaChatOptions {
 
-    private String role;
-
-    private String content;
-
-    private List<String> images;
-
+    private int num_ctx;
 }

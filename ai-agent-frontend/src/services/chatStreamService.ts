@@ -9,6 +9,7 @@ interface ChatStreamRequest {
     roomId: string;
     messages: ChatStreamRequestMessage[];
     regenerate: boolean;
+    fileIds: string[];
 }
 
 function convertRole(
@@ -27,6 +28,7 @@ export async function streamChat(
     ) => void,
     signal?: AbortSignal,
     regenerate = false,
+    fileIds: string[] = [],
 ): Promise<void> {
     const request: ChatStreamRequest = {
         roomId,
@@ -35,6 +37,7 @@ export async function streamChat(
             content: message.content,
         })),
         regenerate,
+        fileIds,
     };
 
     const response = await fetch(

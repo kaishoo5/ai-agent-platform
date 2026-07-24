@@ -20,6 +20,7 @@ export interface ChatRoom {
     createdAt: string;
     updatedAt: string;
     messages: ChatMessage[];
+    files: ChatFile[];
 }
 
 export interface ChatRoomResponse {
@@ -47,4 +48,15 @@ export interface ChatStreamRequest {
         role: MessageRole;
         content: string;
     }>;
+}
+
+export interface ChatFile {
+    id: string;
+    roomId: string;
+    originalName: string;
+    contentType: string | null;
+    extension: string;
+    size: number;
+    status: string;
+    createdAt: string;
 }

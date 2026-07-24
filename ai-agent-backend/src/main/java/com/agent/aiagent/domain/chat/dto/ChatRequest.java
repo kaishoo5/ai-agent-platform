@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -20,4 +21,6 @@ public class ChatRequest {
     private List<ChatMessageRequest> messages;
 
     private boolean regenerate;
+
+    private List<String> fileIds = new ArrayList<>();
 }

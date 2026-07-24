@@ -1,0 +1,21 @@
+AI Agent Test Document
+
+Project: AI Document Analyzer
+
+Main Features
+- TXT and PDF upload
+- Multi-file analysis
+- Streaming response (SSE)
+- Ollama qwen3:4b
+- Spring Boot + React
+
+Development Schedule
+- 2026-07-24 : FilePromptBuilder
+- 2026-07-25 : PDF support
+- 2026-07-28 : Multi-document analysis
+- 2026-08-01 : DOCX support planned
+
+Questions
+1. Summarize the project.
+2. List the development schedule.
+3. Which file format is planned next?

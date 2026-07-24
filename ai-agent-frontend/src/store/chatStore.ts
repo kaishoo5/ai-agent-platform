@@ -1,7 +1,14 @@
 import {create} from "zustand";
 
-import {createChatRoom, deleteChatRoom, getChatRoomMessages, getChatRooms,} from "../api/chatApi";
-import type {ChatMessage, ChatRoom,} from "../types/chat";
+import {
+    createChatRoom,
+    deleteChatFile,
+    deleteChatRoom,
+    getChatFiles,
+    getChatRoomMessages,
+    getChatRooms,
+} from "../api/chatApi";
+import type {ChatFile, ChatMessage, ChatRoom,} from "../types/chat";
 
 interface ChatStore {
     rooms: ChatRoom[];
@@ -53,6 +60,26 @@ interface ChatStore {
         roomId: string,
         messages: ChatMessage[],
     ) => void;
+
+    replaceFiles: (
+        roomId: string,
+        files: ChatFile[],
+    ) => void;
+
+    addFile: (
+        roomId: string,
+        file: ChatFile,
+    ) => void;
+
+    removeFile: (
+        roomId: string,
+        fileId: string,
+    ) => void;
+
+    deleteFile: (
+        roomId: string,
+        fileId: string,
+    ) => Promise<void>;
 
     clearMessages: (
         roomId: string,
@@ -127,6 +154,7 @@ export const useChatStore = create<ChatStore>((
                 (room) => ({
                     ...room,
                     messages: [],
+                    files: [],
                 }),
             );
 
@@ -182,6 +210,7 @@ export const useChatStore = create<ChatStore>((
                     return {
                         ...roomResponse,
                         messages: existingRoom?.messages ?? [],
+                        files: existingRoom?.files ?? [],
                     };
                 }),
             }));
@@ -217,6 +246,7 @@ export const useChatStore = create<ChatStore>((
         const room: ChatRoom = {
             ...roomResponse,
             messages: [],
+            files: [],
         };
 
         set((state) => ({
@@ -246,17 +276,30 @@ export const useChatStore = create<ChatStore>((
         });
 
         try {
-            const messages = await getChatRoomMessages(
-                roomId,
-            );
+            const [
+                messages,
+                files,
+            ] = await Promise.all([
+                getChatRoomMessages(
+                    roomId,
+                ),
+                getChatFiles(
+                    roomId,
+                ),
+            ]);
 
             get().replaceMessages(
                 roomId,
                 messages,
             );
+
+            get().replaceFiles(
+                roomId,
+                files,
+            );
         } catch (error) {
             console.error(
-                "채팅 메시지를 불러오는 중 오류가 발생했습니다.",
+                "채팅방 데이터를 불러오는 중 오류가 발생했습니다.",
                 error,
             );
         }
@@ -355,6 +398,99 @@ export const useChatStore = create<ChatStore>((
                 };
             }),
         }));
+    },
+
+    replaceFiles: (
+        roomId,
+        files,
+    ) => {
+        set((state) => ({
+            rooms: state.rooms.map((room) => {
+                if (room.id !== roomId) {
+                    return room;
+                }
+
+                return {
+                    ...room,
+                    files,
+                };
+            }),
+        }));
+    },
+
+    addFile: (
+        roomId,
+        file,
+    ) => {
+        set((state) => ({
+            rooms: state.rooms.map((room) => {
+                if (room.id !== roomId) {
+                    return room;
+                }
+
+                const fileExists = room.files.some(
+                    (currentFile) =>
+                        currentFile.id === file.id,
+                );
+
+                if (fileExists) {
+                    return room;
+                }
+
+                return {
+                    ...room,
+                    files: [
+                        ...room.files,
+                        file,
+                    ],
+                };
+            }),
+        }));
+    },
+
+    removeFile: (
+        roomId,
+        fileId,
+    ) => {
+        set((state) => ({
+            rooms: state.rooms.map((room) => {
+                if (room.id !== roomId) {
+                    return room;
+                }
+
+                return {
+                    ...room,
+                    files: room.files.filter(
+                        (file) =>
+                            file.id !== fileId,
+                    ),
+                };
+            }),
+        }));
+    },
+
+    deleteFile: async (
+        roomId,
+        fileId,
+    ) => {
+        try {
+            await deleteChatFile(
+                roomId,
+                fileId,
+            );
+
+            get().removeFile(
+                roomId,
+                fileId,
+            );
+        } catch (error) {
+            console.error(
+                "파일 삭제 중 오류가 발생했습니다.",
+                error,
+            );
+
+            throw error;
+        }
     },
 
     clearMessages: (
