@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: extract chat image encoder">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatPersistenceService.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: extract chat persistence service">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelRequest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamService.java" afterDir="false" />
     </list>
@@ -188,7 +189,8 @@
     <MESSAGE value="refactor: use chat model provider in chat streaming" />
     <MESSAGE value="refactor: hide ollama model selection behind provider" />
     <MESSAGE value="refactor: extract chat image encoder" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactor: extract chat image encoder" />
+    <MESSAGE value="refactor: extract chat persistence service" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: extract chat persistence service" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

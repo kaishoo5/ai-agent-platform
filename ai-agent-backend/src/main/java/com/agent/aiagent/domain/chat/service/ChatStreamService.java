@@ -3,15 +3,13 @@ package com.agent.aiagent.domain.chat.service;
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
-import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.file.service.ChatFileService;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
 import com.agent.aiagent.domain.rag.service.RagMultiQueryService;
 import com.agent.aiagent.domain.rag.service.RagQueryRewriteService;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
-import com.agent.aiagent.provider.chat.ChatModelType;
+import com.agent.aiagent.provider.chat.ChatModelRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,7 +22,6 @@ import reactor.core.Disposable;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -49,6 +46,7 @@ public class ChatStreamService {
     private final ConversationSummaryService conversationSummaryService;
     private final ChatImageEncoder chatImageEncoder;
     private final ChatPersistenceService chatPersistenceService;
+    private final ChatModelRequestFactory chatModelRequestFactory;
 
     public SseEmitter stream(ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
@@ -73,15 +71,15 @@ public class ChatStreamService {
         AtomicBoolean terminated = new AtomicBoolean(false);
         AtomicBoolean responseSaved = new AtomicBoolean(false);
 
-        OllamaRequestData ollamaRequestData =
-                createOllamaRequestData(
+        ChatModelRequest chatModelRequest =
+                chatModelRequestFactory.create(
                         request
                 );
 
         Disposable disposable = chatModelProvider
                 .chat(
-                        ollamaRequestData.modelType(),
-                        ollamaRequestData.messages()
+                        chatModelRequest.modelType(),
+                        chatModelRequest.messages()
                 )
                 .subscribe(
                         response -> {
@@ -320,166 +318,4 @@ public class ChatStreamService {
                 ));
     }
 
-    private OllamaRequestData createOllamaRequestData(
-            ChatRequest request
-    ) {
-        List<ChatFile> chatFiles =
-                findRequestFiles(
-                        request
-                );
-
-        List<ChatFile> imageFiles =
-                chatFiles.stream()
-                        .filter(chatImageEncoder::isImage)
-                        .toList();
-
-        List<String> documentFileIds =
-                chatFiles.stream()
-                        .filter(file ->
-                                !chatImageEncoder.isImage(file)
-                        )
-                        .map(ChatFile::getId)
-                        .toList();
-
-        List<String> encodedImages =
-                imageFiles.stream()
-                        .map(chatImageEncoder::encode)
-                        .toList();
-
-        List<OllamaChatMessage> messages =
-                createOllamaMessages(
-                        request.getRoomId(),
-                        request.isRegenerate(),
-                        documentFileIds,
-                        encodedImages
-                );
-
-        ChatModelType modelType =
-                encodedImages.isEmpty()
-                        ? ChatModelType.TEXT
-                        : ChatModelType.VISION;
-
-        log.info(
-                "채팅 모델 요청 생성 완료. roomId={}, modelType={}, documentCount={}, imageCount={}",
-                request.getRoomId(),
-                modelType,
-                documentFileIds.size(),
-                encodedImages.size()
-        );
-
-        return new OllamaRequestData(
-                modelType,
-                messages
-        );
-    }
-
-    private List<ChatFile> findRequestFiles(
-            ChatRequest request
-    ) {
-        if (
-                request.getFileIds() == null
-                        || request.getFileIds().isEmpty()
-        ) {
-            List<ChatFile> roomFiles =
-                    chatFileRepository.findAllByRoomIdOrderByCreatedAtAsc(
-                            request.getRoomId()
-                    );
-
-            return roomFiles;
-        }
-
-        return chatFileService.findFiles(
-                request.getRoomId(),
-                request.getFileIds()
-        );
-    }
-
-    private List<OllamaChatMessage> createOllamaMessages(
-            String roomId,
-            boolean regenerate,
-            List<String> documentFileIds,
-            List<String> encodedImages
-    ) {
-        List<OllamaChatMessage> messages =
-                conversationSummaryService.createConversationContext(
-                        roomId,
-                        regenerate
-                );
-
-        if (
-                documentFileIds.isEmpty()
-                        && encodedImages.isEmpty()
-        ) {
-            return messages;
-        }
-
-        for (
-                int index = messages.size() - 1;
-                index >= 0;
-                index--
-        ) {
-            OllamaChatMessage message =
-                    messages.get(index);
-
-            if (!USER_ROLE.equalsIgnoreCase(message.getRole())) {
-                continue;
-            }
-
-            String content =
-                    message.getContent();
-
-            if (!documentFileIds.isEmpty()) {
-                String searchQuestion =
-                        ragQueryRewriteService.rewrite(
-                                messages,
-                                content
-                        );
-
-                List<String> searchQuestions =
-                        ragMultiQueryService.generate(
-                                searchQuestion
-                        );
-
-                content =
-                        filePromptBuilder.build(
-                                roomId,
-                                documentFileIds,
-                                content,
-                                searchQuestion,
-                                searchQuestions
-                        );
-            }
-
-            List<String> images =
-                    encodedImages.isEmpty()
-                            ? null
-                            : encodedImages;
-
-            messages.set(
-                    index,
-                    new OllamaChatMessage(
-                            message.getRole(),
-                            content,
-                            images
-                    )
-            );
-
-            break;
-        }
-
-        log.info(
-                "대화 메모리 기반 Ollama 메시지 생성 완료. roomId={}, messageCount={}, regenerate={}",
-                roomId,
-                messages.size(),
-                regenerate
-        );
-
-        return messages;
-    }
-
-    private record OllamaRequestData(
-            ChatModelType modelType,
-            List<OllamaChatMessage> messages
-    ) {
-    }
 }
