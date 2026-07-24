@@ -6,6 +6,7 @@ import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class ConversationSummaryService {
     private static final String SYSTEM_ROLE = "system";
     private static final String ASSISTANT_ROLE = "assistant";
 
-    private final OllamaClient ollamaClient;
+    private final ChatModelProvider chatModelProvider;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final TransactionTemplate transactionTemplate;
@@ -255,7 +256,7 @@ public class ConversationSummaryService {
                         )
                 );
 
-        return ollamaClient.chatOnce(
+        return chatModelProvider.chatOnce(
                         OllamaClient.MODEL_TEXT,
                         List.of(
                                 new OllamaChatMessage(
