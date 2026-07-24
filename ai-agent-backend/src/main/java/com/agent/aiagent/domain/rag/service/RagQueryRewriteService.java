@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.rag.service;
 
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.provider.chat.ChatModelProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public class RagQueryRewriteService {
 
     private static final int MAX_HISTORY_COUNT = 6;
 
-    private final OllamaClient ollamaClient;
+    private final ChatModelProvider chatModelProvider;
 
     public String rewrite(
             List<OllamaChatMessage> messages,
@@ -39,7 +40,7 @@ public class RagQueryRewriteService {
 
         try {
             String rewrittenQuestion =
-                    ollamaClient.chatOnce(
+                    chatModelProvider.chatOnce(
                             OllamaClient.MODEL_TEXT,
                             rewriteMessages
                     );
