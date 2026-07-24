@@ -51,8 +51,7 @@ public class ChatStreamingExecutor {
 
         Disposable disposable = chatModelProvider
                 .chat(
-                        chatModelRequest.modelType(),
-                        chatModelRequest.messages()
+                        chatModelRequest
                 )
                 .subscribe(
                         response -> {

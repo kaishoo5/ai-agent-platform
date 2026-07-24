@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.rag.service;
 
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelRequest;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +42,12 @@ public class RagQueryRewriteService {
         try {
             String rewrittenQuestion =
                     chatModelProvider.chatOnce(
-                            ChatModelType.TEXT,
-                            rewriteMessages
-                    );
+                            new ChatModelRequest(
+                                    ChatModelType.TEXT,
+                                    rewriteMessages,
+                                    List.of()
+                            )
+                    ).content();
 
             if (!StringUtils.hasText(rewrittenQuestion)) {
                 return currentQuestion;

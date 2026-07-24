@@ -1,6 +1,6 @@
 package com.agent.aiagent.infra.ollama;
 
-import com.agent.aiagent.infra.ollama.dto.*;
+import com.agent.aiagent.infra.provider.ollama.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -30,11 +30,23 @@ public class OllamaClient {
             String model,
             List<OllamaChatMessage> messages
     ) {
+        return chat(
+                model,
+                messages,
+                List.of()
+        );
+    }
 
+    public Flux<OllamaChatResponse> chat(
+            String model,
+            List<OllamaChatMessage> messages,
+            List<OllamaTool> tools
+    ) {
         OllamaChatRequest request =
                 OllamaRequestBuilder.build(
                         model,
-                        messages
+                        messages,
+                        tools
                 );
 
         return ollamaWebClient.post()
@@ -118,14 +130,27 @@ public class OllamaClient {
         return response.getEmbeddings();
     }
 
-    public String chatOnce(
+    public OllamaChatResponse chatOnce(
             String model,
             List<OllamaChatMessage> messages
+    ) {
+        return chatOnce(
+                model,
+                messages,
+                List.of()
+        );
+    }
+
+    public OllamaChatResponse chatOnce(
+            String model,
+            List<OllamaChatMessage> messages,
+            List<OllamaTool> tools
     ) {
         OllamaChatRequest request =
                 OllamaRequestBuilder.build(
                         model,
                         messages,
+                        tools,
                         false
                 );
 
@@ -136,20 +161,38 @@ public class OllamaClient {
                         .accept(MediaType.APPLICATION_JSON)
                         .bodyValue(request)
                         .retrieve()
-                        .bodyToMono(OllamaChatResponse.class)
+                        .onStatus(
+                                status -> status.isError(),
+                                clientResponse ->
+                                        clientResponse.bodyToMono(
+                                                        String.class
+                                                )
+                                                .defaultIfEmpty("")
+                                                .flatMap(errorBody -> {
+                                                    log.error(
+                                                            "Ollama chat 호출 실패. status={}, model={}, body={}",
+                                                            clientResponse.statusCode(),
+                                                            model,
+                                                            errorBody
+                                                    );
+
+                                                    return clientResponse.createException();
+                                                })
+                        )
+                        .bodyToMono(
+                                OllamaChatResponse.class
+                        )
                         .block();
 
         if (
                 response == null
                         || response.getMessage() == null
-                        || response.getMessage().getContent() == null
         ) {
             throw new IllegalStateException(
                     "Ollama chat 응답이 비어 있습니다."
             );
         }
 
-        return response.getMessage().getContent();
+        return response;
     }
-
 }

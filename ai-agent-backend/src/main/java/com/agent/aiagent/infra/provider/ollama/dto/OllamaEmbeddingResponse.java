@@ -1,4 +1,4 @@
-package com.agent.aiagent.infra.ollama.dto;
+package com.agent.aiagent.infra.provider.ollama.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -6,6 +6,7 @@ import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
+import com.agent.aiagent.provider.chat.ChatModelRequest;
 import com.agent.aiagent.provider.chat.ChatModelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -257,24 +258,26 @@ public class ConversationSummaryService {
                 );
 
         return chatModelProvider.chatOnce(
-                        ChatModelType.TEXT,
-                        List.of(
-                                new ChatModelMessage(
-                                        SYSTEM_ROLE,
-                                        """
-                                        당신은 장기 대화를 압축하는 Conversation Memory 요약기입니다.
-                                        기존 기억과 새로운 대화를 병합하여 중요한 사실과 진행 상황을 보존합니다.
-                                        """,
-                                        null
+                        new ChatModelRequest(
+                                ChatModelType.TEXT,
+                                List.of(
+                                        new ChatModelMessage(
+                                                SYSTEM_ROLE,
+                                                """
+                                                당신은 장기 대화를 압축하는 Conversation Memory 요약기입니다.
+                                                기존 기억과 새로운 대화를 병합하여 중요한 사실과 진행 상황을 보존합니다.
+                                                """,
+                                                null
+                                        ),
+                                        new ChatModelMessage(
+                                                "user",
+                                                prompt,
+                                                null
+                                        )
                                 ),
-                                new ChatModelMessage(
-                                        "user",
-                                        prompt,
-                                        null
-                                )
+                                List.of()
                         )
-                )
-                .trim();
+                ).content();
     }
 
     private String buildConversationText(

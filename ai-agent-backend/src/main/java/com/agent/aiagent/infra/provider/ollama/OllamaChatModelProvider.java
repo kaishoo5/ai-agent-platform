@@ -1,12 +1,10 @@
 package com.agent.aiagent.infra.provider.ollama;
 
 import com.agent.aiagent.infra.ollama.OllamaClient;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatResponse;
-import com.agent.aiagent.provider.chat.ChatModelMessage;
-import com.agent.aiagent.provider.chat.ChatModelProvider;
-import com.agent.aiagent.provider.chat.ChatModelResponse;
-import com.agent.aiagent.provider.chat.ChatModelType;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatResponse;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaTool;
+import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -19,29 +17,50 @@ public class OllamaChatModelProvider
         implements ChatModelProvider {
 
     private final OllamaClient ollamaClient;
+    private final OllamaToolMapper ollamaToolMapper;
 
     @Override
-    public String chatOnce(
-            ChatModelType modelType,
-            List<ChatModelMessage> messages
+    public ChatModelResponse chatOnce(
+            ChatModelRequest request
     ) {
-        return ollamaClient.chatOnce(
-                resolveModel(modelType),
-                toOllamaMessages(messages)
+        OllamaChatResponse response =
+                ollamaClient.chatOnce(
+                        resolveModel(request.modelType()),
+                        toOllamaMessages(request.messages()),
+                        request.tools()
+                                .stream()
+                                .map(ollamaToolMapper::map)
+                                .toList()
+                );
+
+        return new ChatModelResponse(
+                response.getMessage() == null
+                        ? ""
+                        : response.getMessage().getContent(),
+                response.isDone(),
+                toChatModelToolCalls(response)
         );
     }
 
     @Override
     public Flux<ChatModelResponse> chat(
-            ChatModelType modelType,
-            List<ChatModelMessage> messages
+            ChatModelRequest request
     ) {
         return ollamaClient
                 .chat(
-                        resolveModel(modelType),
-                        toOllamaMessages(messages)
+                        resolveModel(
+                                request.modelType()
+                        ),
+                        toOllamaMessages(
+                                request.messages()
+                        ),
+                        toOllamaTools(
+                                request.tools()
+                        )
                 )
-                .map(this::toChatModelResponse);
+                .map(
+                        this::toChatModelResponse
+                );
     }
 
     private List<OllamaChatMessage> toOllamaMessages(
@@ -54,6 +73,16 @@ public class OllamaChatModelProvider
                                 message.getContent(),
                                 message.getImages()
                         )
+                )
+                .toList();
+    }
+
+    private List<OllamaTool> toOllamaTools(
+            List<ChatModelTool> tools
+    ) {
+        return tools.stream()
+                .map(
+                        ollamaToolMapper::map
                 )
                 .toList();
     }
@@ -71,11 +100,40 @@ public class OllamaChatModelProvider
 
         return new ChatModelResponse(
                 content,
-                response.isDone()
+                response.isDone(),
+                toChatModelToolCalls(response)
         );
     }
 
-    private String resolveModel(ChatModelType modelType) {
+    private List<ChatModelToolCall> toChatModelToolCalls(
+            OllamaChatResponse response
+    ) {
+        if (
+                response.getMessage() == null
+                        || response.getMessage().getToolCalls() == null
+        ) {
+            return List.of();
+        }
+
+        return response.getMessage()
+                .getToolCalls()
+                .stream()
+                .filter(toolCall ->
+                        toolCall != null
+                                && toolCall.getFunction() != null
+                )
+                .map(toolCall ->
+                        new ChatModelToolCall(
+                                toolCall.getFunction().getName(),
+                                toolCall.getFunction().getArguments()
+                        )
+                )
+                .toList();
+    }
+
+    private String resolveModel(
+            ChatModelType modelType
+    ) {
         return switch (modelType) {
             case TEXT -> OllamaClient.MODEL_TEXT;
             case VISION -> OllamaClient.MODEL_VISION;

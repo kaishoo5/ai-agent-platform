@@ -1,4 +1,4 @@
-package com.agent.aiagent.infra.ollama.dto;
+package com.agent.aiagent.infra.provider.ollama.dto;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -13,8 +13,9 @@ public class OllamaChatRequest {
 
     private List<OllamaChatMessage> messages;
 
+    private List<OllamaTool> tools;
+
     private OllamaChatOptions options;
 
     private boolean stream;
-
 }

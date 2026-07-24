@@ -1,8 +1,9 @@
 package com.agent.aiagent.infra.ollama;
 
-import com.agent.aiagent.infra.ollama.dto.OllamaChatMessage;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatOptions;
-import com.agent.aiagent.infra.ollama.dto.OllamaChatRequest;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatMessage;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatOptions;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatRequest;
+import com.agent.aiagent.infra.provider.ollama.dto.OllamaTool;
 import lombok.experimental.UtilityClass;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class OllamaRequestBuilder {
     public OllamaChatRequest build(
             String model,
             List<OllamaChatMessage> messages,
+            List<OllamaTool> tools,
             boolean stream
     ) {
         int contextSize =
@@ -26,6 +28,11 @@ public class OllamaRequestBuilder {
         return OllamaChatRequest.builder()
                 .model(model)
                 .messages(messages)
+                .tools(
+                        tools == null
+                                ? List.of()
+                                : tools
+                )
                 .options(
                         new OllamaChatOptions(
                                 contextSize
@@ -37,11 +44,38 @@ public class OllamaRequestBuilder {
 
     public OllamaChatRequest build(
             String model,
+            List<OllamaChatMessage> messages,
+            List<OllamaTool> tools
+    ) {
+        return build(
+                model,
+                messages,
+                tools,
+                true
+        );
+    }
+
+    public OllamaChatRequest build(
+            String model,
+            List<OllamaChatMessage> messages,
+            boolean stream
+    ) {
+        return build(
+                model,
+                messages,
+                List.of(),
+                stream
+        );
+    }
+
+    public OllamaChatRequest build(
+            String model,
             List<OllamaChatMessage> messages
     ) {
         return build(
                 model,
                 messages,
+                List.of(),
                 true
         );
     }

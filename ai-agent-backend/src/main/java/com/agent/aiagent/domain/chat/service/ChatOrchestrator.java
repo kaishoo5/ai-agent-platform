@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.tool.service.ToolCallingExecutor;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,7 @@ public class ChatOrchestrator {
     private final ConversationSummaryService conversationSummaryService;
     private final ChatPersistenceService chatPersistenceService;
     private final ChatModelRequestFactory chatModelRequestFactory;
-    private final ChatStreamingExecutor chatStreamingExecutor;
+    private final ToolCallingExecutor toolCallingExecutor;
 
     public SseEmitter stream(ChatRequest request) {
         String roomId =
@@ -47,7 +48,7 @@ public class ChatOrchestrator {
                         request
                 );
 
-        return chatStreamingExecutor.execute(
+        return toolCallingExecutor.execute(
                 request,
                 chatModelRequest
         );

@@ -2,17 +2,13 @@ package com.agent.aiagent.provider.chat;
 
 import reactor.core.publisher.Flux;
 
-import java.util.List;
-
 public interface ChatModelProvider {
 
-    String chatOnce(
-            ChatModelType modelType,
-            List<ChatModelMessage> messages
+    ChatModelResponse chatOnce(
+            ChatModelRequest request
     );
 
     Flux<ChatModelResponse> chat(
-            ChatModelType modelType,
-            List<ChatModelMessage> messages
+            ChatModelRequest request
     );
 }
