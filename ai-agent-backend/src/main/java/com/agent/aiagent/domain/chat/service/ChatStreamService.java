@@ -26,9 +26,6 @@ import reactor.core.Disposable;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,6 +49,7 @@ public class ChatStreamService {
     private final ChatFileService chatFileService;
     private final ChatFileRepository chatFileRepository;
     private final ConversationSummaryService conversationSummaryService;
+    private final ChatImageEncoder chatImageEncoder;
 
     public SseEmitter stream(ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
@@ -478,20 +476,20 @@ public class ChatStreamService {
 
         List<ChatFile> imageFiles =
                 chatFiles.stream()
-                        .filter(this::isImage)
+                        .filter(chatImageEncoder::isImage)
                         .toList();
 
         List<String> documentFileIds =
                 chatFiles.stream()
                         .filter(file ->
-                                !isImage(file)
+                                !chatImageEncoder.isImage(file)
                         )
                         .map(ChatFile::getId)
                         .toList();
 
         List<String> encodedImages =
                 imageFiles.stream()
-                        .map(this::encodeImage)
+                        .map(chatImageEncoder::encode)
                         .toList();
 
         List<OllamaChatMessage> messages =
@@ -623,51 +621,6 @@ public class ChatStreamService {
         );
 
         return messages;
-    }
-
-    private boolean isImage(
-            ChatFile file
-    ) {
-
-        return switch (file.getExtension()) {
-            case "png",
-                 "jpg",
-                 "jpeg",
-                 "gif",
-                 "webp" -> true;
-            default -> false;
-        };
-    }
-
-    private String encodeImage(
-            ChatFile file
-    ) {
-        try {
-            byte[] bytes =
-                    Files.readAllBytes(
-                            Path.of(
-                                    file.getStoredPath()
-                            )
-                    );
-
-            return Base64.getEncoder()
-                    .encodeToString(
-                            bytes
-                    );
-        } catch (IOException exception) {
-            log.error(
-                    "이미지 파일을 읽지 못했습니다. fileId={}, storedPath={}",
-                    file.getId(),
-                    file.getStoredPath(),
-                    exception
-            );
-
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "이미지 파일을 읽지 못했습니다.",
-                    exception
-            );
-        }
     }
 
     private record OllamaRequestData(
