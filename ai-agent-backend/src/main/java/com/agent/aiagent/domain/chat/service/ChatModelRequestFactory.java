@@ -2,9 +2,8 @@ package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.model.ChatAttachmentContext;
-import com.agent.aiagent.provider.chat.ChatModelMessage;
-import com.agent.aiagent.provider.chat.ChatModelRequest;
-import com.agent.aiagent.provider.chat.ChatModelType;
+import com.agent.aiagent.domain.tool.service.ToolRegistry;
+import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,6 +17,8 @@ public class ChatModelRequestFactory {
 
     private final ChatAttachmentContextFactory chatAttachmentContextFactory;
     private final ChatMessageContextFactory chatMessageContextFactory;
+    private final ToolRegistry toolRegistry;
+    private final ChatModelToolMapper chatModelToolMapper;
 
     public ChatModelRequest create(
             ChatRequest request
@@ -35,6 +36,14 @@ public class ChatModelRequestFactory {
                         attachmentContext.encodedImages()
                 );
 
+        List<ChatModelTool> tools =
+                toolRegistry.getSpecifications()
+                        .stream()
+                        .map(
+                                chatModelToolMapper::map
+                        )
+                        .toList();
+
         ChatModelType modelType =
                 attachmentContext.hasImages()
                         ? ChatModelType.VISION
@@ -51,7 +60,7 @@ public class ChatModelRequestFactory {
         return new ChatModelRequest(
                 modelType,
                 messages,
-                List.of()
+                tools
         );
     }
 

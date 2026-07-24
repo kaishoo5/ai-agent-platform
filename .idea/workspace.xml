@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add chat model tool mapper">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/test/java/com/agent/aiagent/provider/chat/ChatModelRequestTest.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add tool support to chat model request">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelRequest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -86,6 +84,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "Gradle.ChatModelRequestTest.executor": "Run",
     "Gradle.ChatModelToolMapperTest.executor": "Run",
     "Gradle.ChatModelToolTest.executor": "Run",
     "Gradle.ToolExecutorTest.executor": "Run",
@@ -319,7 +318,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: 재 커밋" />
     <MESSAGE value="feat: provider 생성 이동" />
     <MESSAGE value="refactor: add embedding provider abstraction" />
     <MESSAGE value="refactor: use embedding provider in file chunk service" />
@@ -344,7 +342,8 @@
     <MESSAGE value="feat: add tool specifications" />
     <MESSAGE value="feat: add chat model tool definitions" />
     <MESSAGE value="feat: add chat model tool mapper" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add chat model tool mapper" />
+    <MESSAGE value="feat: add tool support to chat model request" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add tool support to chat model request" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
