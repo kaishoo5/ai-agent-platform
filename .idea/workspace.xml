@@ -4,10 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add chat model tool definitions">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelToolMapper.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/test/java/com/agent/aiagent/provider/chat/ChatModelToolMapperTest.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add chat model tool mapper">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/test/java/com/agent/aiagent/provider/chat/ChatModelRequestTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelRequest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -85,6 +86,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "Gradle.ChatModelToolMapperTest.executor": "Run",
     "Gradle.ChatModelToolTest.executor": "Run",
     "Gradle.ToolExecutorTest.executor": "Run",
     "Gradle.ToolRegistryTest.executor": "Run",
@@ -115,7 +117,34 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Gradle.ChatModelToolMapperTest">
+  <component name="RunManager" selected="Gradle.ChatModelRequestTest">
+    <configuration name="ChatModelRequestTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/ai-agent-backend" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;com.agent.aiagent.provider.chat.ChatModelRequestTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
     <configuration name="ChatModelToolMapperTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -234,6 +263,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Gradle.ChatModelRequestTest" />
         <item itemvalue="Gradle.ChatModelToolMapperTest" />
         <item itemvalue="Gradle.ChatModelToolTest" />
         <item itemvalue="Gradle.ToolRegistryTest" />
@@ -289,7 +319,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: ✅ Hybrid Search&#10;      ✅ Threshold 조정&#10;      ✅ Query Rewrite&#10;      ✅ Reranker&#10;      ✅ Citation&#10;      ✅ Multi Query&#10;      &#10;      완료" />
     <MESSAGE value="feat: 재 커밋" />
     <MESSAGE value="feat: provider 생성 이동" />
     <MESSAGE value="refactor: add embedding provider abstraction" />
@@ -314,7 +343,8 @@
     <MESSAGE value="feat: add tool executor" />
     <MESSAGE value="feat: add tool specifications" />
     <MESSAGE value="feat: add chat model tool definitions" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add chat model tool definitions" />
+    <MESSAGE value="feat: add chat model tool mapper" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add chat model tool mapper" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

@@ -50,7 +50,8 @@ public class ChatModelRequestFactory {
 
         return new ChatModelRequest(
                 modelType,
-                messages
+                messages,
+                List.of()
         );
     }
 
