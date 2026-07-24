@@ -4,7 +4,7 @@ import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
 import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
 import com.agent.aiagent.domain.file.service.extractor.FileContentExtractorManager;
-import com.agent.aiagent.infra.ollama.OllamaClient;
+import com.agent.aiagent.provider.embedding.EmbeddingProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ public class ChatFileChunkService {
 
     private final FileChunkService fileChunkService;
     private final FileContentExtractorManager fileContentExtractorManager;
-    private final OllamaClient ollamaClient;
+    private final EmbeddingProvider embeddingProvider;
     private final ChatFileChunkRepository chatFileChunkRepository;
     private final EmbeddingJsonConverter embeddingJsonConverter;
 
@@ -51,7 +51,7 @@ public class ChatFileChunkService {
         }
 
         List<List<Double>> embeddings =
-                ollamaClient.embed(
+                embeddingProvider.embed(
                         chunks
                 );
 

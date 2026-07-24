@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: 재 커밋">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaEmbeddingProvider.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/embedding/EmbeddingProvider.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="refactor: add embedding provider abstraction">
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -178,7 +176,8 @@
     <MESSAGE value="feat: ✅ Hybrid Search&#10;      ✅ Threshold 조정&#10;      ✅ Query Rewrite&#10;      ✅ Reranker&#10;      ✅ Citation&#10;      ✅ Multi Query&#10;      &#10;      완료" />
     <MESSAGE value="feat: 재 커밋" />
     <MESSAGE value="feat: provider 생성 이동" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: provider 생성 이동" />
+    <MESSAGE value="refactor: add embedding provider abstraction" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: add embedding provider abstraction" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
