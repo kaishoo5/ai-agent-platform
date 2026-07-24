@@ -4,14 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add tool executor">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolParameter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolSpecification.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/test/java/com/agent/aiagent/domain/tool/service/ToolRegistryTest.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add tool specifications">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelTool.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelToolParameter.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/test/java/com/agent/aiagent/provider/chat/ChatModelToolTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/AgentTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/AgentTool.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CurrentTimeTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CurrentTimeTool.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolRegistry.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolRegistry.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,6 +87,7 @@
   "keyToString": {
     "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
     "Gradle.ToolExecutorTest.executor": "Run",
+    "Gradle.ToolRegistryTest.executor": "Run",
     "Gradle.ai-agent-backend 빌드.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RequestMappingsPanelOrder0": "0",
@@ -117,7 +115,34 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Spring Boot.AiAgentBackendApplication">
+  <component name="RunManager" selected="Gradle.ChatModelToolTest">
+    <configuration name="ChatModelToolTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/ai-agent-backend" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;com.agent.aiagent.provider.chat.ChatModelToolTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
     <configuration name="ToolExecutorTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -182,6 +207,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Gradle.ChatModelToolTest" />
         <item itemvalue="Gradle.ToolRegistryTest" />
         <item itemvalue="Gradle.ToolExecutorTest" />
       </list>
@@ -235,7 +261,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: 복사 기능까지 완료" />
     <MESSAGE value="feat: 파일 업로드 기능 구현" />
     <MESSAGE value="feat: ✅ Hybrid Search&#10;      ✅ Threshold 조정&#10;      ✅ Query Rewrite&#10;      ✅ Reranker&#10;      ✅ Citation&#10;      ✅ Multi Query&#10;      &#10;      완료" />
     <MESSAGE value="feat: 재 커밋" />
@@ -260,7 +285,8 @@
     <MESSAGE value="refactor: extract chat message context factory" />
     <MESSAGE value="feat: add agent tool registry and current time tool" />
     <MESSAGE value="feat: add tool executor" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add tool executor" />
+    <MESSAGE value="feat: add tool specifications" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add tool specifications" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
