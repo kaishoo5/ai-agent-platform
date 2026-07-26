@@ -1,9 +1,7 @@
 package com.agent.aiagent.infra.provider.ollama;
 
 import com.agent.aiagent.infra.ollama.OllamaClient;
-import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatMessage;
-import com.agent.aiagent.infra.provider.ollama.dto.OllamaChatResponse;
-import com.agent.aiagent.infra.provider.ollama.dto.OllamaTool;
+import com.agent.aiagent.infra.provider.ollama.dto.*;
 import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -71,7 +69,19 @@ public class OllamaChatModelProvider
                         new OllamaChatMessage(
                                 message.getRole(),
                                 message.getContent(),
-                                message.getImages()
+                                message.getImages(),
+                                message.getToolCalls()
+                                        .stream()
+                                        .map(toolCall ->
+                                                new OllamaToolCall(
+                                                        new OllamaToolCallFunction(
+                                                                toolCall.name(),
+                                                                toolCall.arguments()
+                                                        )
+                                                )
+                                        )
+                                        .toList(),
+                                message.getToolName()
                         )
                 )
                 .toList();
