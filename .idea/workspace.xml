@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: tool 작업 중간 commit">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: implement tool calling loop with current time tool">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/dto/OllamaChatMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/dto/OllamaChatMessage.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/provider/chat/ChatModelMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/build.gradle" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +25,9 @@
   <component name="ExternalProjectsManager">
     <system id="GRADLE">
       <state>
+        <task path="$PROJECT_DIR$/ai-agent-backend">
+          <activation />
+        </task>
         <projects_view>
           <tree_state>
             <expand>
@@ -323,7 +324,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: use embedding provider in file chunk service" />
     <MESSAGE value="refactor: use embedding provider in file chunk search" />
     <MESSAGE value="refactor: use chat model provider in conversation summary" />
     <MESSAGE value="refactor: use chat model provider in rag query rewrite" />
@@ -348,7 +348,8 @@
     <MESSAGE value="feat: add tool support to chat model request" />
     <MESSAGE value="feat: populate chat model request with tool definitions" />
     <MESSAGE value="feat: tool 작업 중간 commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: tool 작업 중간 commit" />
+    <MESSAGE value="feat: implement tool calling loop with current time tool" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: implement tool calling loop with current time tool" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
