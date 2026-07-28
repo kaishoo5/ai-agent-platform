@@ -4,11 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add websearch tool">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ListFilesTool.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/filesystem/FileSystemProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add listfile tool">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ReadFileTool.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -337,7 +334,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: use chat model provider in rag query rewrite" />
     <MESSAGE value="refactor: use chat model provider in rag multi query" />
     <MESSAGE value="refactor: use chat model provider in rag chunk rerank" />
     <MESSAGE value="refactor: use chat model provider in chat streaming" />
@@ -362,7 +358,8 @@
     <MESSAGE value="feat: implement tool calling loop with current time tool" />
     <MESSAGE value="feat: add calculator tool" />
     <MESSAGE value="feat: add websearch tool" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add websearch tool" />
+    <MESSAGE value="feat: add listfile tool" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add listfile tool" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
