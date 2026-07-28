@@ -4,10 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: implement tool calling loop with current time tool">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add calculator tool">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/WebSearchTool.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyProperties.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/dto/TavilySearchRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/dto/TavilySearchResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/dto/TavilySearchResult.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,6 +94,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "Gradle.CalculatorToolTest.executor": "Run",
     "Gradle.ChatModelRequestTest.executor": "Run",
     "Gradle.ChatModelToolMapperTest.executor": "Run",
     "Gradle.ChatModelToolTest.executor": "Run",
@@ -123,6 +130,33 @@
   }
 }]]></component>
   <component name="RunManager" selected="Spring Boot.AiAgentBackendApplication">
+    <configuration name="CalculatorToolTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/ai-agent-backend" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;com.agent.aiagent.domain.tool.service.CalculatorToolTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
     <configuration name="ChatModelRequestTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -204,33 +238,6 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration name="ToolExecutorTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
-      <ExternalSystemSettings>
-        <option name="executionName" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/ai-agent-backend" />
-        <option name="externalSystemIdString" value="GRADLE" />
-        <option name="scriptParameters" value="" />
-        <option name="taskDescriptions">
-          <list />
-        </option>
-        <option name="taskNames">
-          <list>
-            <option value=":test" />
-            <option value="--tests" />
-            <option value="&quot;com.agent.aiagent.domain.tool.service.ToolExecutorTest&quot;" />
-          </list>
-        </option>
-        <option name="vmOptions" />
-      </ExternalSystemSettings>
-      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
-      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
-      <DebugAllEnabled>false</DebugAllEnabled>
-      <RunAsTest>true</RunAsTest>
-      <GradleProfilingDisabled>false</GradleProfilingDisabled>
-      <GradleCoverageDisabled>false</GradleCoverageDisabled>
-      <method v="2" />
-    </configuration>
     <configuration name="ToolRegistryTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -259,6 +266,9 @@
       <method v="2" />
     </configuration>
     <configuration name="AiAgentBackendApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <envs>
+        <env name="TAVILY_API_KEY" value="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" />
+      </envs>
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="ai-agent-backend.main" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="com.agent.aiagent.AiAgentBackendApplication" />
@@ -266,13 +276,21 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <list>
+      <item itemvalue="Gradle.CalculatorToolTest" />
+      <item itemvalue="Gradle.ChatModelRequestTest" />
+      <item itemvalue="Gradle.ChatModelToolMapperTest" />
+      <item itemvalue="Gradle.ChatModelToolTest" />
+      <item itemvalue="Gradle.ToolRegistryTest" />
+      <item itemvalue="Spring Boot.AiAgentBackendApplication" />
+    </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Gradle.CalculatorToolTest" />
         <item itemvalue="Gradle.ChatModelRequestTest" />
         <item itemvalue="Gradle.ChatModelToolMapperTest" />
         <item itemvalue="Gradle.ChatModelToolTest" />
         <item itemvalue="Gradle.ToolRegistryTest" />
-        <item itemvalue="Gradle.ToolExecutorTest" />
       </list>
     </recent_temporary>
   </component>
@@ -324,7 +342,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: use embedding provider in file chunk search" />
     <MESSAGE value="refactor: use chat model provider in conversation summary" />
     <MESSAGE value="refactor: use chat model provider in rag query rewrite" />
     <MESSAGE value="refactor: use chat model provider in rag multi query" />
@@ -349,7 +366,8 @@
     <MESSAGE value="feat: populate chat model request with tool definitions" />
     <MESSAGE value="feat: tool 작업 중간 commit" />
     <MESSAGE value="feat: implement tool calling loop with current time tool" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: implement tool calling loop with current time tool" />
+    <MESSAGE value="feat: add calculator tool" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add calculator tool" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
