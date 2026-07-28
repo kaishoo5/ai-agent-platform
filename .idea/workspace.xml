@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add readfile tool">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/WriteFileTool.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add writefile tool">
+      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/SearchFilesTool.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -334,7 +334,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: use chat model provider in rag chunk rerank" />
     <MESSAGE value="refactor: use chat model provider in chat streaming" />
     <MESSAGE value="refactor: hide ollama model selection behind provider" />
     <MESSAGE value="refactor: extract chat image encoder" />
@@ -359,7 +358,8 @@
     <MESSAGE value="feat: add websearch tool" />
     <MESSAGE value="feat: add listfile tool" />
     <MESSAGE value="feat: add readfile tool" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add readfile tool" />
+    <MESSAGE value="feat: add writefile tool" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add writefile tool" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
