@@ -10,6 +10,13 @@ const MAX_FILE_COUNT = 5;
 const MAX_FILE_SIZE =
     10 * 1024 * 1024;
 
+const MAX_VIDEO_FILE_SIZE =
+    4 * 1024 * 1024 * 1024;
+
+const VIDEO_EXTENSIONS = new Set([
+    "mp4",
+]);
+
 const ALLOWED_FILE_EXTENSIONS = new Set([
     "txt",
     "md",
@@ -26,11 +33,12 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
     "pdf",
     "docx",
     "xlsx",
-    'png',
-    'jpg',
-    'jpeg',
-    'gif',
-    'webp',
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "mp4",
 ]);
 
 function getFileExtension(
@@ -283,9 +291,16 @@ function ChatInput() {
                 continue;
             }
 
-            if (file.size > MAX_FILE_SIZE) {
+            const maxFileSize =
+                VIDEO_EXTENSIONS.has(extension)
+                    ? MAX_VIDEO_FILE_SIZE
+                    : MAX_FILE_SIZE;
+
+            if (file.size > maxFileSize) {
                 errorMessage =
-                    `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`;
+                    VIDEO_EXTENSIONS.has(extension)
+                        ? `영상 파일 크기는 200MB를 초과할 수 없습니다: ${file.name}`
+                        : `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`;
 
                 continue;
             }
@@ -626,7 +641,7 @@ function ChatInput() {
                 type="file"
                 className="file-input-hidden"
                 multiple
-                accept=".txt,.md,.java,.js,.ts,.tsx,.json,.sql,.xml,.yaml,.yml,.properties,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                accept=".txt,.md,.java,.js,.ts,.tsx,.json,.sql,.xml,.yaml,.yml,.properties,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4"
                 disabled={isGenerating}
                 onChange={handleFileChange}
             />

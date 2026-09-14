@@ -4,7 +4,12 @@ import com.agent.aiagent.domain.file.dto.ChatFileResponse;
 import com.agent.aiagent.domain.file.dto.ChatFileUploadResponse;
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
+import com.agent.aiagent.domain.video.model.VideoTranscript;
+import com.agent.aiagent.domain.video.service.VideoAudioExtractor;
+import com.agent.aiagent.domain.video.service.VideoSummaryService;
+import com.agent.aiagent.domain.video.service.WhisperTranscriber;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,12 +27,19 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatFileService {
 
     private static final long MAX_FILE_SIZE =
             10L * 1024L * 1024L;
+
+    private static final long MAX_VIDEO_FILE_SIZE =
+            4L * 1024L * 1024L * 1024L;
+
+    private static final String VIDEO_EXTENSION =
+            "mp4";
 
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of(
@@ -50,11 +62,34 @@ public class ChatFileService {
                     "jpg",
                     "jpeg",
                     "gif",
-                    "webp"
+                    "webp",
+                    VIDEO_EXTENSION
+            );
+
+    private static final Set<String> EXTRACTABLE_DOCUMENT_EXTENSIONS =
+            Set.of(
+                    "txt",
+                    "md",
+                    "java",
+                    "js",
+                    "ts",
+                    "tsx",
+                    "json",
+                    "sql",
+                    "xml",
+                    "yaml",
+                    "yml",
+                    "properties",
+                    "pdf",
+                    "docx",
+                    "xlsx"
             );
 
     private final ChatFileRepository chatFileRepository;
     private final ChatFileChunkService chatFileChunkService;
+    private final VideoAudioExtractor videoAudioExtractor;
+    private final WhisperTranscriber whisperTranscriber;
+    private final VideoSummaryService videoSummaryService;
 
     @Value("${app.file.upload-dir}")
     private String uploadDirectory;
@@ -64,30 +99,43 @@ public class ChatFileService {
             String roomId,
             MultipartFile file
     ) {
-        validateRoomId(roomId);
-        validateFile(file);
-
-        String originalName = StringUtils.cleanPath(
-                file.getOriginalFilename()
+        validateRoomId(
+                roomId
         );
 
-        String extension = getExtension(
-                originalName
+        validateFile(
+                file
         );
+
+        String originalName =
+                StringUtils.cleanPath(
+                        file.getOriginalFilename()
+                );
+
+        String extension =
+                getExtension(
+                        originalName
+                );
 
         String storedName =
                 UUID.randomUUID()
                         + "."
                         + extension;
 
-        Path roomDirectory = Path.of(
-                uploadDirectory,
-                roomId
-        ).toAbsolutePath().normalize();
+        Path roomDirectory =
+                Path.of(
+                                uploadDirectory,
+                                roomId
+                        )
+                        .toAbsolutePath()
+                        .normalize();
 
-        Path targetPath = roomDirectory
-                .resolve(storedName)
-                .normalize();
+        Path targetPath =
+                roomDirectory
+                        .resolve(
+                                storedName
+                        )
+                        .normalize();
 
         if (!targetPath.startsWith(roomDirectory)) {
             throw new IllegalArgumentException(
@@ -112,26 +160,66 @@ public class ChatFileService {
             );
         }
 
-        ChatFile chatFile = new ChatFile(
-                roomId,
-                originalName,
-                storedName,
-                targetPath.toString(),
-                file.getContentType(),
-                extension,
-                file.getSize()
-        );
+        ChatFile chatFile =
+                new ChatFile(
+                        roomId,
+                        originalName,
+                        storedName,
+                        targetPath.toString(),
+                        file.getContentType(),
+                        extension,
+                        file.getSize()
+                );
 
         ChatFile savedFile;
 
         try {
-            savedFile = chatFileRepository.saveAndFlush(
-                    chatFile
-            );
+            savedFile =
+                    chatFileRepository.saveAndFlush(
+                            chatFile
+                    );
 
-            if (isExtractableDocument(savedFile.getExtension())) {
+            if (
+                    isExtractableDocument(
+                            savedFile.getExtension()
+                    )
+            ) {
                 chatFileChunkService.saveChunks(
                         savedFile
+                );
+            }
+
+            if (isVideo(savedFile.getExtension())) {
+                Path audioPath =
+                        videoAudioExtractor.extract(
+                                Path.of(savedFile.getStoredPath())
+                        );
+
+                VideoTranscript transcript =
+                        whisperTranscriber.transcribe(
+                                audioPath
+                        );
+
+                chatFileChunkService.saveVideoTranscriptChunks(
+                        savedFile,
+                        transcript
+                );
+
+                String summary =
+                        videoSummaryService.summarize(
+                                transcript
+                        );
+
+                savedFile.updateSummary(
+                        summary
+                );
+
+                log.info(
+                        "영상 STT 완료. fileId={}, language={}, segmentCount={}, transcript={}",
+                        savedFile.getId(),
+                        transcript.language(),
+                        transcript.segments().size(),
+                        transcript.text()
                 );
             }
         } catch (RuntimeException exception) {
@@ -159,15 +247,10 @@ public class ChatFileService {
             );
         }
 
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException(
-                    "파일 크기는 10MB를 초과할 수 없습니다."
-            );
-        }
-
-        String originalName = StringUtils.cleanPath(
-                file.getOriginalFilename()
-        );
+        String originalName =
+                StringUtils.cleanPath(
+                        file.getOriginalFilename()
+                );
 
         if (!StringUtils.hasText(originalName)) {
             throw new IllegalArgumentException(
@@ -175,9 +258,10 @@ public class ChatFileService {
             );
         }
 
-        String extension = getExtension(
-                originalName
-        );
+        String extension =
+                getExtension(
+                        originalName
+                );
 
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException(
@@ -185,28 +269,39 @@ public class ChatFileService {
                             + extension
             );
         }
+
+        long maxFileSize =
+                isVideo(
+                        extension
+                )
+                        ? MAX_VIDEO_FILE_SIZE
+                        : MAX_FILE_SIZE;
+
+        if (file.getSize() > maxFileSize) {
+            if (isVideo(extension)) {
+                throw new IllegalArgumentException(
+                        "영상 파일 크기는 200MB를 초과할 수 없습니다."
+                );
+            }
+
+            throw new IllegalArgumentException(
+                    "파일 크기는 10MB를 초과할 수 없습니다."
+            );
+        }
+    }
+
+    private boolean isVideo(
+            String extension
+    ) {
+        return VIDEO_EXTENSION.equals(
+                extension
+        );
     }
 
     private boolean isExtractableDocument(
             String extension
     ) {
-        return Set.of(
-                "txt",
-                "md",
-                "java",
-                "js",
-                "ts",
-                "tsx",
-                "json",
-                "sql",
-                "xml",
-                "yaml",
-                "yml",
-                "properties",
-                "pdf",
-                "docx",
-                "xlsx"
-        ).contains(
+        return EXTRACTABLE_DOCUMENT_EXTENSIONS.contains(
                 extension
         );
     }
@@ -215,7 +310,9 @@ public class ChatFileService {
             String filename
     ) {
         int extensionIndex =
-                filename.lastIndexOf(".");
+                filename.lastIndexOf(
+                        "."
+                );
 
         if (
                 extensionIndex < 0
@@ -228,8 +325,12 @@ public class ChatFileService {
         }
 
         return filename
-                .substring(extensionIndex + 1)
-                .toLowerCase(Locale.ROOT);
+                .substring(
+                        extensionIndex + 1
+                )
+                .toLowerCase(
+                        Locale.ROOT
+                );
     }
 
     private void deleteStoredFile(
@@ -247,14 +348,18 @@ public class ChatFileService {
     public List<ChatFileResponse> findAllByRoomId(
             String roomId
     ) {
-        validateRoomId(roomId);
+        validateRoomId(
+                roomId
+        );
 
         return chatFileRepository
                 .findAllByRoomIdOrderByCreatedAtAsc(
                         roomId
                 )
                 .stream()
-                .map(ChatFileResponse::from)
+                .map(
+                        ChatFileResponse::from
+                )
                 .toList();
     }
 
@@ -263,7 +368,9 @@ public class ChatFileService {
             String roomId,
             String fileId
     ) {
-        validateRoomId(roomId);
+        validateRoomId(
+                roomId
+        );
 
         if (!StringUtils.hasText(fileId)) {
             throw new ResponseStatusException(
@@ -272,21 +379,25 @@ public class ChatFileService {
             );
         }
 
-        ChatFile chatFile = chatFileRepository
-                .findByIdAndRoomId(
-                        fileId,
-                        roomId
-                )
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "파일을 찾을 수 없습니다."
+        ChatFile chatFile =
+                chatFileRepository
+                        .findByIdAndRoomId(
+                                fileId,
+                                roomId
                         )
-                );
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "파일을 찾을 수 없습니다."
+                                )
+                        );
 
-        Path storedPath = Path.of(
-                chatFile.getStoredPath()
-        ).toAbsolutePath().normalize();
+        Path storedPath =
+                Path.of(
+                                chatFile.getStoredPath()
+                        )
+                        .toAbsolutePath()
+                        .normalize();
 
         deleteStoredFileOrThrow(
                 storedPath
@@ -332,7 +443,10 @@ public class ChatFileService {
                 roomId
         );
 
-        if (fileIds == null || fileIds.isEmpty()) {
+        if (
+                fileIds == null
+                        || fileIds.isEmpty()
+        ) {
             return List.of();
         }
 
@@ -341,11 +455,15 @@ public class ChatFileService {
                         fileIds
                 );
 
-        return fileIds.stream()
+        return fileIds
+                .stream()
                 .map(fileId ->
-                        foundFiles.stream()
+                        foundFiles
+                                .stream()
                                 .filter(file ->
-                                        fileId.equals(file.getId())
+                                        fileId.equals(
+                                                file.getId()
+                                        )
                                 )
                                 .findFirst()
                                 .orElseThrow(() ->
@@ -357,7 +475,11 @@ public class ChatFileService {
                                 )
                 )
                 .peek(file -> {
-                    if (!roomId.equals(file.getRoomId())) {
+                    if (
+                            !roomId.equals(
+                                    file.getRoomId()
+                            )
+                    ) {
                         throw new ResponseStatusException(
                                 HttpStatus.BAD_REQUEST,
                                 "현재 채팅방의 첨부파일이 아닙니다."
@@ -366,5 +488,4 @@ public class ChatFileService {
                 })
                 .toList();
     }
-
 }

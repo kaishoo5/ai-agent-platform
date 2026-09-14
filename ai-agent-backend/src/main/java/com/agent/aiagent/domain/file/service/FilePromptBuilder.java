@@ -218,6 +218,9 @@ public class FilePromptBuilder {
         
                 9. 임베딩 점수, 키워드 점수, 최종 검색 점수는 사용자에게 설명하지 마세요.
                 10. 검색 참고자료에서 답을 찾지 못했다면 찾지 못했다고 명확하게 답변하세요.
+                11. 검색 참고자료에 "영상 구간"이 제공되어 있고 사용자가 영상의 시간이나 장면 위치를 질문한 경우,
+                    반드시 제공된 영상 구간을 근거로 답변하세요.
+                12. 영상 구간이 제공되지 않은 경우 시간 정보를 추측해서 만들지 마세요.
         
                 사용자 질문:
                 """
@@ -232,28 +235,84 @@ public class FilePromptBuilder {
             ChatFile chatFile,
             RetrievedChunk result
     ) {
-        return """
-            [검색 참고자료]
-            출처 표기: [%s, Chunk %d]
-            파일 ID: %s
-            파일명: %s
-            Chunk 번호: %d
-            임베딩 점수: %.4f
-            키워드 점수: %.4f
-            최종 검색 점수: %.4f
+        String videoTimeInfo =
+                buildVideoTimeInfo(
+                        result.chunk().getStartMillis(),
+                        result.chunk().getEndMillis()
+                );
 
-            참고자료 내용:
-            %s
-            """.formatted(
+        return """
+        [검색 참고자료]
+        출처 표기: [%s, Chunk %d]
+        파일 ID: %s
+        파일명: %s
+        Chunk 번호: %d
+        %s임베딩 점수: %.4f
+        키워드 점수: %.4f
+        최종 검색 점수: %.4f
+
+        참고자료 내용:
+        %s
+        """.formatted(
                 chatFile.getOriginalName(),
                 result.chunk().getChunkIndex(),
                 chatFile.getId(),
                 chatFile.getOriginalName(),
                 result.chunk().getChunkIndex(),
+                videoTimeInfo,
                 result.embeddingScore(),
                 result.keywordScore(),
                 result.finalScore(),
                 result.chunk().getContent()
+        );
+    }
+
+    private String buildVideoTimeInfo(
+            Long startMillis,
+            Long endMillis
+    ) {
+        if (
+                startMillis == null
+                        || endMillis == null
+        ) {
+            return "";
+        }
+
+        return "영상 구간: "
+                + formatVideoTime(startMillis)
+                + " ~ "
+                + formatVideoTime(endMillis)
+                + "\n";
+    }
+
+    private String formatVideoTime(
+            long millis
+    ) {
+        long totalSeconds =
+                millis / 1000;
+
+        long hours =
+                totalSeconds / 3600;
+
+        long minutes =
+                (totalSeconds % 3600) / 60;
+
+        long seconds =
+                totalSeconds % 60;
+
+        if (hours > 0) {
+            return String.format(
+                    "%02d:%02d:%02d",
+                    hours,
+                    minutes,
+                    seconds
+            );
+        }
+
+        return String.format(
+                "%02d:%02d",
+                minutes,
+                seconds
         );
     }
 

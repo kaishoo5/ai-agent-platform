@@ -73,6 +73,13 @@ public class ChatFile {
     )
     private ChatFileStatus status;
 
+    @Lob
+    @Column(
+            name = "summary",
+            columnDefinition = "TEXT"
+    )
+    private String summary;
+
     @Column(
             name = "created_at",
             nullable = false
@@ -99,10 +106,18 @@ public class ChatFile {
         this.status = ChatFileStatus.UPLOADED;
     }
 
+    public void updateSummary(
+            String summary
+    ) {
+        this.summary =
+                summary;
+    }
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt =
+                    LocalDateTime.now();
         }
     }
 }

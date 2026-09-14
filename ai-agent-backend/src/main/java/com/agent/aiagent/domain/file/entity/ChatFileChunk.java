@@ -71,4 +71,10 @@ public class ChatFileChunk {
             nullable = false
     )
     private LocalDateTime createdAt;
+
+    @Column(name = "start_millis")
+    private Long startMillis;
+
+    @Column(name = "end_millis")
+    private Long endMillis;
 }
