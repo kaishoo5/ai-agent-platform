@@ -7,21 +7,13 @@ import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Component
 public class CalculatorTool implements AgentTool {
 
-    private LocalDateTime updatedAt = LocalDateTime.now();
-
-
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-
     private static final String TEST_FIELD = "test";
-
-
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
                     "calculator",
@@ -35,6 +27,9 @@ public class CalculatorTool implements AgentTool {
                             )
                     )
             );
+    private String buildValidationTest = "success";
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Override
     public ToolSpecification getSpecification() {
@@ -132,4 +127,5 @@ public class CalculatorTool implements AgentTool {
     public LocalDateTime getCreatedAt() { return createdAt; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+
 }

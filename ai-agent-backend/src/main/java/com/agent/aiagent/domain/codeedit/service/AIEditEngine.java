@@ -1,5 +1,6 @@
 package com.agent.aiagent.domain.codeedit.service;
 
+import com.agent.aiagent.domain.codeedit.model.CodeBuildValidationResult;
 import com.agent.aiagent.domain.codeedit.model.CodeEditPatch;
 import com.agent.aiagent.domain.codeedit.model.CodeEditRequest;
 import com.agent.aiagent.domain.codeedit.model.CodeEditResult;
@@ -26,6 +27,7 @@ public class AIEditEngine {
     private final PatchExecutor patchExecutor;
     private final CodeEditTransactionManager codeEditTransactionManager;
     private final ObjectMapper objectMapper;
+    private final CodeBuildValidator codeBuildValidator;
 
     public CodeEditResult edit(
             CodeEditRequest request
@@ -121,6 +123,16 @@ public class AIEditEngine {
 
                 executedPatches.add(
                         patch
+                );
+            }
+
+            CodeBuildValidationResult buildResult =
+                    codeBuildValidator.validate();
+
+            if (!buildResult.success()) {
+                throw new IllegalStateException(
+                        "Code Build 검증 실패.\n"
+                                + buildResult.message()
                 );
             }
 

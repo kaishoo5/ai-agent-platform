@@ -4,15 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add searchfile tool">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CodebaseScannerTool.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/FindClassReferenceTool.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/FindMethodTool.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/NavigateCodeTool.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ReplaceMethodTool.java" afterDir="false" />
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add transactional AI code editing">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/config/CorsConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/config/CorsConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/AIEditEngine.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/AIEditEngine.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -343,7 +339,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: hide ollama model selection behind provider" />
     <MESSAGE value="refactor: extract chat image encoder" />
     <MESSAGE value="refactor: extract chat persistence service" />
     <MESSAGE value="refactor: extract chat model request factory" />
@@ -368,7 +363,8 @@
     <MESSAGE value="feat: add readfile tool" />
     <MESSAGE value="feat: add writefile tool" />
     <MESSAGE value="feat: add searchfile tool" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add searchfile tool" />
+    <MESSAGE value="feat: add transactional AI code editing" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add transactional AI code editing" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

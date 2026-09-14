@@ -21,6 +21,9 @@ public class ToolCallingExecutor {
 
     private static final int MAX_TOOL_CALL_ROUNDS = 5;
 
+    private static final String AI_EDIT_CODE_TOOL_NAME =
+            "ai_edit_code";
+
     private final ChatModelProvider chatModelProvider;
     private final ToolCallProcessor toolCallProcessor;
     private final ChatModelRequestBuilder chatModelRequestBuilder;
@@ -86,6 +89,34 @@ public class ToolCallingExecutor {
                             response.toolCalls(),
                             toolResults
                     );
+
+            boolean aiEditCodeExecuted =
+                    response.toolCalls()
+                            .stream()
+                            .anyMatch(toolCall ->
+                                    AI_EDIT_CODE_TOOL_NAME.equals(
+                                            toolCall.name()
+                                    )
+                            );
+
+            if (aiEditCodeExecuted) {
+                log.info(
+                        "AI Edit Code Tool 실행 후 Tool Calling 종료. round={}",
+                        round
+                );
+
+                ChatModelRequest finalRequest =
+                        new ChatModelRequest(
+                                currentRequest.modelType(),
+                                currentRequest.messages(),
+                                List.of()
+                        );
+
+                return chatStreamingExecutor.execute(
+                        request,
+                        finalRequest
+                );
+            }
         }
 
         log.warn(
