@@ -12,7 +12,6 @@ import java.util.Map;
 
 @Component
 public class CalculatorTool implements AgentTool {
-
     private static final String TEST_FIELD = "test";
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(

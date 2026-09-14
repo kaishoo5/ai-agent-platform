@@ -25,6 +25,7 @@ public class CodeEditPromptBuilder {
                 {
                   "type": "add_import",
                   "className": "CalculatorTool",
+                  "fieldName": null,
                   "methodName": null,
                   "code": "java.time.LocalDateTime",
                   "path": null
@@ -35,6 +36,7 @@ public class CodeEditPromptBuilder {
                 {
                   "type": "add_field",
                   "className": "CalculatorTool",
+                  "fieldName": null,
                   "methodName": null,
                   "code": "private LocalDateTime createdAt = LocalDateTime.now();",
                   "path": null
@@ -45,6 +47,7 @@ public class CodeEditPromptBuilder {
                 {
                   "type": "append_method",
                   "className": "CalculatorTool",
+                  "fieldName": null,
                   "methodName": null,
                   "code": "public LocalDateTime getCreatedAt() { return createdAt; }",
                   "path": null
@@ -55,8 +58,31 @@ public class CodeEditPromptBuilder {
                 {
                   "type": "replace_method",
                   "className": "CalculatorTool",
+                  "fieldName": null,
                   "methodName": "execute",
                   "code": "수정된 전체 메서드 코드",
+                  "path": null
+                }
+
+                5. remove_field
+
+                {
+                  "type": "remove_field",
+                  "className": "CalculatorTool",
+                  "fieldName": "createdAt",
+                  "methodName": null,
+                  "code": null,
+                  "path": null
+                }
+
+                6. remove_method
+
+                {
+                  "type": "remove_method",
+                  "className": "CalculatorTool",
+                  "fieldName": null,
+                  "methodName": "getCreatedAt",
+                  "code": null,
                   "path": null
                 }
 
@@ -70,11 +96,16 @@ public class CodeEditPromptBuilder {
                 6. 필드가 필요하면 add_field를 생성하세요.
                 7. 새로운 메서드는 append_method를 사용하세요.
                 8. 기존 메서드를 수정해야 할 때만 replace_method를 사용하세요.
-                9. replace_method의 code에는 반드시 전체 메서드 코드를 넣어야 합니다.
-                10. append_method의 code에는 반드시 전체 메서드 코드를 넣어야 합니다.
-                11. 요청하지 않은 수정은 생성하지 마세요.
-                12. ```java 또는 ```json 같은 markdown fence를 절대 사용하지 마세요.
-                13. 사용자가 path를 지정하지 않았다면 path는 null로 반환하세요.
+                9. 필드를 삭제해야 할 때는 remove_field를 사용하세요.
+                10. 메서드를 삭제해야 할 때는 remove_method를 사용하세요.
+                11. remove_field에서는 fieldName을 반드시 지정하세요.
+                12. remove_method에서는 methodName을 반드시 지정하세요.
+                13. remove_field와 remove_method에서는 code를 null로 반환하세요.
+                14. replace_method의 code에는 반드시 전체 메서드 코드를 넣어야 합니다.
+                15. append_method의 code에는 반드시 전체 메서드 코드를 넣어야 합니다.
+                16. 요청하지 않은 수정은 생성하지 마세요.
+                17. ```java 또는 ```json 같은 markdown fence를 절대 사용하지 마세요.
+                18. 사용자가 path를 지정하지 않았다면 path는 null로 반환하세요.
 
                 사용자 수정 요청:
                 %s

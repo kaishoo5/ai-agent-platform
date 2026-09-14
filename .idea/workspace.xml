@@ -4,12 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add transactional AI code editing">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add build validation and rollback for AI code edits">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/model/CodeEditPatch.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/model/CodeEditPatch.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/AIEditEngine.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/AIEditEngine.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/CodeEditPromptBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/CodeEditPromptBuilder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/PatchExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/codeedit/service/PatchExecutor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/CalculatorTool.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -339,7 +340,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: extract chat image encoder" />
     <MESSAGE value="refactor: extract chat persistence service" />
     <MESSAGE value="refactor: extract chat model request factory" />
     <MESSAGE value="refactor: extract chat streaming executor" />
@@ -364,7 +364,8 @@
     <MESSAGE value="feat: add writefile tool" />
     <MESSAGE value="feat: add searchfile tool" />
     <MESSAGE value="feat: add transactional AI code editing" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add transactional AI code editing" />
+    <MESSAGE value="feat: add build validation and rollback for AI code edits" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add build validation and rollback for AI code edits" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

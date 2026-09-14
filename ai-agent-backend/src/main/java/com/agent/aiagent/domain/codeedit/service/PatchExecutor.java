@@ -2,10 +2,7 @@ package com.agent.aiagent.domain.codeedit.service;
 
 import com.agent.aiagent.domain.codeedit.model.CodeEditPatch;
 import com.agent.aiagent.domain.tool.model.ToolResult;
-import com.agent.aiagent.domain.tool.service.AddFieldTool;
-import com.agent.aiagent.domain.tool.service.AddImportTool;
-import com.agent.aiagent.domain.tool.service.AppendMethodTool;
-import com.agent.aiagent.domain.tool.service.ReplaceMethodTool;
+import com.agent.aiagent.domain.tool.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +32,8 @@ public class PatchExecutor {
     private final AddFieldTool addFieldTool;
     private final AppendMethodTool appendMethodTool;
     private final ReplaceMethodTool replaceMethodTool;
+    private final RemoveFieldTool removeFieldTool;
+    private final RemoveMethodTool removeMethodTool;
 
     public ToolResult execute(
             CodeEditPatch patch
@@ -77,6 +76,16 @@ public class PatchExecutor {
 
                     case TYPE_REPLACE_METHOD ->
                             executeReplaceMethod(
+                                    patch
+                            );
+
+                    case "remove_field" ->
+                            executeRemoveField(
+                                    patch
+                            );
+
+                    case "remove_method" ->
+                            executeRemoveMethod(
                                     patch
                             );
 
@@ -204,6 +213,44 @@ public class PatchExecutor {
         );
     }
 
+    private ToolResult executeRemoveField(
+            CodeEditPatch patch
+    ) {
+        return removeFieldTool.execute(
+                Map.of(
+                        "className",
+                        patch.className(),
+                        "fieldName",
+                        patch.fieldName(),
+                        "path",
+                        patch.path() == null
+                                ? ""
+                                : patch.path(),
+                        "createBackup",
+                        false
+                )
+        );
+    }
+
+    private ToolResult executeRemoveMethod(
+            CodeEditPatch patch
+    ) {
+        return removeMethodTool.execute(
+                Map.of(
+                        "className",
+                        patch.className(),
+                        "methodName",
+                        patch.methodName(),
+                        "path",
+                        patch.path() == null
+                                ? ""
+                                : patch.path(),
+                        "createBackup",
+                        false
+                )
+        );
+    }
+
     private Map<String, Object> createBaseArguments(
             CodeEditPatch patch
     ) {
@@ -258,27 +305,78 @@ public class PatchExecutor {
             );
         }
 
-        if (
-                !StringUtils.hasText(
-                        patch.code()
-                )
-        ) {
-            return ToolResult.failure(
-                    "Patch 코드가 없습니다."
-            );
-        }
+        switch (patch.type()) {
+            case TYPE_ADD_IMPORT,
+                 TYPE_ADD_FIELD,
+                 TYPE_APPEND_METHOD -> {
 
-        if (
-                TYPE_REPLACE_METHOD.equals(
-                        patch.type()
-                )
-                        && !StringUtils.hasText(
-                        patch.methodName()
-                )
-        ) {
-            return ToolResult.failure(
-                    "replace_method Patch에는 methodName이 필요합니다."
-            );
+                if (
+                        !StringUtils.hasText(
+                                patch.code()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            patch.type()
+                                    + " Patch에는 code가 필요합니다."
+                    );
+                }
+            }
+
+            case TYPE_REPLACE_METHOD -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.methodName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "replace_method Patch에는 methodName이 필요합니다."
+                    );
+                }
+
+                if (
+                        !StringUtils.hasText(
+                                patch.code()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "replace_method Patch에는 code가 필요합니다."
+                    );
+                }
+            }
+
+            case "remove_field" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.fieldName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "remove_field Patch에는 fieldName이 필요합니다."
+                    );
+                }
+            }
+
+            case "remove_method" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.methodName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "remove_method Patch에는 methodName이 필요합니다."
+                    );
+                }
+            }
+
+            default -> {
+                return ToolResult.failure(
+                        "지원하지 않는 Patch 타입입니다: "
+                                + patch.type()
+                );
+            }
         }
 
         return null;

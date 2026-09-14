@@ -286,31 +286,85 @@ public class AIEditEngine {
             );
         }
 
+        switch (patch.type()) {
+            case "add_import",
+                 "add_field",
+                 "append_method" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.code()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            patch.type()
+                                    + " Patch에는 code가 필요합니다."
+                    );
+                }
+            }
+
+            case "replace_method" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.methodName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "replace_method Patch에는 methodName이 필요합니다."
+                    );
+                }
+
+                if (
+                        !StringUtils.hasText(
+                                patch.code()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "replace_method Patch에는 code가 필요합니다."
+                    );
+                }
+            }
+
+            case "remove_field" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.fieldName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "remove_field Patch에는 fieldName이 필요합니다."
+                    );
+                }
+            }
+
+            case "remove_method" -> {
+
+                if (
+                        !StringUtils.hasText(
+                                patch.methodName()
+                        )
+                ) {
+                    return ToolResult.failure(
+                            "remove_method Patch에는 methodName이 필요합니다."
+                    );
+                }
+            }
+
+            default -> {
+                return ToolResult.failure(
+                        "지원하지 않는 Patch type입니다: "
+                                + patch.type()
+                );
+            }
+        }
+
         if (
-                !StringUtils.hasText(
+                StringUtils.hasText(
                         patch.code()
                 )
-        ) {
-            return ToolResult.failure(
-                    "Patch code가 없습니다."
-            );
-        }
-
-        if (
-                "replace_method".equals(
-                        patch.type()
-                )
-                        && !StringUtils.hasText(
-                        patch.methodName()
-                )
-        ) {
-            return ToolResult.failure(
-                    "replace_method Patch에는 methodName이 필요합니다."
-            );
-        }
-
-        if (
-                patch.code().contains(
+                        && patch.code().contains(
                         "```"
                 )
         ) {
