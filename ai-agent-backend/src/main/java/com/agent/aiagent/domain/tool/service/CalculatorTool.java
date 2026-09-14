@@ -8,9 +8,19 @@ import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.time.LocalDateTime;
 
 @Component
 public class CalculatorTool implements AgentTool {
+
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+
+    private static final String TEST_FIELD = "test";
+
 
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
@@ -32,52 +42,53 @@ public class CalculatorTool implements AgentTool {
     }
 
     @Override
-    public ToolResult execute(
-            Map<String, Object> arguments
-    ) {
-        String expressionValue =
-                getExpressionValue(
-                        arguments
-                );
+        public ToolResult execute(
+                Map<String, Object> arguments
+        ) {
+            System.out.println("CalculatorTool execute called");
+            String expressionValue =
+                    getExpressionValue(
+                            arguments
+                    );
 
-        if (expressionValue == null) {
-            return ToolResult.failure(
-                    "계산할 수식이 없습니다."
-            );
-        }
-
-        try {
-            Expression expression =
-                    new ExpressionBuilder(
-                            expressionValue
-                    ).build();
-
-            double result =
-                    expression.evaluate();
-
-            if (!Double.isFinite(result)) {
+            if (expressionValue == null) {
                 return ToolResult.failure(
-                        "계산 결과가 유효하지 않습니다."
+                        "계산할 수식이 없습니다."
                 );
             }
 
-            return ToolResult.success(
-                    formatResult(
-                            result
-                    )
-            );
-        } catch (IllegalArgumentException exception) {
-            return ToolResult.failure(
-                    "유효하지 않은 수식입니다: "
-                            + expressionValue
-            );
-        } catch (ArithmeticException exception) {
-            return ToolResult.failure(
-                    "계산 중 오류가 발생했습니다: "
-                            + exception.getMessage()
-            );
+            try {
+                Expression expression =
+                        new ExpressionBuilder(
+                                expressionValue
+                        ).build();
+
+                double result =
+                        expression.evaluate();
+
+                if (!Double.isFinite(result)) {
+                    return ToolResult.failure(
+                            "계산 결과가 유효하지 않습니다."
+                    );
+                }
+
+                return ToolResult.success(
+                        formatResult(
+                                result
+                        )
+                );
+            } catch (IllegalArgumentException exception) {
+                return ToolResult.failure(
+                        "유효하지 않은 수식입니다: "
+                                + expressionValue
+                );
+            } catch (ArithmeticException exception) {
+                return ToolResult.failure(
+                        "계산 중 오류가 발생했습니다: "
+                                + exception.getMessage()
+                );
+            }
         }
-    }
 
     private String getExpressionValue(
             Map<String, Object> arguments
@@ -117,4 +128,8 @@ public class CalculatorTool implements AgentTool {
                 result
         );
     }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
