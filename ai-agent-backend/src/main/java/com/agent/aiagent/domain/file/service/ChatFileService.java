@@ -4,10 +4,10 @@ import com.agent.aiagent.domain.file.dto.ChatFileResponse;
 import com.agent.aiagent.domain.file.dto.ChatFileUploadResponse;
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
+import com.agent.aiagent.domain.video.model.VideoFrame;
+import com.agent.aiagent.domain.video.model.VideoFrameAnalysis;
 import com.agent.aiagent.domain.video.model.VideoTranscript;
-import com.agent.aiagent.domain.video.service.VideoAudioExtractor;
-import com.agent.aiagent.domain.video.service.VideoSummaryService;
-import com.agent.aiagent.domain.video.service.WhisperTranscriber;
+import com.agent.aiagent.domain.video.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -90,6 +90,9 @@ public class ChatFileService {
     private final VideoAudioExtractor videoAudioExtractor;
     private final WhisperTranscriber whisperTranscriber;
     private final VideoSummaryService videoSummaryService;
+    private final VideoFrameExtractor videoFrameExtractor;
+    private final VideoFrameAnalyzer videoFrameAnalyzer;
+    private final VideoFrameDeduplicator videoFrameDeduplicator;
 
     @Value("${app.file.upload-dir}")
     private String uploadDirectory;
@@ -218,7 +221,7 @@ public class ChatFileService {
                     );
 
                     log.info(
-                            "영상 분석 완료. fileId={}, language={}, segmentCount={}, summaryLength={}",
+                            "영상 음성 분석 완료. fileId={}, language={}, segmentCount={}, summaryLength={}",
                             savedFile.getId(),
                             transcript.language(),
                             transcript.segments().size(),
@@ -240,6 +243,52 @@ public class ChatFileService {
                             );
                         }
                     }
+                }
+
+                List<VideoFrame> frames =
+                        List.of();
+
+                try {
+                    frames =
+                            videoFrameExtractor.extract(
+                                    Path.of(savedFile.getStoredPath())
+                            );
+
+                    log.info(
+                            "영상 프레임 추출 확인. fileId={}, frameCount={}, firstFrame={}",
+                            savedFile.getId(),
+                            frames.size(),
+                            frames.isEmpty()
+                                    ? null
+                                    : frames.getFirst().path()
+                    );
+
+                    List<VideoFrame> filteredFrames =
+                            videoFrameDeduplicator.filter(
+                                    frames
+                            );
+
+                    log.info(
+                            "영상 Vision 분석 대상 프레임 확정. fileId={}, originalCount={}, filteredCount={}, removedCount={}",
+                            savedFile.getId(),
+                            frames.size(),
+                            filteredFrames.size(),
+                            frames.size() - filteredFrames.size()
+                    );
+
+                    List<VideoFrameAnalysis> frameAnalyses =
+                            videoFrameAnalyzer.analyze(
+                                    filteredFrames
+                            );
+
+                    chatFileChunkService.saveVideoFrameAnalysisChunks(
+                            savedFile,
+                            frameAnalyses
+                    );
+                } finally {
+                    videoFrameExtractor.cleanup(
+                            frames
+                    );
                 }
             }
         } catch (RuntimeException exception) {

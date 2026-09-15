@@ -16,4 +16,6 @@ public interface ChatFileChunkRepository
     void deleteAllByFileId(
             String fileId
     );
+
+    List<ChatFileChunk> findAllByFileId(String fileId);
 }

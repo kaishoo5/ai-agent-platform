@@ -4,6 +4,7 @@ import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
 import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
 import com.agent.aiagent.domain.file.service.extractor.FileContentExtractorManager;
+import com.agent.aiagent.domain.video.model.VideoFrameAnalysis;
 import com.agent.aiagent.domain.video.model.VideoTranscript;
 import com.agent.aiagent.domain.video.model.VideoTranscriptSegment;
 import com.agent.aiagent.provider.embedding.EmbeddingProvider;
@@ -385,5 +386,137 @@ public class ChatFileChunkService {
         }
 
         return embeddings;
+    }
+
+    @Transactional
+    public void saveVideoFrameAnalysisChunks(
+            ChatFile chatFile,
+            List<VideoFrameAnalysis> frameAnalyses
+    ) {
+        List<VideoFrameAnalysis> analyses =
+                frameAnalyses.stream()
+                        .filter(analysis ->
+                                analysis.description() != null
+                                        && !analysis.description().isBlank()
+                        )
+                        .toList();
+
+        if (analyses.isEmpty()) {
+            log.info(
+                    "영상 Vision chunk 저장을 생략했습니다. fileId={}, fileName={}, reason=emptyAnalysis",
+                    chatFile.getId(),
+                    chatFile.getOriginalName()
+            );
+
+            return;
+        }
+
+        List<String> contents =
+                analyses.stream()
+                        .map(analysis ->
+                                """
+                                [화면 분석]
+                                %s
+                                """.formatted(
+                                        analysis.description()
+                                ).trim()
+                        )
+                        .toList();
+
+        List<List<Double>> embeddings =
+                embedVideoContents(
+                        contents
+                );
+
+        if (embeddings.size() != analyses.size()) {
+            throw new IllegalStateException(
+                    "영상 Vision chunk 개수와 embedding 개수가 일치하지 않습니다."
+            );
+        }
+
+        List<ChatFileChunk> existingChunks =
+                chatFileChunkRepository.findAllByFileId(
+                        chatFile.getId()
+                );
+
+        int startChunkIndex =
+                existingChunks.stream()
+                        .mapToInt(ChatFileChunk::getChunkIndex)
+                        .max()
+                        .orElse(-1)
+                        + 1;
+
+        LocalDateTime createdAt =
+                LocalDateTime.now();
+
+        List<ChatFileChunk> entities =
+                new ArrayList<>();
+
+        for (
+                int index = 0;
+                index < analyses.size();
+                index++
+        ) {
+            VideoFrameAnalysis analysis =
+                    analyses.get(index);
+
+            long startMillis =
+                    analysis.timestampMillis();
+
+            long endMillis =
+                    startMillis
+                            + VIDEO_CHUNK_MAX_DURATION_MILLIS;
+
+            ChatFileChunk entity =
+                    ChatFileChunk.builder()
+                            .id(
+                                    UUID.randomUUID()
+                                            .toString()
+                            )
+                            .fileId(
+                                    chatFile.getId()
+                            )
+                            .roomId(
+                                    chatFile.getRoomId()
+                            )
+                            .chunkIndex(
+                                    startChunkIndex + index
+                            )
+                            .content(
+                                    contents.get(index)
+                            )
+                            .embedding(
+                                    embeddingJsonConverter.serialize(
+                                            embeddings.get(index)
+                                    )
+                            )
+                            .startMillis(
+                                    startMillis
+                            )
+                            .endMillis(
+                                    endMillis
+                            )
+                            .createdAt(
+                                    createdAt
+                            )
+                            .build();
+
+            entities.add(
+                    entity
+            );
+        }
+
+        chatFileChunkRepository.saveAll(
+                entities
+        );
+
+        log.info(
+                "영상 Vision chunk 저장 완료. roomId={}, fileId={}, fileName={}, chunkCount={}, startChunkIndex={}",
+                chatFile.getRoomId(),
+                chatFile.getId(),
+                chatFile.getOriginalName(),
+                entities.size(),
+                startChunkIndex
+        );
     }
 }
