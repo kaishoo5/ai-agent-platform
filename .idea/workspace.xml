@@ -4,16 +4,33 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: complete code agent delete operations">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add video transcript analysis and summarization">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/entity/ChatFile.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/entity/ChatFile.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/entity/ChatFileChunk.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/entity/ChatFileChunk.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/FilePromptBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/FilePromptBuilder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagPromptBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/rag/service/RagPromptBuilder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/1da7a395-b9df-4584-a783-40dbb4af1703/7e9cfdc1-d27b-48e9-9ef0-8457c05c40c0.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/2ca1f42a-c01e-4cdc-9528-95f2a0d971ed/3bae933b-4684-483d-be28-8c68826035b8.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/2ca1f42a-c01e-4cdc-9528-95f2a0d971ed/a373de83-4b26-4755-8204-acac3a145ad7.docx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/3d0ed807-6a6f-4c79-bfcd-539b039f8b6c/7d9c88fa-703e-4978-8b9b-7c9fadc9279b.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/3d0ed807-6a6f-4c79-bfcd-539b039f8b6c/a75077a7-dd1f-44d4-99c5-6c643a9c851f.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/4066f656-3ab4-4da1-a7d8-33ae0334af8e/579796f7-6408-4b26-8eed-075d70711fcd.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/45a46f9d-c115-4052-92f0-fb4b66442091/57311aa6-b404-48fb-b364-87a631cb52fa.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/45a46f9d-c115-4052-92f0-fb4b66442091/9cabe170-19f9-4d0b-b0e6-a5ab81ed28b5.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/45a46f9d-c115-4052-92f0-fb4b66442091/ee3e629e-9f8d-4e4f-8324-4c1148a501a6.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/71212bf8-53d2-4e8b-b3b5-4564d11429e9/d709f7ed-1099-470e-a0ad-e8f11acbf62b.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/7c0f41f6-fc06-4e1d-9715-00ea438a2ac1/aba1f41e-bbb3-4a95-8f5e-eaef77b22ff6.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/a4f7dc54-3bf4-4399-a52c-efb56b9d6a8e/50f23745-689f-4fdc-b880-97e220755c8d.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/a4f7dc54-3bf4-4399-a52c-efb56b9d6a8e/c6b4326a-c1b2-46ad-860e-2d0d9125cd26.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/af607aca-8b7c-4148-993c-9de48457b56e/c37360ea-4b53-44e5-a5ed-0d974cad086a.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/bc2d83ab-aef1-449c-b71e-c87cec1b291f/bc3c3b36-dde8-492a-9aab-8a036ea8195a.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/c514a58a-3cbf-4aa4-9e6f-dcefd78f3b23/67cbb62b-e677-42dd-8b6a-9fb1df53dcd3.docx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/c514a58a-3cbf-4aa4-9e6f-dcefd78f3b23/83bc2108-1a20-46d5-a8df-ccc010dd895e.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/c514a58a-3cbf-4aa4-9e6f-dcefd78f3b23/a4cf3041-0533-43cc-9328-75470c8df33a.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/cc195e7f-724d-4f20-bbf8-ec4a05c48a98/70e3e94f-7aaf-4d01-8153-b9f62549eee0.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/d5ba6334-2f53-4f68-b3e3-c43d3e0c8da4/238d8f01-f51b-4f8c-926c-f3cb1ea8820b.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/d5ba6334-2f53-4f68-b3e3-c43d3e0c8da4/70086811-233b-4a89-8954-f79dfab191cf.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/d75b136e-8756-4d0e-858a-b6bea9240683/a7fee2fa-b05f-45ac-bcf5-479b4cbc392c.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/d75b136e-8756-4d0e-858a-b6bea9240683/f41bc747-46eb-48d4-8bae-efb382f9cc0d.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/f6f4571e-caa0-4e8e-a716-1647adc4c171/ed4a389f-277e-4194-8e7e-40282d7bcb7a.jpg" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -343,7 +360,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: extract chat model request factory" />
     <MESSAGE value="refactor: extract chat streaming executor" />
     <MESSAGE value="refactor: replace ollama message dto with provider model" />
     <MESSAGE value="refactor: replace ollama response dto with provider model" />
@@ -368,7 +384,8 @@
     <MESSAGE value="feat: add transactional AI code editing" />
     <MESSAGE value="feat: add build validation and rollback for AI code edits" />
     <MESSAGE value="feat: complete code agent delete operations" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: complete code agent delete operations" />
+    <MESSAGE value="feat: add video transcript analysis and summarization" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add video transcript analysis and summarization" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

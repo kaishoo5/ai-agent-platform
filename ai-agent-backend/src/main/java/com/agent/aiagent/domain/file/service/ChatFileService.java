@@ -190,37 +190,57 @@ public class ChatFileService {
             }
 
             if (isVideo(savedFile.getExtension())) {
-                Path audioPath =
-                        videoAudioExtractor.extract(
-                                Path.of(savedFile.getStoredPath())
-                        );
+                Path audioPath = null;
 
-                VideoTranscript transcript =
-                        whisperTranscriber.transcribe(
-                                audioPath
-                        );
+                try {
+                    audioPath =
+                            videoAudioExtractor.extract(
+                                    Path.of(savedFile.getStoredPath())
+                            );
 
-                chatFileChunkService.saveVideoTranscriptChunks(
-                        savedFile,
-                        transcript
-                );
+                    VideoTranscript transcript =
+                            whisperTranscriber.transcribe(
+                                    audioPath
+                            );
 
-                String summary =
-                        videoSummaryService.summarize(
-                                transcript
-                        );
+                    chatFileChunkService.saveVideoTranscriptChunks(
+                            savedFile,
+                            transcript
+                    );
 
-                savedFile.updateSummary(
-                        summary
-                );
+                    String summary =
+                            videoSummaryService.summarize(
+                                    transcript
+                            );
 
-                log.info(
-                        "영상 STT 완료. fileId={}, language={}, segmentCount={}, transcript={}",
-                        savedFile.getId(),
-                        transcript.language(),
-                        transcript.segments().size(),
-                        transcript.text()
-                );
+                    savedFile.updateSummary(
+                            summary
+                    );
+
+                    log.info(
+                            "영상 분석 완료. fileId={}, language={}, segmentCount={}, summaryLength={}",
+                            savedFile.getId(),
+                            transcript.language(),
+                            transcript.segments().size(),
+                            summary != null
+                                    ? summary.length()
+                                    : 0
+                    );
+                } finally {
+                    if (audioPath != null) {
+                        try {
+                            Files.deleteIfExists(
+                                    audioPath
+                            );
+                        } catch (IOException exception) {
+                            log.warn(
+                                    "영상 임시 오디오 파일 삭제 실패. path={}",
+                                    audioPath,
+                                    exception
+                            );
+                        }
+                    }
+                }
             }
         } catch (RuntimeException exception) {
             deleteStoredFile(
