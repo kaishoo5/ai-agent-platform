@@ -44,7 +44,7 @@ function ChatRoomList() {
     };
 
     return (
-        <aside className="chat-room-section">
+        <section className="chat-room-section">
             <button
                 type="button"
                 className="new-chat-button"
@@ -52,8 +52,16 @@ function ChatRoomList() {
                     void handleCreateRoom();
                 }}
             >
-                + 새 채팅
+                <span className="new-chat-button-icon">
+                    +
+                </span>
+
+                <span>New chat</span>
             </button>
+
+            <div className="chat-room-header">
+                Recent
+            </div>
 
             <div className="chat-room-list">
                 {rooms.map((room) => {
@@ -86,6 +94,10 @@ function ChatRoomList() {
                                 }
                             }}
                         >
+                            <span className="chat-room-icon">
+                                ◇
+                            </span>
+
                             <span className="chat-room-title">
                                 {room.title}
                             </span>
@@ -107,7 +119,7 @@ function ChatRoomList() {
                     );
                 })}
             </div>
-        </aside>
+        </section>
     );
 }
 

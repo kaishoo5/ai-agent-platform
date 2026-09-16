@@ -1,4 +1,4 @@
-import {useEffect, useRef,} from "react";
+import {useEffect, useRef} from "react";
 
 import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
@@ -40,6 +40,10 @@ function ChatMessageList() {
 
     const setActiveRoom = useChatStore(
         (state) => state.setActiveRoom,
+    );
+
+    const updateMessageVideoResult = useChatStore(
+        (state) => state.updateMessageVideoResult,
     );
 
     const activeRoom = rooms.find(
@@ -132,6 +136,9 @@ function ChatMessageList() {
         const previousContent =
             assistantMessage.content;
 
+        const previousVideoResult =
+            assistantMessage.videoResult;
+
         const abortController =
             new AbortController();
 
@@ -139,6 +146,12 @@ function ChatMessageList() {
             activeRoomId,
             assistantMessageId,
             "",
+        );
+
+        updateMessageVideoResult(
+            activeRoomId,
+            assistantMessageId,
+            null,
         );
 
         startGenerating(
@@ -149,12 +162,22 @@ function ChatMessageList() {
             await streamChat(
                 activeRoomId,
                 requestMessages,
-                (chunk) => {
-                    appendMessageContent(
-                        activeRoomId,
-                        assistantMessageId,
-                        chunk,
-                    );
+                {
+                    onChunk: (chunk) => {
+                        appendMessageContent(
+                            activeRoomId,
+                            assistantMessageId,
+                            chunk,
+                        );
+                    },
+
+                    onVideoResult: (videoResult) => {
+                        updateMessageVideoResult(
+                            activeRoomId,
+                            assistantMessageId,
+                            videoResult,
+                        );
+                    },
                 },
                 abortController.signal,
                 true,
@@ -180,6 +203,12 @@ function ChatMessageList() {
                     previousContent,
                 );
 
+                updateMessageVideoResult(
+                    activeRoomId,
+                    assistantMessageId,
+                    previousVideoResult,
+                );
+
                 return;
             }
 
@@ -187,6 +216,12 @@ function ChatMessageList() {
                 activeRoomId,
                 assistantMessageId,
                 previousContent,
+            );
+
+            updateMessageVideoResult(
+                activeRoomId,
+                assistantMessageId,
+                previousVideoResult,
             );
 
             console.error(
@@ -201,12 +236,22 @@ function ChatMessageList() {
     if (messages.length === 0) {
         return (
             <div className="message-list">
-                <div className="empty-message">
-                    <h3>무엇을 도와드릴까요?</h3>
+                <div className="empty-chat">
+                    <div className="empty-chat-content">
+                        <div className="empty-chat-icon">
+                            A
+                        </div>
 
-                    <p>
-                        아래 입력창에 질문을 입력하세요.
-                    </p>
+                        <h2 className="empty-chat-title">
+                            무엇을 도와드릴까요?
+                        </h2>
+
+                        <p className="empty-chat-description">
+                            파일 분석, 코드 수정, 영상 분석부터
+                            <br />
+                            일반적인 질문까지 AI Agent에게 요청해보세요.
+                        </p>
+                    </div>
                 </div>
             </div>
         );
@@ -215,26 +260,31 @@ function ChatMessageList() {
     return (
         <div className="message-list message-list-active">
             <div className="message-list-inner">
-                {messages.map((message) => (
-                    <ChatMessageItem
-                        key={message.id}
-                        message={message}
-                        isLastAssistant={
-                            message.id
-                            === lastAssistantMessage?.id
-                        }
-                        isGenerating={
-                            isGenerating
-                        }
-                        onRegenerate={() => {
-                            void handleRegenerate(
-                                message.id,
-                            );
-                        }}
-                    />
-                ))}
+                <div className="conversation-stream">
+                    {messages.map((message) => (
+                        <ChatMessageItem
+                            key={message.id}
+                            message={message}
+                            isLastAssistant={
+                                message.id
+                                === lastAssistantMessage?.id
+                            }
+                            isGenerating={
+                                isGenerating
+                            }
+                            onRegenerate={() => {
+                                void handleRegenerate(
+                                    message.id,
+                                );
+                            }}
+                        />
+                    ))}
 
-                <div ref={messageEndRef} />
+                    <div
+                        ref={messageEndRef}
+                        className="message-list-end"
+                    />
+                </div>
             </div>
         </div>
     );

@@ -3,6 +3,8 @@ package com.agent.aiagent.domain.tool.service;
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.service.ChatStreamingExecutor;
 import com.agent.aiagent.domain.tool.model.ToolResult;
+import com.agent.aiagent.domain.video.model.VideoSummaryResult;
+import com.agent.aiagent.domain.video.service.VideoSummaryFileService;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import com.agent.aiagent.provider.chat.ChatModelRequestBuilder;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -24,10 +27,17 @@ public class ToolCallingExecutor {
     private static final String AI_EDIT_CODE_TOOL_NAME =
             "ai_edit_code";
 
+    private static final String VIDEO_SUMMARY_GENERATE_TOOL_NAME =
+            "video_summary_generate";
+
+    private static final long DEFAULT_VIDEO_SUMMARY_DURATION_SECONDS =
+            180L;
+
     private final ChatModelProvider chatModelProvider;
     private final ToolCallProcessor toolCallProcessor;
     private final ChatModelRequestBuilder chatModelRequestBuilder;
     private final ChatStreamingExecutor chatStreamingExecutor;
+    private final VideoSummaryFileService videoSummaryFileService;
 
     public SseEmitter execute(
             ChatRequest request,
@@ -43,6 +53,9 @@ public class ToolCallingExecutor {
 
         ChatModelRequest currentRequest =
                 chatModelRequest;
+
+        VideoSummaryResult videoSummaryResult =
+                null;
 
         for (
                 int round = 1;
@@ -62,7 +75,8 @@ public class ToolCallingExecutor {
 
                 return chatStreamingExecutor.execute(
                         request,
-                        currentRequest
+                        currentRequest,
+                        videoSummaryResult
                 );
             }
 
@@ -82,6 +96,34 @@ public class ToolCallingExecutor {
                     toolCallProcessor.execute(
                             response.toolCalls()
                     );
+
+            for (
+                    int index = 0;
+                    index < response.toolCalls().size();
+                    index++
+            ) {
+                var toolCall =
+                        response.toolCalls().get(
+                                index
+                        );
+
+                ToolResult toolResult =
+                        toolResults.get(
+                                index
+                        );
+
+                if (
+                        VIDEO_SUMMARY_GENERATE_TOOL_NAME.equals(
+                                toolCall.name()
+                        )
+                                && toolResult.success()
+                ) {
+                    videoSummaryResult =
+                            createVideoSummaryResult(
+                                    toolCall.arguments()
+                            );
+                }
+            }
 
             currentRequest =
                     chatModelRequestBuilder.appendToolResults(
@@ -114,7 +156,8 @@ public class ToolCallingExecutor {
 
                 return chatStreamingExecutor.execute(
                         request,
-                        finalRequest
+                        finalRequest,
+                        videoSummaryResult
                 );
             }
         }
@@ -126,7 +169,99 @@ public class ToolCallingExecutor {
 
         return chatStreamingExecutor.execute(
                 request,
-                currentRequest
+                currentRequest,
+                videoSummaryResult
+        );
+    }
+
+    private VideoSummaryResult createVideoSummaryResult(
+            Map<String, Object> arguments
+    ) {
+        String fileId =
+                getStringArgument(
+                        arguments,
+                        "fileId"
+                );
+
+        long durationSeconds =
+                getLongArgument(
+                        arguments,
+                        "durationSeconds",
+                        DEFAULT_VIDEO_SUMMARY_DURATION_SECONDS
+                );
+
+        String fileName =
+                videoSummaryFileService.getSummaryFileName(
+                        fileId
+                );
+
+        String streamUrl =
+                "/api/videos/summaries/"
+                        + fileId;
+
+        String downloadUrl =
+                streamUrl
+                        + "?download=true";
+
+        return new VideoSummaryResult(
+                fileId,
+                fileName,
+                durationSeconds,
+                streamUrl,
+                downloadUrl
+        );
+    }
+
+    private String getStringArgument(
+            Map<String, Object> arguments,
+            String name
+    ) {
+        if (
+                arguments == null
+                        || arguments.get(name) == null
+        ) {
+            return null;
+        }
+
+        String value =
+                arguments.get(name)
+                        .toString()
+                        .trim();
+
+        return value.isBlank()
+                ? null
+                : value;
+    }
+
+    private long getLongArgument(
+            Map<String, Object> arguments,
+            String name,
+            long defaultValue
+    ) {
+        if (
+                arguments == null
+                        || arguments.get(name) == null
+        ) {
+            return defaultValue;
+        }
+
+        Object value =
+                arguments.get(name);
+
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+
+        String normalizedValue =
+                value.toString()
+                        .trim();
+
+        if (normalizedValue.isBlank()) {
+            return defaultValue;
+        }
+
+        return Long.parseLong(
+                normalizedValue
         );
     }
 }

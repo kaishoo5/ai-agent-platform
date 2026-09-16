@@ -1,42 +1,83 @@
-import {NavLink, Outlet} from "react-router-dom";
+import {NavLink, Outlet,} from "react-router-dom";
 
 import ChatRoomList from "../components/chat/ChatRoomList";
+import ThemeToggle from "../components/common/ThemeToggle";
 
 function MainLayout() {
     return (
         <div className="app-layout">
             <aside className="sidebar">
-                <div className="sidebar-header">
-                    <h1>AI Agent</h1>
+                <div className="sidebar-brand">
+                    <div className="sidebar-brand-icon">
+                        A
+                    </div>
+
+                    <div className="sidebar-brand-text">
+                        <strong>
+                            AI Agent
+                        </strong>
+
+                        <span>
+                            Workspace
+                        </span>
+                    </div>
                 </div>
 
-                <nav className="sidebar-menu">
+                <div className="sidebar-content">
                     <NavLink
                         to="/"
                         className={({isActive}) =>
                             isActive
-                                ? "menu-item active"
-                                : "menu-item"
+                                ? "sidebar-nav-item active"
+                                : "sidebar-nav-item"
                         }
                     >
-                        채팅
+                        <span className="sidebar-nav-icon">
+                            ◇
+                        </span>
+
+                        <span>
+                            Chat
+                        </span>
                     </NavLink>
 
-                    <div className="sidebar-chat-room-area">
-                        <ChatRoomList />
-                    </div>
+                    <ChatRoomList />
+                </div>
 
+                <div className="sidebar-footer">
                     <NavLink
                         to="/settings"
                         className={({isActive}) =>
                             isActive
-                                ? "menu-item active"
-                                : "menu-item"
+                                ? "sidebar-nav-item active"
+                                : "sidebar-nav-item"
                         }
                     >
-                        설정
+                        <span className="sidebar-nav-icon">
+                            ⚙
+                        </span>
+
+                        <span>
+                            Settings
+                        </span>
                     </NavLink>
-                </nav>
+
+                    <ThemeToggle />
+
+                    <div className="sidebar-status">
+                        <span className="sidebar-status-dot" />
+
+                        <div>
+                            <strong>
+                                Local Agent
+                            </strong>
+
+                            <span>
+                                Ready
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             <main className="main-content">

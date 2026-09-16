@@ -16,7 +16,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VideoSummaryGenerateTool implements AgentTool {
 
-    private static final long DEFAULT_DURATION_SECONDS = 180L;
+    private static final long DEFAULT_DURATION_SECONDS =
+            180L;
 
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
@@ -107,15 +108,12 @@ public class VideoSummaryGenerateTool implements AgentTool {
             return ToolResult.success(
                     "요약 영상 생성이 완료되었습니다."
                             + System.lineSeparator()
-                            + "fileId: "
-                            + fileId
-                            + System.lineSeparator()
                             + "목표 길이: "
                             + durationSeconds
                             + "초"
                             + System.lineSeparator()
-                            + "생성 파일: "
-                            + outputPath
+                            + "생성된 영상은 사용자 화면의 영상 요약 카드에서 "
+                            + "재생하거나 다운로드할 수 있습니다."
             );
         } catch (ArithmeticException exception) {
             return ToolResult.failure(
@@ -197,7 +195,8 @@ public class VideoSummaryGenerateTool implements AgentTool {
             );
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException(
-                    name + " 값이 숫자가 아닙니다: "
+                    name
+                            + " 값이 숫자가 아닙니다: "
                             + normalizedValue,
                     exception
             );

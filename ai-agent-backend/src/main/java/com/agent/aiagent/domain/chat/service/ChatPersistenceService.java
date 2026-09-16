@@ -31,7 +31,10 @@ public class ChatPersistenceService {
             String content
     ) {
         transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
+            ChatRoom chatRoom =
+                    findRoom(
+                            roomId
+                    );
 
             boolean isFirstUserMessage =
                     !chatMessageRepository.existsByRoomIdAndRole(
@@ -39,20 +42,27 @@ public class ChatPersistenceService {
                             USER_ROLE
                     );
 
-            ChatMessage chatMessage = new ChatMessage(
-                    chatRoom,
-                    USER_ROLE,
-                    content
-            );
+            ChatMessage chatMessage =
+                    new ChatMessage(
+                            chatRoom,
+                            USER_ROLE,
+                            content
+                    );
 
-            chatMessageRepository.save(chatMessage);
+            chatMessageRepository.save(
+                    chatMessage
+            );
 
             if (
                     isFirstUserMessage
-                            && "새 채팅".equals(chatRoom.getTitle())
+                            && "새 채팅".equals(
+                            chatRoom.getTitle()
+                    )
             ) {
                 chatRoom.changeTitle(
-                        createRoomTitle(content)
+                        createRoomTitle(
+                                content
+                        )
                 );
             }
 
@@ -64,7 +74,22 @@ public class ChatPersistenceService {
             String roomId,
             String content
     ) {
-        if (content == null || content.isBlank()) {
+        saveAssistantMessage(
+                roomId,
+                content,
+                null
+        );
+    }
+
+    public void saveAssistantMessage(
+            String roomId,
+            String content,
+            String videoResult
+    ) {
+        if (
+                content == null
+                        || content.isBlank()
+        ) {
             log.warn(
                     "저장할 AI 응답이 비어 있습니다. roomId={}",
                     roomId
@@ -74,15 +99,23 @@ public class ChatPersistenceService {
         }
 
         transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
+            ChatRoom chatRoom =
+                    findRoom(
+                            roomId
+                    );
 
-            ChatMessage chatMessage = new ChatMessage(
-                    chatRoom,
-                    ASSISTANT_ROLE,
-                    content
+            ChatMessage chatMessage =
+                    new ChatMessage(
+                            chatRoom,
+                            ASSISTANT_ROLE,
+                            content,
+                            videoResult
+                    );
+
+            chatMessageRepository.save(
+                    chatMessage
             );
 
-            chatMessageRepository.save(chatMessage);
             chatRoom.touch();
         });
     }
@@ -91,7 +124,22 @@ public class ChatPersistenceService {
             String roomId,
             String content
     ) {
-        if (content == null || content.isBlank()) {
+        replaceLastAssistantMessage(
+                roomId,
+                content,
+                null
+        );
+    }
+
+    public void replaceLastAssistantMessage(
+            String roomId,
+            String content,
+            String videoResult
+    ) {
+        if (
+                content == null
+                        || content.isBlank()
+        ) {
             log.warn(
                     "교체할 AI 응답이 비어 있습니다. roomId={}",
                     roomId
@@ -101,22 +149,32 @@ public class ChatPersistenceService {
         }
 
         transactionTemplate.executeWithoutResult(status -> {
-            ChatRoom chatRoom = findRoom(roomId);
+            ChatRoom chatRoom =
+                    findRoom(
+                            roomId
+                    );
 
             chatMessageRepository
                     .findFirstByRoomIdAndRoleOrderByCreatedAtDesc(
                             roomId,
                             ASSISTANT_ROLE
                     )
-                    .ifPresent(chatMessageRepository::delete);
+                    .ifPresent(
+                            chatMessageRepository::delete
+                    );
 
-            ChatMessage newAssistantMessage = new ChatMessage(
-                    chatRoom,
-                    ASSISTANT_ROLE,
-                    content
+            ChatMessage newAssistantMessage =
+                    new ChatMessage(
+                            chatRoom,
+                            ASSISTANT_ROLE,
+                            content,
+                            videoResult
+                    );
+
+            chatMessageRepository.save(
+                    newAssistantMessage
             );
 
-            chatMessageRepository.save(newAssistantMessage);
             chatRoom.touch();
         });
     }
@@ -131,13 +189,19 @@ public class ChatPersistenceService {
             return;
         }
 
-        if (!responseSaved.compareAndSet(false, true)) {
+        if (
+                !responseSaved.compareAndSet(
+                        false,
+                        true
+                )
+        ) {
             return;
         }
 
-        String content = assistantContent.length() > 0
-                ? assistantContent.toString()
-                : "응답이 중단되었습니다.";
+        String content =
+                assistantContent.length() > 0
+                        ? assistantContent.toString()
+                        : "응답이 중단되었습니다.";
 
         saveAssistantMessage(
                 roomId,
@@ -151,26 +215,42 @@ public class ChatPersistenceService {
         );
     }
 
-    private ChatRoom findRoom(String roomId) {
+    private ChatRoom findRoom(
+            String roomId
+    ) {
         return chatRoomRepository
-                .findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "채팅방을 찾을 수 없습니다."
-                ));
+                .findById(
+                        roomId
+                )
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "채팅방을 찾을 수 없습니다."
+                        )
+                );
     }
 
     private String createRoomTitle(
             String content
     ) {
-        String normalizedContent = content
-                .replaceAll("\\s+", " ")
-                .trim();
+        String normalizedContent =
+                content
+                        .replaceAll(
+                                "\\s+",
+                                " "
+                        )
+                        .trim();
 
-        if (normalizedContent.length() <= 25) {
+        if (
+                normalizedContent.length()
+                        <= 25
+        ) {
             return normalizedContent;
         }
 
-        return normalizedContent.substring(0, 25) + "...";
+        return normalizedContent.substring(
+                0,
+                25
+        ) + "...";
     }
 }

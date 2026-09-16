@@ -17,6 +17,14 @@ const VIDEO_EXTENSIONS = new Set([
     "mp4",
 ]);
 
+const IMAGE_EXTENSIONS = new Set([
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+]);
+
 const ALLOWED_FILE_EXTENSIONS = new Set([
     "txt",
     "md",
@@ -72,20 +80,21 @@ function formatFileSize(
         ).toFixed(1)} KB`;
     }
 
+    if (size < 1024 * 1024 * 1024) {
+        return `${(
+            size
+            / 1024
+            / 1024
+        ).toFixed(1)} MB`;
+    }
+
     return `${(
         size
         / 1024
         / 1024
-    ).toFixed(1)} MB`;
+        / 1024
+    ).toFixed(2)} GB`;
 }
-
-const IMAGE_EXTENSIONS = new Set([
-    "png",
-    "jpg",
-    "jpeg",
-    "gif",
-    "webp",
-]);
 
 function isImageFile(
     fileName: string,
@@ -93,6 +102,19 @@ function isImageFile(
     return IMAGE_EXTENSIONS.has(
         getFileExtension(fileName),
     );
+}
+
+function getFileLabel(
+    fileName: string,
+): string {
+    const extension =
+        getFileExtension(fileName);
+
+    if (!extension) {
+        return "FILE";
+    }
+
+    return extension.toUpperCase();
 }
 
 type SelectedFilePreviewProps = {
@@ -115,12 +137,18 @@ function SelectedFilePreview({
         const objectUrl =
             URL.createObjectURL(file);
 
-        setPreviewUrl(objectUrl);
+        setPreviewUrl(
+            objectUrl,
+        );
 
         return () => {
-            URL.revokeObjectURL(objectUrl);
+            URL.revokeObjectURL(
+                objectUrl,
+            );
         };
-    }, [file]);
+    }, [
+        file,
+    ]);
 
     if (!previewUrl) {
         return null;
@@ -166,7 +194,8 @@ function ChatInput() {
 
     const activeRoom = useChatStore(
         (state) => state.rooms.find(
-            (room) => room.id === state.activeRoomId,
+            (room) =>
+                room.id === state.activeRoomId,
         ),
     );
 
@@ -213,6 +242,10 @@ function ChatInput() {
         (state) => state.deleteFile,
     );
 
+    const updateMessageVideoResult = useChatStore(
+        (state) => state.updateMessageVideoResult,
+    );
+
     useEffect(() => {
         if (isGenerating) {
             return;
@@ -232,14 +265,27 @@ function ChatInput() {
         setInput(
             event.target.value,
         );
+
+        const textarea =
+            event.target;
+
+        textarea.style.height =
+            "auto";
+
+        textarea.style.height =
+            `${Math.min(
+                textarea.scrollHeight,
+                180,
+            )}px`;
     };
 
     const handleFileChange = (
         event: ChangeEvent<HTMLInputElement>,
     ): void => {
-        const files = Array.from(
-            event.target.files ?? [],
-        );
+        const files =
+            Array.from(
+                event.target.files ?? [],
+            );
 
         event.target.value = "";
 
@@ -262,7 +308,9 @@ function ChatInput() {
         }
 
         const acceptedFiles: File[] = [];
-        let errorMessage: string | null = null;
+
+        let errorMessage: string | null =
+            null;
 
         for (const file of files) {
             if (
@@ -299,7 +347,7 @@ function ChatInput() {
             if (file.size > maxFileSize) {
                 errorMessage =
                     VIDEO_EXTENSIONS.has(extension)
-                        ? `영상 파일 크기는 200MB를 초과할 수 없습니다: ${file.name}`
+                        ? `영상 파일 크기는 4GB를 초과할 수 없습니다: ${file.name}`
                         : `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`;
 
                 continue;
@@ -392,9 +440,10 @@ function ChatInput() {
 
         setDeletingFileIds(
             (currentIds) => {
-                const nextIds = new Set(
-                    currentIds,
-                );
+                const nextIds =
+                    new Set(
+                        currentIds,
+                    );
 
                 nextIds.add(
                     fileId,
@@ -421,9 +470,10 @@ function ChatInput() {
         } finally {
             setDeletingFileIds(
                 (currentIds) => {
-                    const nextIds = new Set(
-                        currentIds,
-                    );
+                    const nextIds =
+                        new Set(
+                            currentIds,
+                        );
 
                     nextIds.delete(
                         fileId,
@@ -463,14 +513,14 @@ function ChatInput() {
             );
 
         const currentMessages =
-            targetRoom?.messages
-            ?? [];
+            targetRoom?.messages ?? [];
 
         const userMessage: ChatMessage = {
             id: crypto.randomUUID(),
             roomId: targetRoomId,
             role: "USER",
             content: trimmedInput,
+            videoResult: null,
             createdAt: new Date().toISOString(),
         };
 
@@ -479,6 +529,7 @@ function ChatInput() {
             roomId: targetRoomId,
             role: "ASSISTANT",
             content: "",
+            videoResult: null,
             createdAt: new Date().toISOString(),
         };
 
@@ -502,6 +553,11 @@ function ChatInput() {
         );
 
         setInput("");
+
+        if (inputRef.current) {
+            inputRef.current.style.height =
+                "auto";
+        }
 
         const abortController =
             new AbortController();
@@ -531,12 +587,22 @@ function ChatInput() {
             await streamChat(
                 targetRoomId,
                 requestMessages,
-                (chunk) => {
-                    appendMessageContent(
-                        targetRoomId,
-                        assistantMessage.id,
-                        chunk,
-                    );
+                {
+                    onChunk: (chunk) => {
+                        appendMessageContent(
+                            targetRoomId,
+                            assistantMessage.id,
+                            chunk,
+                        );
+                    },
+
+                    onVideoResult: (videoResult) => {
+                        updateMessageVideoResult(
+                            targetRoomId,
+                            assistantMessage.id,
+                            videoResult,
+                        );
+                    },
                 },
                 abortController.signal,
                 false,
@@ -646,180 +712,154 @@ function ChatInput() {
                 onChange={handleFileChange}
             />
 
-            {
-                activeRoomFiles.length > 0
-                && (
-                    <div className="uploaded-file-section">
-                        <div className="uploaded-file-section-title">
-                            업로드된 파일
+            <div className="chat-composer">
+                {activeRoomFiles.length > 0 && (
+                    <div className="composer-file-section">
+                        <div className="composer-file-section-header">
+                            <span>Workspace files</span>
+
+                            <span>
+                                {activeRoomFiles.length}
+                            </span>
                         </div>
 
-                        <div className="uploaded-file-list">
-                            {
-                                activeRoomFiles.map((file) => {
-                                    const isDeleting =
-                                        deletingFileIds.has(
-                                            file.id,
-                                        );
+                        <div className="composer-file-list">
+                            {activeRoomFiles.map((file) => {
+                                const isDeleting =
+                                    deletingFileIds.has(
+                                        file.id,
+                                    );
 
-                                    return (
-                                        <div
-                                            key={file.id}
-                                            className="uploaded-file-item"
-                                        >
-                                            <div className="uploaded-file-info">
-                                    <span
-                                        className={`uploaded-file-extension uploaded-file-extension-${file.extension.toLowerCase()}`}
+                                return (
+                                    <div
+                                        key={file.id}
+                                        className="composer-file-item uploaded"
                                     >
-                                        {file.extension.toUpperCase()}
-                                    </span>
-
-                                                <div className="uploaded-file-text">
-                                        <span className="uploaded-file-name">
-                                            {file.originalName}
-                                        </span>
-
-                                                    <span className="uploaded-file-size">
-                                            {formatFileSize(file.size)}
-                                        </span>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                className="uploaded-file-delete-button"
-                                                disabled={
-                                                    isGenerating
-                                                    || isDeleting
-                                                }
-                                                onClick={() => {
-                                                    void handleDeleteUploadedFile(
-                                                        file.id,
-                                                    );
-                                                }}
-                                                aria-label={`${file.originalName} 삭제`}
-                                                title="채팅방에서 파일 삭제"
-                                            >
-                                                {
-                                                    isDeleting
-                                                        ? "삭제 중"
-                                                        : "×"
-                                                }
-                                            </button>
+                                        <div className="composer-file-type">
+                                            {file.extension.toUpperCase()}
                                         </div>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )
-            }
 
-            {
-                selectedFiles.length > 0
-                && (
-                    <div className="selected-file-section">
-                        <div className="selected-file-section-title">
-                            첨부 파일
-                        </div>
+                                        <div className="composer-file-info">
+                                            <span className="composer-file-name">
+                                                {file.originalName}
+                                            </span>
 
-                        <div className="selected-file-list">
-                            {
-                                selectedFiles.map((
-                                    file,
-                                    index,
-                                ) => {
-                                    const isImage =
-                                        isImageFile(file.name);
+                                            <span className="composer-file-size">
+                                                {formatFileSize(
+                                                    file.size,
+                                                )}
+                                            </span>
+                                        </div>
 
-                                    return (
-                                        <div
-                                            key={`${file.name}-${file.size}-${file.lastModified}`}
-                                            className={
-                                                isImage
-                                                    ? "selected-image-item"
-                                                    : "selected-file-item"
+                                        <button
+                                            type="button"
+                                            className="composer-file-remove"
+                                            disabled={
+                                                isGenerating
+                                                || isDeleting
                                             }
+                                            onClick={() => {
+                                                void handleDeleteUploadedFile(
+                                                    file.id,
+                                                );
+                                            }}
+                                            aria-label={`${file.originalName} 삭제`}
+                                            title="채팅방에서 파일 삭제"
                                         >
-                                            {
-                                                isImage
-                                                    ? (
-                                                        <>
-                                                            <SelectedFilePreview
-                                                                file={file}
-                                                            />
-
-                                                            <div className="selected-image-meta">
-                                                                <span className="selected-file-name">
-                                                                    {file.name}
-                                                                </span>
-
-                                                                <span className="selected-file-size">
-                                                                    {formatFileSize(file.size)}
-                                                                </span>
-                                                            </div>
-                                                        </>
-                                                    )
-                                                    : (
-                                                        <div className="selected-file-info">
-                                                            <div className="selected-file-text">
-                                                                <span className="selected-file-name">
-                                                                    {file.name}
-                                                                </span>
-
-                                                                <span className="selected-file-size">
-                                                                    {formatFileSize(file.size)}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                            }
-
-                                            <button
-                                                type="button"
-                                                className="selected-file-remove-button"
-                                                disabled={isGenerating}
-                                                onClick={() => {
-                                                    handleRemoveFile(index);
-                                                }}
-                                                aria-label={`${file.name} 삭제`}
-                                                title="첨부 파일 삭제"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    );
-                                })
-                            }
+                                            {isDeleting
+                                                ? "..."
+                                                : "×"}
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-                )
-            }
+                )}
 
-            {
-                fileError
-                && (
-                    <div className="file-error-message">
+                {selectedFiles.length > 0 && (
+                    <div className="composer-file-section selected">
+                        <div className="composer-file-section-header">
+                            <span>Attachments</span>
+
+                            <span>
+                                {selectedFiles.length}/{MAX_FILE_COUNT}
+                            </span>
+                        </div>
+
+                        <div className="composer-file-list">
+                            {selectedFiles.map((
+                                file,
+                                index,
+                            ) => {
+                                const isImage =
+                                    isImageFile(
+                                        file.name,
+                                    );
+
+                                return (
+                                    <div
+                                        key={`${file.name}-${file.size}-${file.lastModified}`}
+                                        className={
+                                            isImage
+                                                ? "composer-file-item image"
+                                                : "composer-file-item"
+                                        }
+                                    >
+                                        {isImage
+                                            ? (
+                                                <SelectedFilePreview
+                                                    file={file}
+                                                />
+                                            )
+                                            : (
+                                                <div className="composer-file-type">
+                                                    {getFileLabel(
+                                                        file.name,
+                                                    )}
+                                                </div>
+                                            )}
+
+                                        <div className="composer-file-info">
+                                            <span className="composer-file-name">
+                                                {file.name}
+                                            </span>
+
+                                            <span className="composer-file-size">
+                                                {formatFileSize(
+                                                    file.size,
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            className="composer-file-remove"
+                                            disabled={isGenerating}
+                                            onClick={() => {
+                                                handleRemoveFile(
+                                                    index,
+                                                );
+                                            }}
+                                            aria-label={`${file.name} 삭제`}
+                                            title="첨부 파일 삭제"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {fileError && (
+                    <div className="composer-file-error">
+                        <span>!</span>
+
                         {fileError}
                     </div>
-                )
-            }
-
-            <div className="chat-input-row">
-                <button
-                    type="button"
-                    className="file-attach-button"
-                    disabled={
-                        isGenerating
-                        || selectedFiles.length
-                        >= MAX_FILE_COUNT
-                    }
-                    onClick={handleFileButtonClick}
-                    aria-label="파일 첨부"
-                    title="파일 첨부"
-                >
-                    ＋
-                </button>
+                )}
 
                 <textarea
                     ref={inputRef}
@@ -827,8 +867,8 @@ function ChatInput() {
                     value={input}
                     placeholder={
                         isGenerating
-                            ? "AI가 응답 중입니다."
-                            : "메시지를 입력하세요."
+                            ? "AI Agent가 응답을 생성하고 있습니다..."
+                            : "AI Agent에게 메시지를 보내세요..."
                     }
                     rows={1}
                     disabled={isGenerating}
@@ -836,29 +876,58 @@ function ChatInput() {
                     onKeyDown={handleKeyDown}
                 />
 
-                {
-                    isGenerating
-                        ? (
-                            <button
-                                type="button"
-                                className="stop-button"
-                                onClick={handleStop}
-                            >
-                                <span className="stop-button-icon" />
+                <div className="chat-composer-actions">
+                    <div className="chat-composer-actions-left">
+                        <button
+                            type="button"
+                            className="composer-icon-button"
+                            disabled={
+                                isGenerating
+                                || selectedFiles.length
+                                >= MAX_FILE_COUNT
+                            }
+                            onClick={handleFileButtonClick}
+                            aria-label="파일 첨부"
+                            title="파일 첨부"
+                        >
+                            +
+                        </button>
 
-                                중지
-                            </button>
-                        )
-                        : (
-                            <button
-                                type="submit"
-                                className="send-button"
-                                disabled={!input.trim()}
-                            >
-                                전송
-                            </button>
-                        )
-                }
+                        <span className="composer-file-hint">
+                            TXT · PDF · DOCX · XLSX · Image · MP4
+                        </span>
+                    </div>
+
+                    <div className="chat-composer-actions-right">
+                        {isGenerating
+                            ? (
+                                <button
+                                    type="button"
+                                    className="composer-stop-button"
+                                    onClick={handleStop}
+                                >
+                                    <span className="composer-stop-icon" />
+
+                                    중지
+                                </button>
+                            )
+                            : (
+                                <button
+                                    type="submit"
+                                    className="composer-send-button"
+                                    disabled={!input.trim()}
+                                    aria-label="메시지 전송"
+                                    title="전송"
+                                >
+                                    ↑
+                                </button>
+                            )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="chat-composer-footer">
+                Enter로 전송 · Shift + Enter로 줄바꿈
             </div>
         </form>
     );

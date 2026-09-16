@@ -4,11 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: optimize video vision analysis with frame deduplication">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add AI video highlight generation">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/dto/ChatMessageResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/dto/ChatMessageResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/entity/ChatMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/entity/ChatMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatPersistenceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatPersistenceService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/VideoSummaryGenerateTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/VideoSummaryGenerateTool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend.zip" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend.zip" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/layouts/MainLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/layouts/MainLayout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Chat/ChatPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Chat/ChatPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/services/chatStreamService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/services/chatStreamService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/global.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/global.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,10 +62,10 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="CSS File" />
-        <option value="TypeScript JSX File" />
         <option value="Dockerfile" />
         <option value="TypeScript File" />
         <option value="Class" />
+        <option value="TypeScript JSX File" />
       </list>
     </option>
   </component>
@@ -338,7 +353,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: replace ollama response dto with provider model" />
     <MESSAGE value="refactor: extract rag prompt builder" />
     <MESSAGE value="refactor: extract chat attachment context factory" />
     <MESSAGE value="refactor: extract chat message context factory" />
@@ -363,7 +377,8 @@
     <MESSAGE value="feat: add video transcript analysis and summarization" />
     <MESSAGE value="chore: clean up video processing temporary files" />
     <MESSAGE value="feat: optimize video vision analysis with frame deduplication" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: optimize video vision analysis with frame deduplication" />
+    <MESSAGE value="feat: add AI video highlight generation" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add AI video highlight generation" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

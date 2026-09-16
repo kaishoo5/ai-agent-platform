@@ -9,15 +9,19 @@ public record ChatMessageResponse(
         String roomId,
         String role,
         String content,
+        String videoResult,
         LocalDateTime createdAt
 ) {
 
-    public static ChatMessageResponse from(ChatMessage chatMessage) {
+    public static ChatMessageResponse from(
+            ChatMessage chatMessage
+    ) {
         return new ChatMessageResponse(
                 chatMessage.getId(),
                 chatMessage.getRoom().getId(),
                 chatMessage.getRole(),
                 chatMessage.getContent(),
+                chatMessage.getVideoResult(),
                 chatMessage.getCreatedAt()
         );
     }

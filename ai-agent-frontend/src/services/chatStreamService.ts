@@ -1,4 +1,4 @@
-import type {ChatMessage} from "../types/chat";
+import type {ChatMessage, VideoSummaryResult,} from "../types/chat";
 
 interface ChatStreamRequestMessage {
     role: "user" | "assistant";
@@ -12,6 +12,16 @@ interface ChatStreamRequest {
     fileIds: string[];
 }
 
+interface ChatStreamHandlers {
+    onChunk: (
+        chunk: string,
+    ) => void;
+
+    onVideoResult?: (
+        videoResult: VideoSummaryResult,
+    ) => void;
+}
+
 function convertRole(
     role: ChatMessage["role"],
 ): "user" | "assistant" {
@@ -23,9 +33,7 @@ function convertRole(
 export async function streamChat(
     roomId: string,
     messages: ChatMessage[],
-    onChunk: (
-        chunk: string,
-    ) => void,
+    handlers: ChatStreamHandlers,
     signal?: AbortSignal,
     regenerate = false,
     fileIds: string[] = [],
@@ -33,7 +41,9 @@ export async function streamChat(
     const request: ChatStreamRequest = {
         roomId,
         messages: messages.map((message) => ({
-            role: convertRole(message.role),
+            role: convertRole(
+                message.role,
+            ),
             content: message.content,
         })),
         regenerate,
@@ -48,13 +58,16 @@ export async function streamChat(
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
             },
-            body: JSON.stringify(request),
+            body: JSON.stringify(
+                request,
+            ),
             signal,
         },
     );
 
     if (!response.ok) {
-        const responseText = await response.text();
+        const responseText =
+            await response.text();
 
         throw new Error(
             `채팅 요청에 실패했습니다. `
@@ -69,8 +82,13 @@ export async function streamChat(
         );
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
+    const reader =
+        response.body.getReader();
+
+    const decoder =
+        new TextDecoder(
+            "utf-8",
+        );
 
     let buffer = "";
 
@@ -92,31 +110,60 @@ export async function streamChat(
                 },
             );
 
-            buffer = buffer.replace(/\r\n/g, "\n");
+            buffer =
+                buffer.replace(
+                    /\r\n/g,
+                    "\n",
+                );
 
-            const eventBlocks = buffer.split("\n\n");
+            const eventBlocks =
+                buffer.split(
+                    "\n\n",
+                );
 
-            buffer = eventBlocks.pop() ?? "";
+            buffer =
+                eventBlocks.pop()
+                ?? "";
 
-            for (const eventBlock of eventBlocks) {
-                const lines = eventBlock.split("\n");
+            for (
+                const eventBlock
+                of eventBlocks
+                ) {
+                const lines =
+                    eventBlock.split(
+                        "\n",
+                    );
 
                 let eventName = "";
                 let data = "";
 
                 for (const line of lines) {
-                    if (line.startsWith("event:")) {
-                        eventName = line
-                            .slice("event:".length)
-                            .trim();
+                    if (
+                        line.startsWith(
+                            "event:",
+                        )
+                    ) {
+                        eventName =
+                            line
+                                .slice(
+                                    "event:".length,
+                                )
+                                .trim();
 
                         continue;
                     }
 
-                    if (line.startsWith("data:")) {
-                        data += line
-                            .slice("data:".length)
-                            .trimStart();
+                    if (
+                        line.startsWith(
+                            "data:",
+                        )
+                    ) {
+                        data +=
+                            line
+                                .slice(
+                                    "data:".length,
+                                )
+                                .trimStart();
                     }
                 }
 
@@ -124,12 +171,37 @@ export async function streamChat(
                     eventName === "message"
                     && data
                 ) {
-                    const chunk = JSON.parse(data) as string;
+                    const chunk =
+                        JSON.parse(
+                            data,
+                        ) as string;
 
-                    onChunk(chunk);
+                    handlers.onChunk(
+                        chunk,
+                    );
+
+                    continue;
                 }
 
-                if (eventName === "done") {
+                if (
+                    eventName === "video_result"
+                    && data
+                ) {
+                    const videoResult =
+                        JSON.parse(
+                            data,
+                        ) as VideoSummaryResult;
+
+                    handlers.onVideoResult?.(
+                        videoResult,
+                    );
+
+                    continue;
+                }
+
+                if (
+                    eventName === "done"
+                ) {
                     return;
                 }
             }

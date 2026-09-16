@@ -6,11 +6,20 @@ export type MessageRole =
     | "user"
     | "assistant";
 
+export interface VideoSummaryResult {
+    fileId: string;
+    fileName: string;
+    durationSeconds: number;
+    streamUrl: string;
+    downloadUrl: string;
+}
+
 export interface ChatMessage {
     id: string;
     roomId: string;
     role: ChatMessageRole;
     content: string;
+    videoResult: VideoSummaryResult | null;
     createdAt: string;
 }
 

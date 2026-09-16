@@ -1,12 +1,19 @@
 import axios from "axios";
 
-import type {ChatMessage, ChatMessageRole, ChatRoomCreateRequest, ChatRoomResponse,} from "../types/chat";
+import type {
+    ChatMessage,
+    ChatMessageRole,
+    ChatRoomCreateRequest,
+    ChatRoomResponse,
+    VideoSummaryResult
+} from "../types/chat";
 
 interface ChatMessageResponse {
     id: string;
     roomId: string;
     role: string;
     content: string;
+    videoResult: string | null;
     createdAt: string;
 }
 
@@ -25,6 +32,27 @@ function convertMessageRole(
     }
 
     return "ASSISTANT";
+}
+
+function parseVideoResult(
+    videoResult: string | null,
+): VideoSummaryResult | null {
+    if (!videoResult) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(
+            videoResult,
+        ) as VideoSummaryResult;
+    } catch (error) {
+        console.error(
+            "영상 요약 결과를 파싱하는 중 오류가 발생했습니다.",
+            error,
+        );
+
+        return null;
+    }
 }
 
 export async function getChatRooms(): Promise<ChatRoomResponse[]> {
@@ -55,7 +83,12 @@ export async function getChatRoomMessages(
 
     return response.data.map((message) => ({
         ...message,
-        role: convertMessageRole(message.role),
+        role: convertMessageRole(
+            message.role,
+        ),
+        videoResult: parseVideoResult(
+            message.videoResult,
+        ),
     }));
 }
 

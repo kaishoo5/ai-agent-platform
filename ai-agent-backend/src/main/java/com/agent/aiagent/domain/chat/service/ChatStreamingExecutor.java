@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.video.model.VideoSummaryResult;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,18 @@ public class ChatStreamingExecutor {
             ChatRequest request,
             ChatModelRequest chatModelRequest
     ) {
+        return execute(
+                request,
+                chatModelRequest,
+                null
+        );
+    }
+
+    public SseEmitter execute(
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            VideoSummaryResult videoSummaryResult
+    ) {
         SseEmitter emitter =
                 new SseEmitter(
                         SSE_TIMEOUT
@@ -49,6 +62,16 @@ public class ChatStreamingExecutor {
         AtomicBoolean responseSaved =
                 new AtomicBoolean(false);
 
+        sendVideoSummaryResult(
+                emitter,
+                videoSummaryResult,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
+
         Disposable disposable = chatModelProvider
                 .chat(
                         chatModelRequest
@@ -62,11 +85,16 @@ public class ChatStreamingExecutor {
                             String chunk =
                                     response.content();
 
-                            if (chunk == null || chunk.isEmpty()) {
+                            if (
+                                    chunk == null
+                                            || chunk.isEmpty()
+                            ) {
                                 return;
                             }
 
-                            assistantContent.append(chunk);
+                            assistantContent.append(
+                                    chunk
+                            );
 
                             try {
                                 emitter.send(
@@ -81,7 +109,12 @@ public class ChatStreamingExecutor {
                             } catch (
                                     AsyncRequestNotUsableException exception
                             ) {
-                                if (terminated.compareAndSet(false, true)) {
+                                if (
+                                        terminated.compareAndSet(
+                                                false,
+                                                true
+                                        )
+                                ) {
                                     saveInterruptedResponse(
                                             request,
                                             roomId,
@@ -95,7 +128,12 @@ public class ChatStreamingExecutor {
                                         roomId
                                 );
                             } catch (IOException exception) {
-                                if (terminated.compareAndSet(false, true)) {
+                                if (
+                                        terminated.compareAndSet(
+                                                false,
+                                                true
+                                        )
+                                ) {
                                     saveInterruptedResponse(
                                             request,
                                             roomId,
@@ -109,7 +147,9 @@ public class ChatStreamingExecutor {
                                         roomId
                                 );
                             } catch (Exception exception) {
-                                terminated.set(true);
+                                terminated.set(
+                                        true
+                                );
 
                                 log.error(
                                         "AI 응답 전송 중 오류가 발생했습니다. roomId={}",
@@ -125,7 +165,10 @@ public class ChatStreamingExecutor {
                         error -> {
                             if (
                                     terminated.get()
-                                            || !completed.compareAndSet(false, true)
+                                            || !completed.compareAndSet(
+                                            false,
+                                            true
+                                    )
                             ) {
                                 return;
                             }
@@ -136,29 +179,48 @@ public class ChatStreamingExecutor {
                                     error
                             );
 
-                            emitter.completeWithError(error);
+                            emitter.completeWithError(
+                                    error
+                            );
                         },
                         () -> {
                             if (
                                     terminated.get()
-                                            || !completed.compareAndSet(false, true)
+                                            || !completed.compareAndSet(
+                                            false,
+                                            true
+                                    )
                             ) {
                                 return;
                             }
 
                             try {
-                                if (responseSaved.compareAndSet(false, true)) {
+                                if (
+                                        responseSaved.compareAndSet(
+                                                false,
+                                                true
+                                        )
+                                ) {
+                                    String videoResultJson =
+                                            videoSummaryResult == null
+                                                    ? null
+                                                    : objectMapper.writeValueAsString(
+                                                    videoSummaryResult
+                                            );
+
                                     if (request.isRegenerate()) {
                                         chatPersistenceService
                                                 .replaceLastAssistantMessage(
                                                         roomId,
-                                                        assistantContent.toString()
+                                                        assistantContent.toString(),
+                                                        videoResultJson
                                                 );
                                     } else {
                                         chatPersistenceService
                                                 .saveAssistantMessage(
                                                         roomId,
-                                                        assistantContent.toString()
+                                                        assistantContent.toString(),
+                                                        videoResultJson
                                                 );
                                     }
                                 }
@@ -170,22 +232,30 @@ public class ChatStreamingExecutor {
                                 );
 
                                 emitter.complete();
-                            } catch (AsyncRequestNotUsableException exception) {
-                                terminated.set(true);
+                            } catch (
+                                    AsyncRequestNotUsableException exception
+                            ) {
+                                terminated.set(
+                                        true
+                                );
 
                                 log.info(
                                         "완료 응답 전송 전에 클라이언트 연결이 종료되었습니다. roomId={}",
                                         roomId
                                 );
                             } catch (IOException exception) {
-                                terminated.set(true);
+                                terminated.set(
+                                        true
+                                );
 
                                 log.info(
                                         "완료 응답 전송 중 연결이 종료되었습니다. roomId={}",
                                         roomId
                                 );
                             } catch (Exception exception) {
-                                terminated.set(true);
+                                terminated.set(
+                                        true
+                                );
 
                                 log.error(
                                         "AI 응답 저장 또는 SSE 완료 처리 중 오류가 발생했습니다. roomId={}",
@@ -193,7 +263,9 @@ public class ChatStreamingExecutor {
                                         exception
                                 );
 
-                                emitter.completeWithError(exception);
+                                emitter.completeWithError(
+                                        exception
+                                );
                             }
                         }
                 );
@@ -212,6 +284,69 @@ public class ChatStreamingExecutor {
         return emitter;
     }
 
+    private void sendVideoSummaryResult(
+            SseEmitter emitter,
+            VideoSummaryResult videoSummaryResult,
+            AtomicBoolean terminated
+    ) {
+        if (videoSummaryResult == null) {
+            return;
+        }
+
+        try {
+            emitter.send(
+                    SseEmitter.event()
+                            .name("video_result")
+                            .data(
+                                    objectMapper.writeValueAsString(
+                                            videoSummaryResult
+                                    )
+                            )
+            );
+
+            log.info(
+                    "영상 요약 결과 SSE 전송 완료. fileId={}, fileName={}, durationSeconds={}",
+                    videoSummaryResult.fileId(),
+                    videoSummaryResult.fileName(),
+                    videoSummaryResult.durationSeconds()
+            );
+        } catch (
+                AsyncRequestNotUsableException exception
+        ) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "영상 요약 결과 전송 전에 클라이언트 연결이 종료되었습니다. fileId={}",
+                    videoSummaryResult.fileId()
+            );
+        } catch (IOException exception) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "영상 요약 결과 SSE 전송 중 연결이 종료되었습니다. fileId={}",
+                    videoSummaryResult.fileId()
+            );
+        } catch (Exception exception) {
+            terminated.set(
+                    true
+            );
+
+            log.error(
+                    "영상 요약 결과 SSE 전송 중 오류가 발생했습니다. fileId={}",
+                    videoSummaryResult.fileId(),
+                    exception
+            );
+
+            emitter.completeWithError(
+                    exception
+            );
+        }
+    }
+
     private void configureEmitterCallbacks(
             SseEmitter emitter,
             Disposable disposable,
@@ -225,7 +360,10 @@ public class ChatStreamingExecutor {
         emitter.onCompletion(() -> {
             if (
                     !completed.get()
-                            && terminated.compareAndSet(false, true)
+                            && terminated.compareAndSet(
+                            false,
+                            true
+                    )
             ) {
                 saveInterruptedResponse(
                         request,
@@ -241,7 +379,12 @@ public class ChatStreamingExecutor {
         });
 
         emitter.onTimeout(() -> {
-            if (terminated.compareAndSet(false, true)) {
+            if (
+                    terminated.compareAndSet(
+                            false,
+                            true
+                    )
+            ) {
                 saveInterruptedResponse(
                         request,
                         roomId,
@@ -250,7 +393,10 @@ public class ChatStreamingExecutor {
                 );
             }
 
-            completed.compareAndSet(false, true);
+            completed.compareAndSet(
+                    false,
+                    true
+            );
 
             log.warn(
                     "SSE 스트리밍 요청 시간이 초과되었습니다. roomId={}",
@@ -265,7 +411,12 @@ public class ChatStreamingExecutor {
         });
 
         emitter.onError(error -> {
-            if (terminated.compareAndSet(false, true)) {
+            if (
+                    terminated.compareAndSet(
+                            false,
+                            true
+                    )
+            ) {
                 saveInterruptedResponse(
                         request,
                         roomId,
