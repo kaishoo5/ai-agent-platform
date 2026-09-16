@@ -82,6 +82,24 @@ public class ChatMessageContextFactory {
                             message.getContent()
                     );
 
+            if (!documentFileIds.isEmpty()) {
+                content =
+                        content
+                                + System.lineSeparator()
+                                + System.lineSeparator()
+                                + "[현재 첨부 파일]"
+                                + System.lineSeparator()
+                                + documentFileIds.stream()
+                                .map(fileId ->
+                                        "- fileId: " + fileId
+                                )
+                                .collect(
+                                        java.util.stream.Collectors.joining(
+                                                System.lineSeparator()
+                                        )
+                                );
+            }
+
             List<String> images =
                     encodedImages.isEmpty()
                             ? null

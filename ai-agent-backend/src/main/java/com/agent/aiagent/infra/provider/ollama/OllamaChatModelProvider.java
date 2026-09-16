@@ -6,8 +6,14 @@ import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -16,6 +22,7 @@ public class OllamaChatModelProvider
 
     private final OllamaClient ollamaClient;
     private final OllamaToolMapper ollamaToolMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     public ChatModelResponse chatOnce(
@@ -23,20 +30,50 @@ public class OllamaChatModelProvider
     ) {
         OllamaChatResponse response =
                 ollamaClient.chatOnce(
-                        resolveModel(request.modelType()),
-                        toOllamaMessages(request.messages()),
+                        resolveModel(
+                                request.modelType()
+                        ),
+                        toOllamaMessages(
+                                request.messages()
+                        ),
                         request.tools()
                                 .stream()
-                                .map(ollamaToolMapper::map)
+                                .map(
+                                        ollamaToolMapper::map
+                                )
                                 .toList()
                 );
 
-        return new ChatModelResponse(
+        String content =
                 response.getMessage() == null
                         ? ""
-                        : response.getMessage().getContent(),
+                        : response.getMessage()
+                        .getContent();
+
+        List<ChatModelToolCall> toolCalls =
+                toChatModelToolCalls(
+                        response
+                );
+
+        if (
+                toolCalls.isEmpty()
+                        && !request.tools().isEmpty()
+        ) {
+            toolCalls =
+                    parseContentToolCall(
+                            content,
+                            request.tools()
+                    );
+
+            if (!toolCalls.isEmpty()) {
+                content = "";
+            }
+        }
+
+        return new ChatModelResponse(
+                content,
                 response.isDone(),
-                toChatModelToolCalls(response)
+                toolCalls
         );
     }
 
@@ -111,7 +148,9 @@ public class OllamaChatModelProvider
         return new ChatModelResponse(
                 content,
                 response.isDone(),
-                toChatModelToolCalls(response)
+                toChatModelToolCalls(
+                        response
+                )
         );
     }
 
@@ -120,7 +159,8 @@ public class OllamaChatModelProvider
     ) {
         if (
                 response.getMessage() == null
-                        || response.getMessage().getToolCalls() == null
+                        || response.getMessage()
+                        .getToolCalls() == null
         ) {
             return List.of();
         }
@@ -134,19 +174,174 @@ public class OllamaChatModelProvider
                 )
                 .map(toolCall ->
                         new ChatModelToolCall(
-                                toolCall.getFunction().getName(),
-                                toolCall.getFunction().getArguments()
+                                toolCall.getFunction()
+                                        .getName(),
+                                toolCall.getFunction()
+                                        .getArguments()
                         )
                 )
                 .toList();
+    }
+
+    private List<ChatModelToolCall> parseContentToolCall(
+            String content,
+            List<ChatModelTool> availableTools
+    ) {
+        if (
+                content == null
+                        || content.isBlank()
+                        || availableTools == null
+                        || availableTools.isEmpty()
+        ) {
+            return List.of();
+        }
+
+        String json =
+                normalizeJsonResponse(
+                        content
+                );
+
+        if (
+                !json.startsWith("{")
+                        || !json.endsWith("}")
+        ) {
+            return List.of();
+        }
+
+        try {
+            Map<String, Object> parsed =
+                    objectMapper.readValue(
+                            json,
+                            new TypeReference<Map<String, Object>>() {
+                            }
+                    );
+
+            Object nameValue =
+                    parsed.get(
+                            "name"
+                    );
+
+            Object argumentsValue =
+                    parsed.get(
+                            "arguments"
+                    );
+
+            if (
+                    nameValue == null
+                            || argumentsValue == null
+            ) {
+                return List.of();
+            }
+
+            String toolName =
+                    nameValue.toString()
+                            .trim();
+
+            if (toolName.isBlank()) {
+                return List.of();
+            }
+
+            Set<String> availableToolNames =
+                    availableTools.stream()
+                            .map(
+                                    ChatModelTool::name
+                            )
+                            .collect(
+                                    Collectors.toSet()
+                            );
+
+            if (
+                    !availableToolNames.contains(
+                            toolName
+                    )
+            ) {
+                return List.of();
+            }
+
+            if (
+                    !(argumentsValue
+                            instanceof Map<?, ?> rawArguments)
+            ) {
+                return List.of();
+            }
+
+            Map<String, Object> arguments =
+                    rawArguments.entrySet()
+                            .stream()
+                            .filter(entry ->
+                                    entry.getKey() != null
+                            )
+                            .collect(
+                                    Collectors.toMap(
+                                            entry ->
+                                                    entry.getKey()
+                                                            .toString(),
+                                            Map.Entry::getValue
+                                    )
+                            );
+
+            return List.of(
+                    new ChatModelToolCall(
+                            toolName,
+                            arguments
+                    )
+            );
+        } catch (JacksonException exception) {
+            return List.of();
+        }
+    }
+
+    private String normalizeJsonResponse(
+            String content
+    ) {
+        String normalized =
+                content.trim();
+
+        if (
+                normalized.startsWith(
+                        "```json"
+                )
+        ) {
+            normalized =
+                    normalized.substring(
+                            "```json".length()
+                    );
+        } else if (
+                normalized.startsWith(
+                        "```"
+                )
+        ) {
+            normalized =
+                    normalized.substring(
+                            "```".length()
+                    );
+        }
+
+        if (
+                normalized.endsWith(
+                        "```"
+                )
+        ) {
+            normalized =
+                    normalized.substring(
+                            0,
+                            normalized.length()
+                                    - "```".length()
+                    );
+        }
+
+        return normalized.trim();
     }
 
     private String resolveModel(
             ChatModelType modelType
     ) {
         return switch (modelType) {
-            case TEXT -> OllamaClient.MODEL_TEXT;
-            case VISION -> OllamaClient.MODEL_VISION;
+            case TEXT ->
+                    OllamaClient.MODEL_TEXT;
+
+            case VISION ->
+                    OllamaClient.MODEL_VISION;
         };
     }
 }

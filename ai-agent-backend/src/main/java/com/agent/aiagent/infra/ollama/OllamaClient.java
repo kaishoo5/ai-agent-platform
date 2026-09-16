@@ -49,6 +49,14 @@ public class OllamaClient {
                         tools
                 );
 
+        log.info(
+                "Ollama chatOnce 요청. model={}, toolCount={}",
+                model,
+                tools == null
+                        ? 0
+                        : tools.size()
+        );
+
         return ollamaWebClient.post()
                 .uri("/api/chat")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -183,6 +191,20 @@ public class OllamaClient {
                                 OllamaChatResponse.class
                         )
                         .block();
+
+        log.info(
+                "Ollama chatOnce 응답. content={}",
+                response != null && response.getMessage() != null
+                        ? response.getMessage().getContent()
+                        : null
+        );
+
+        log.info(
+                "Ollama chatOnce toolCalls={}",
+                response != null && response.getMessage() != null
+                        ? response.getMessage().getToolCalls()
+                        : null
+        );
 
         if (
                 response == null

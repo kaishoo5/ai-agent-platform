@@ -4,11 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="chore: clean up video processing temporary files">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: optimize video vision analysis with frame deduplication">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/repository/ChatFileChunkRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/repository/ChatFileChunkRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileChunkService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -338,7 +338,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: replace ollama message dto with provider model" />
     <MESSAGE value="refactor: replace ollama response dto with provider model" />
     <MESSAGE value="refactor: extract rag prompt builder" />
     <MESSAGE value="refactor: extract chat attachment context factory" />
@@ -363,7 +362,8 @@
     <MESSAGE value="feat: complete code agent delete operations" />
     <MESSAGE value="feat: add video transcript analysis and summarization" />
     <MESSAGE value="chore: clean up video processing temporary files" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: clean up video processing temporary files" />
+    <MESSAGE value="feat: optimize video vision analysis with frame deduplication" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: optimize video vision analysis with frame deduplication" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
