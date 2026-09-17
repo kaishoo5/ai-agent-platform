@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.file.dto;
 
 import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.file.entity.ChatFileStatus;
 
 public record ChatFileUploadResponse(
         String id,
@@ -8,7 +9,8 @@ public record ChatFileUploadResponse(
         String originalName,
         String contentType,
         String extension,
-        long size
+        long size,
+        ChatFileStatus status
 ) {
 
     public static ChatFileUploadResponse from(
@@ -20,7 +22,8 @@ public record ChatFileUploadResponse(
                 chatFile.getOriginalName(),
                 chatFile.getContentType(),
                 chatFile.getExtension(),
-                chatFile.getSize()
+                chatFile.getSize(),
+                chatFile.getStatus()
         );
     }
 }

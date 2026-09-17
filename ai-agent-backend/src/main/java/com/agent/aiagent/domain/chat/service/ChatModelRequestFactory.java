@@ -33,6 +33,16 @@ public class ChatModelRequestFactory {
     public ChatExecutionContext createContext(
             ChatRequest request
     ) {
+        return createContext(
+                request,
+                null
+        );
+    }
+
+    public ChatExecutionContext createContext(
+            ChatRequest request,
+            AgentProgressReporter progressReporter
+    ) {
         ChatAttachmentContext attachmentContext =
                 chatAttachmentContextFactory.create(
                         request
@@ -43,7 +53,8 @@ public class ChatModelRequestFactory {
                         request.getRoomId(),
                         request.isRegenerate(),
                         attachmentContext.documentFileIds(),
-                        attachmentContext.encodedImages()
+                        attachmentContext.encodedImages(),
+                        progressReporter
                 );
 
         List<ChatModelMessage> messages =

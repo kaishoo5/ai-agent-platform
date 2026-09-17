@@ -3,11 +3,8 @@ package com.agent.aiagent.domain.file.service;
 import com.agent.aiagent.domain.file.dto.ChatFileResponse;
 import com.agent.aiagent.domain.file.dto.ChatFileUploadResponse;
 import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.file.entity.ChatFileStatus;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
-import com.agent.aiagent.domain.video.model.VideoFrame;
-import com.agent.aiagent.domain.video.model.VideoFrameAnalysis;
-import com.agent.aiagent.domain.video.model.VideoTranscript;
-import com.agent.aiagent.domain.video.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,33 +63,8 @@ public class ChatFileService {
                     VIDEO_EXTENSION
             );
 
-    private static final Set<String> EXTRACTABLE_DOCUMENT_EXTENSIONS =
-            Set.of(
-                    "txt",
-                    "md",
-                    "java",
-                    "js",
-                    "ts",
-                    "tsx",
-                    "json",
-                    "sql",
-                    "xml",
-                    "yaml",
-                    "yml",
-                    "properties",
-                    "pdf",
-                    "docx",
-                    "xlsx"
-            );
-
     private final ChatFileRepository chatFileRepository;
-    private final ChatFileChunkService chatFileChunkService;
-    private final VideoAudioExtractor videoAudioExtractor;
-    private final WhisperTranscriber whisperTranscriber;
-    private final VideoSummaryService videoSummaryService;
-    private final VideoFrameExtractor videoFrameExtractor;
-    private final VideoFrameAnalyzer videoFrameAnalyzer;
-    private final VideoFrameDeduplicator videoFrameDeduplicator;
+    private final ChatFileAnalysisExecutor chatFileAnalysisExecutor;
 
     @Value("${app.file.upload-dir}")
     private String uploadDirectory;
@@ -182,115 +154,9 @@ public class ChatFileService {
                             chatFile
                     );
 
-            if (
-                    isExtractableDocument(
-                            savedFile.getExtension()
-                    )
-            ) {
-                chatFileChunkService.saveChunks(
-                        savedFile
-                );
-            }
-
-            if (isVideo(savedFile.getExtension())) {
-                Path audioPath = null;
-
-                try {
-                    audioPath =
-                            videoAudioExtractor.extract(
-                                    Path.of(savedFile.getStoredPath())
-                            );
-
-                    VideoTranscript transcript =
-                            whisperTranscriber.transcribe(
-                                    audioPath
-                            );
-
-                    chatFileChunkService.saveVideoTranscriptChunks(
-                            savedFile,
-                            transcript
-                    );
-
-                    String summary =
-                            videoSummaryService.summarize(
-                                    transcript
-                            );
-
-                    savedFile.updateSummary(
-                            summary
-                    );
-
-                    log.info(
-                            "영상 음성 분석 완료. fileId={}, language={}, segmentCount={}, summaryLength={}",
-                            savedFile.getId(),
-                            transcript.language(),
-                            transcript.segments().size(),
-                            summary != null
-                                    ? summary.length()
-                                    : 0
-                    );
-                } finally {
-                    if (audioPath != null) {
-                        try {
-                            Files.deleteIfExists(
-                                    audioPath
-                            );
-                        } catch (IOException exception) {
-                            log.warn(
-                                    "영상 임시 오디오 파일 삭제 실패. path={}",
-                                    audioPath,
-                                    exception
-                            );
-                        }
-                    }
-                }
-
-                List<VideoFrame> frames =
-                        List.of();
-
-                try {
-                    frames =
-                            videoFrameExtractor.extract(
-                                    Path.of(savedFile.getStoredPath())
-                            );
-
-                    log.info(
-                            "영상 프레임 추출 확인. fileId={}, frameCount={}, firstFrame={}",
-                            savedFile.getId(),
-                            frames.size(),
-                            frames.isEmpty()
-                                    ? null
-                                    : frames.getFirst().path()
-                    );
-
-                    List<VideoFrame> filteredFrames =
-                            videoFrameDeduplicator.filter(
-                                    frames
-                            );
-
-                    log.info(
-                            "영상 Vision 분석 대상 프레임 확정. fileId={}, originalCount={}, filteredCount={}, removedCount={}",
-                            savedFile.getId(),
-                            frames.size(),
-                            filteredFrames.size(),
-                            frames.size() - filteredFrames.size()
-                    );
-
-                    List<VideoFrameAnalysis> frameAnalyses =
-                            videoFrameAnalyzer.analyze(
-                                    filteredFrames
-                            );
-
-                    chatFileChunkService.saveVideoFrameAnalysisChunks(
-                            savedFile,
-                            frameAnalyses
-                    );
-                } finally {
-                    videoFrameExtractor.cleanup(
-                            frames
-                    );
-                }
-            }
+            chatFileAnalysisExecutor.executeAfterCommit(
+                    savedFile.getId()
+            );
         } catch (RuntimeException exception) {
             deleteStoredFile(
                     targetPath
@@ -349,7 +215,7 @@ public class ChatFileService {
         if (file.getSize() > maxFileSize) {
             if (isVideo(extension)) {
                 throw new IllegalArgumentException(
-                        "영상 파일 크기는 200MB를 초과할 수 없습니다."
+                        "영상 파일 크기는 4GB를 초과할 수 없습니다."
                 );
             }
 
@@ -363,14 +229,6 @@ public class ChatFileService {
             String extension
     ) {
         return VIDEO_EXTENSION.equals(
-                extension
-        );
-    }
-
-    private boolean isExtractableDocument(
-            String extension
-    ) {
-        return EXTRACTABLE_DOCUMENT_EXTENSIONS.contains(
                 extension
         );
     }
@@ -552,6 +410,28 @@ public class ChatFileService {
                         throw new ResponseStatusException(
                                 HttpStatus.BAD_REQUEST,
                                 "현재 채팅방의 첨부파일이 아닙니다."
+                        );
+                    }
+
+                    if (
+                            file.getStatus()
+                                    != ChatFileStatus.COMPLETED
+                    ) {
+                        if (
+                                file.getStatus()
+                                        == ChatFileStatus.FAILED
+                        ) {
+                            throw new ResponseStatusException(
+                                    HttpStatus.BAD_REQUEST,
+                                    "분석에 실패한 첨부파일입니다: "
+                                            + file.getOriginalName()
+                            );
+                        }
+
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "아직 분석 중인 첨부파일입니다: "
+                                        + file.getOriginalName()
                         );
                     }
                 })

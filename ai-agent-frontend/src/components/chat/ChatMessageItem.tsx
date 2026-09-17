@@ -5,6 +5,7 @@ import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {vscDarkPlus} from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import type {ChatMessage} from "../../types/chat";
+import type {ExecutionStep} from "../../store/chatStore";
 import SourceChips from "./SourceChips";
 import VideoResultCard from "./VideoResultCard";
 
@@ -12,6 +13,7 @@ interface ChatMessageItemProps {
     message: ChatMessage;
     isLastAssistant: boolean;
     isGenerating: boolean;
+    executionSteps: ExecutionStep[];
     onRegenerate: () => void;
 }
 
@@ -126,6 +128,7 @@ function ChatMessageItem({
                              message,
                              isLastAssistant,
                              isGenerating,
+                             executionSteps,
                              onRegenerate,
                          }: ChatMessageItemProps) {
     const [
@@ -140,6 +143,9 @@ function ChatMessageItem({
         !isUser
         && message.content.length === 0
         && !message.videoResult;
+
+    const hasExecutionSteps =
+        executionSteps.length > 0;
 
     const handleMessageCopy =
         async (): Promise<void> => {
@@ -188,14 +194,45 @@ function ChatMessageItem({
                     <div className="message-bubble">
                         {isLoading
                             ? (
-                                <div
-                                    className="message-loading"
-                                    aria-label="AI가 답변을 생성하고 있습니다."
-                                >
-                                    <span />
-                                    <span />
-                                    <span />
-                                </div>
+                                hasExecutionSteps
+                                    ? (
+                                        <div className="agent-execution-steps">
+                                            {executionSteps.map(
+                                                (step) => (
+                                                    <div
+                                                        key={step.id}
+                                                        className={
+                                                            `agent-execution-step ${step.status}`
+                                                        }
+                                                    >
+                                                        <span className="agent-execution-step-icon">
+                                                            {step.status === "running"
+                                                                ? (
+                                                                    <span className="agent-execution-spinner" />
+                                                                )
+                                                                : step.status === "completed"
+                                                                    ? "✓"
+                                                                    : "!"}
+                                                        </span>
+
+                                                        <span className="agent-execution-step-message">
+                                                            {step.message}
+                                                        </span>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    )
+                                    : (
+                                        <div
+                                            className="message-loading"
+                                            aria-label="AI가 답변을 생성하고 있습니다."
+                                        >
+                                            <span />
+                                            <span />
+                                            <span />
+                                        </div>
+                                    )
                             )
                             : isUser
                                 ? (

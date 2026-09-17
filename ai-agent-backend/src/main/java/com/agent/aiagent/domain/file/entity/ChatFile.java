@@ -15,75 +15,39 @@ import java.util.UUID;
 public class ChatFile {
 
     @Id
-    @Column(
-            name = "id",
-            length = 36
-    )
+    @Column(name = "id", length = 36)
     private String id;
 
-    @Column(
-            name = "room_id",
-            nullable = false,
-            length = 36
-    )
+    @Column(name = "room_id", nullable = false, length = 36)
     private String roomId;
 
-    @Column(
-            name = "original_name",
-            nullable = false
-    )
+    @Column(name = "original_name", nullable = false)
     private String originalName;
 
-    @Column(
-            name = "stored_name",
-            nullable = false
-    )
+    @Column(name = "stored_name", nullable = false)
     private String storedName;
 
-    @Column(
-            name = "stored_path",
-            nullable = false,
-            length = 1000
-    )
+    @Column(name = "stored_path", nullable = false, length = 1000)
     private String storedPath;
 
-    @Column(
-            name = "content_type",
-            length = 100
-    )
+    @Column(name = "content_type", length = 100)
     private String contentType;
 
-    @Column(
-            name = "extension",
-            length = 20
-    )
+    @Column(name = "extension", length = 20)
     private String extension;
 
-    @Column(
-            name = "size",
-            nullable = false
-    )
+    @Column(name = "size", nullable = false)
     private long size;
 
     @Enumerated(EnumType.STRING)
-    @Column(
-            name = "status",
-            nullable = false,
-            length = 20
-    )
+    @Column(name = "status", nullable = false, length = 20)
     private ChatFileStatus status;
 
     @Lob
-    @Column(
-            name = "summary",
-            columnDefinition = "TEXT"
-    )
+    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(
-            name = "created_at",
-            nullable = false
-    )
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public ChatFile(
@@ -106,18 +70,32 @@ public class ChatFile {
         this.status = ChatFileStatus.UPLOADED;
     }
 
+    public void markAnalyzing() {
+        this.status = ChatFileStatus.ANALYZING;
+    }
+
+    public void markCompleted() {
+        this.status = ChatFileStatus.COMPLETED;
+    }
+
+    public void markFailed() {
+        this.status = ChatFileStatus.FAILED;
+    }
+
+    public void markCancelled() {
+        this.status = ChatFileStatus.CANCELLED;
+    }
+
     public void updateSummary(
             String summary
     ) {
-        this.summary =
-                summary;
+        this.summary = summary;
     }
 
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt =
-                    LocalDateTime.now();
+            createdAt = LocalDateTime.now();
         }
     }
 }

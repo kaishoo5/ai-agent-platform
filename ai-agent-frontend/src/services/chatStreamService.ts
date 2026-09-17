@@ -13,6 +13,17 @@ interface ChatStreamRequest {
     fileIds: string[];
 }
 
+export type AgentStepStatus =
+    | "running"
+    | "completed"
+    | "failed";
+
+export interface AgentStep {
+    code: string;
+    status: AgentStepStatus;
+    message: string;
+}
+
 interface ChatStreamHandlers {
     onChunk: (
         chunk: string,
@@ -24,6 +35,10 @@ interface ChatStreamHandlers {
 
     onSources?: (
         sources: ChatSource[],
+    ) => void;
+
+    onAgentStep?: (
+        step: AgentStep,
     ) => void;
 }
 
@@ -170,6 +185,22 @@ export async function streamChat(
                                 )
                                 .trimStart();
                     }
+                }
+
+                if (
+                    eventName === "agent_step"
+                    && data
+                ) {
+                    const step =
+                        JSON.parse(
+                            data,
+                        ) as AgentStep;
+
+                    handlers.onAgentStep?.(
+                        step,
+                    );
+
+                    continue;
                 }
 
                 if (

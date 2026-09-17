@@ -28,28 +28,9 @@ public class ChatStreamingExecutor {
     private final ChatPersistenceService chatPersistenceService;
     private final ObjectMapper objectMapper;
 
-    public SseEmitter execute(
-            ChatRequest request,
-            ChatModelRequest chatModelRequest
-    ) {
-        return execute(
-                request,
-                chatModelRequest,
-                null,
-                List.of()
-        );
-    }
-
-    public SseEmitter execute(
-            ChatRequest request,
-            ChatModelRequest chatModelRequest,
-            VideoSummaryResult videoSummaryResult
-    ) {
-        return execute(
-                request,
-                chatModelRequest,
-                videoSummaryResult,
-                List.of()
+    public SseEmitter createEmitter() {
+        return new SseEmitter(
+                SSE_TIMEOUT
         );
     }
 
@@ -60,10 +41,24 @@ public class ChatStreamingExecutor {
             List<ChatSource> sources
     ) {
         SseEmitter emitter =
-                new SseEmitter(
-                        SSE_TIMEOUT
-                );
+                createEmitter();
 
+        return execute(
+                emitter,
+                request,
+                chatModelRequest,
+                videoSummaryResult,
+                sources
+        );
+    }
+
+    public SseEmitter execute(
+            SseEmitter emitter,
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            VideoSummaryResult videoSummaryResult,
+            List<ChatSource> sources
+    ) {
         String roomId =
                 request.getRoomId();
 

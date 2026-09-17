@@ -8,7 +8,7 @@ import {
     useState,
 } from "react";
 
-import {uploadChatFile} from "../../api/chatApi";
+import {cancelChatFileAnalysis, streamFileAnalysisProgress, uploadChatFile,} from "../../api/chatApi";
 import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
 import type {ChatMessage} from "../../types/chat";
@@ -210,6 +210,9 @@ function ChatInput() {
     const fileInputRef =
         useRef<HTMLInputElement | null>(null);
 
+    const activeAnalysisFileIdsRef =
+        useRef<string[]>([]);
+
     const refreshRooms = useChatStore(
         (state) => state.refreshRooms,
     );
@@ -274,6 +277,14 @@ function ChatInput() {
 
     const updateMessageSources = useChatStore(
         (state) => state.updateMessageSources,
+    );
+
+    const updateMessageExecutionStep = useChatStore(
+        (state) => state.updateMessageExecutionStep,
+    );
+
+    const clearMessageExecutionSteps = useChatStore(
+        (state) => state.clearMessageExecutionSteps,
     );
 
     useEffect(() => {
@@ -735,11 +746,44 @@ function ChatInput() {
                         uploadedFile.id,
                 );
 
+            activeAnalysisFileIdsRef.current =
+                [...fileIds];
+
+            if (uploadedFiles.length > 0) {
+                await Promise.all(
+                    uploadedFiles.map(
+                        (uploadedFile) =>
+                            streamFileAnalysisProgress(
+                                uploadedFile.id,
+                                (step) => {
+                                    updateMessageExecutionStep(
+                                        assistantMessage.id,
+                                        {
+                                            id:
+                                                `file:${uploadedFile.id}:${step.code}`,
+                                            code: step.code,
+                                            status: step.status,
+                                            message: step.message,
+                                        },
+                                    );
+                                },
+                                abortController.signal,
+                            ),
+                    ),
+                );
+            }
+
+            activeAnalysisFileIdsRef.current = [];
+
             await streamChat(
                 targetRoomId,
                 requestMessages,
                 {
                     onChunk: (chunk) => {
+                        clearMessageExecutionSteps(
+                            assistantMessage.id,
+                        );
+
                         appendMessageContent(
                             targetRoomId,
                             assistantMessage.id,
@@ -760,6 +804,18 @@ function ChatInput() {
                             targetRoomId,
                             assistantMessage.id,
                             sources,
+                        );
+                    },
+
+                    onAgentStep: (step) => {
+                        updateMessageExecutionStep(
+                            assistantMessage.id,
+                            {
+                                id: `agent:${step.code}`,
+                                code: step.code,
+                                status: step.status,
+                                message: step.message,
+                            },
                         );
                     },
                 },
@@ -783,6 +839,10 @@ function ChatInput() {
             ) {
                 console.log(
                     "사용자가 AI 응답 생성을 중지했습니다.",
+                );
+
+                clearMessageExecutionSteps(
+                    assistantMessage.id,
                 );
 
                 const currentRoom = useChatStore
@@ -816,6 +876,10 @@ function ChatInput() {
                 return;
             }
 
+            clearMessageExecutionSteps(
+                assistantMessage.id,
+            );
+
             console.error(
                 "파일 업로드 또는 AI 응답 생성 중 오류가 발생했습니다.",
                 error,
@@ -832,7 +896,25 @@ function ChatInput() {
     };
 
     const handleStop = (): void => {
+        const analysisFileIds =
+            [...activeAnalysisFileIdsRef.current];
+
+        activeAnalysisFileIdsRef.current = [];
+
         stopGenerating();
+
+        if (analysisFileIds.length === 0) {
+            return;
+        }
+
+        void Promise.allSettled(
+            analysisFileIds.map(
+                (fileId) =>
+                    cancelChatFileAnalysis(
+                        fileId,
+                    ),
+            ),
+        );
     };
 
     const handleKeyDown = (

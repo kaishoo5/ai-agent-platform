@@ -1,6 +1,10 @@
 package com.agent.aiagent.domain.video.service;
 
+import com.agent.aiagent.domain.file.service.FileAnalysisCancellationManager;
+import com.agent.aiagent.domain.file.service.FileAnalysisCancelledException;
+
 import com.agent.aiagent.domain.video.model.VideoFrame;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +22,16 @@ import java.util.stream.Stream;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class VideoFrameExtractor {
 
     private static final int FRAME_INTERVAL_SECONDS = 30;
+    private final FileAnalysisCancellationManager cancellationManager;
 
-    public List<VideoFrame> extract(Path videoPath) {
+    public List<VideoFrame> extract(
+            String fileId,
+            Path videoPath
+    ) {
         validateVideoPath(
                 videoPath
         );
@@ -42,6 +51,9 @@ public class VideoFrameExtractor {
                     frameDirectory
             );
         } catch (IOException exception) {
+            cancellationManager.checkCancelled(
+                    fileId
+            );
             throw new IllegalStateException(
                     "영상 프레임 디렉터리 생성 중 오류가 발생했습니다.",
                     exception
@@ -108,9 +120,20 @@ public class VideoFrameExtractor {
                 true
         );
 
+        cancellationManager.checkCancelled(
+                fileId
+        );
+
+        Process process = null;
+
         try {
-            Process process =
+            process =
                     processBuilder.start();
+
+            cancellationManager.registerProcess(
+                    fileId,
+                    process
+            );
 
             String output =
                     readProcessOutput(
@@ -176,10 +199,17 @@ public class VideoFrameExtractor {
                     frameDirectory
             );
 
-            throw new IllegalStateException(
-                    "FFmpeg 실행이 중단되었습니다.",
+            throw new FileAnalysisCancelledException(
+                    fileId,
                     exception
             );
+        } finally {
+            if (process != null) {
+                cancellationManager.unregisterProcess(
+                        fileId,
+                        process
+                );
+            }
         }
     }
 

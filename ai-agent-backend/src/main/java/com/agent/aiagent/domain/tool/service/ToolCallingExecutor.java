@@ -56,6 +56,23 @@ public class ToolCallingExecutor {
             ChatModelRequest chatModelRequest,
             List<ChatSource> sources
     ) {
+        SseEmitter emitter =
+                chatStreamingExecutor.createEmitter();
+
+        return execute(
+                emitter,
+                request,
+                chatModelRequest,
+                sources
+        );
+    }
+
+    public SseEmitter execute(
+            SseEmitter emitter,
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            List<ChatSource> sources
+    ) {
         List<ChatSource> safeSources =
                 sources == null
                         ? List.of()
@@ -65,6 +82,7 @@ public class ToolCallingExecutor {
 
         if (chatModelRequest.tools().isEmpty()) {
             return chatStreamingExecutor.execute(
+                    emitter,
                     request,
                     chatModelRequest,
                     null,
@@ -95,6 +113,7 @@ public class ToolCallingExecutor {
                 );
 
                 return chatStreamingExecutor.execute(
+                        emitter,
                         request,
                         currentRequest,
                         videoSummaryResult,
@@ -177,6 +196,7 @@ public class ToolCallingExecutor {
                         );
 
                 return chatStreamingExecutor.execute(
+                        emitter,
                         request,
                         finalRequest,
                         videoSummaryResult,
@@ -191,6 +211,7 @@ public class ToolCallingExecutor {
         );
 
         return chatStreamingExecutor.execute(
+                emitter,
                 request,
                 currentRequest,
                 videoSummaryResult,

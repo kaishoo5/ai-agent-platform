@@ -10,6 +10,18 @@ import {
 } from "../api/chatApi";
 import type {ChatFile, ChatMessage, ChatRoom, ChatSource, VideoSummaryResult,} from "../types/chat";
 
+export type ExecutionStepStatus =
+    | "running"
+    | "completed"
+    | "failed";
+
+export interface ExecutionStep {
+    id: string;
+    code: string;
+    status: ExecutionStepStatus;
+    message: string;
+}
+
 interface ChatStore {
     rooms: ChatRoom[];
 
@@ -22,6 +34,17 @@ interface ChatStore {
     isGenerating: boolean;
 
     abortController: AbortController | null;
+
+    messageExecutionSteps: Record<string, ExecutionStep[]>;
+
+    updateMessageExecutionStep: (
+        messageId: string,
+        step: ExecutionStep,
+    ) => void;
+
+    clearMessageExecutionSteps: (
+        messageId: string,
+    ) => void;
 
     startGenerating: (
         abortController: AbortController,
@@ -119,6 +142,70 @@ export const useChatStore = create<ChatStore>((
     isGenerating: false,
 
     abortController: null,
+
+    messageExecutionSteps: {},
+
+    updateMessageExecutionStep: (
+        messageId,
+        step,
+    ) => {
+        set((state) => {
+            const currentSteps =
+                state.messageExecutionSteps[messageId]
+                ?? [];
+
+            const existingIndex =
+                currentSteps.findIndex(
+                    (currentStep) =>
+                        currentStep.id === step.id,
+                );
+
+            const nextSteps =
+                existingIndex < 0
+                    ? [
+                        ...currentSteps,
+                        step,
+                    ]
+                    : currentSteps.map(
+                        (currentStep) =>
+                            currentStep.id === step.id
+                                ? step
+                                : currentStep,
+                    );
+
+            return {
+                messageExecutionSteps: {
+                    ...state.messageExecutionSteps,
+                    [messageId]: nextSteps,
+                },
+            };
+        });
+    },
+
+    clearMessageExecutionSteps: (
+        messageId,
+    ) => {
+        set((state) => {
+            if (
+                !state.messageExecutionSteps[messageId]
+            ) {
+                return state;
+            }
+
+            const nextSteps = {
+                ...state.messageExecutionSteps,
+            };
+
+            delete nextSteps[
+                messageId
+                ];
+
+            return {
+                messageExecutionSteps:
+                nextSteps,
+            };
+        });
+    },
 
     startGenerating: (
         abortController,

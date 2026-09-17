@@ -1,5 +1,9 @@
 package com.agent.aiagent.domain.video.service;
 
+import com.agent.aiagent.domain.file.service.FileAnalysisCancellationManager;
+import com.agent.aiagent.domain.file.service.FileAnalysisCancelledException;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -14,9 +18,13 @@ import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class VideoAudioExtractor {
 
+    private final FileAnalysisCancellationManager cancellationManager;
+
     public Path extract(
+            String fileId,
             Path videoPath
     ) {
         validateVideoPath(
@@ -99,9 +107,20 @@ public class VideoAudioExtractor {
                 true
         );
 
+        cancellationManager.checkCancelled(
+                fileId
+        );
+
+        Process process = null;
+
         try {
-            Process process =
+            process =
                     processBuilder.start();
+
+            cancellationManager.registerProcess(
+                    fileId,
+                    process
+            );
 
             String output =
                     readProcessOutput(
@@ -144,6 +163,9 @@ public class VideoAudioExtractor {
 
             return audioPath;
         } catch (IOException exception) {
+            cancellationManager.checkCancelled(
+                    fileId
+            );
             deleteIfExists(
                     audioPath
             );
@@ -159,10 +181,17 @@ public class VideoAudioExtractor {
                     audioPath
             );
 
-            throw new IllegalStateException(
-                    "FFmpeg 실행이 중단되었습니다.",
+            throw new FileAnalysisCancelledException(
+                    fileId,
                     exception
             );
+        } finally {
+            if (process != null) {
+                cancellationManager.unregisterProcess(
+                        fileId,
+                        process
+                );
+            }
         }
     }
 

@@ -1,5 +1,7 @@
 package com.agent.aiagent.domain.video.service;
 
+import com.agent.aiagent.domain.file.service.FileAnalysisCancellationManager;
+import com.agent.aiagent.domain.file.service.FileAnalysisCancelledException;
 import com.agent.aiagent.domain.video.model.VideoFrame;
 import com.agent.aiagent.domain.video.model.VideoFrameAnalysis;
 import com.agent.aiagent.provider.chat.*;
@@ -15,6 +17,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,16 +31,19 @@ public class VideoFrameAnalyzer {
     private static final int VISION_CONCURRENCY = 2;
 
     private final ChatModelProvider chatModelProvider;
+    private final FileAnalysisCancellationManager cancellationManager;
 
     public List<VideoFrameAnalysis> analyze(
+            String fileId,
             List<VideoFrame> frames
     ) {
-        if (
-                frames == null
-                        || frames.isEmpty()
-        ) {
+        if (frames == null || frames.isEmpty()) {
             return List.of();
         }
+
+        cancellationManager.checkCancelled(
+                fileId
+        );
 
         long startedAt =
                 System.currentTimeMillis();
@@ -53,30 +59,36 @@ public class VideoFrameAnalyzer {
                         VISION_CONCURRENCY
                 );
 
-        try {
-            List<CompletableFuture<IndexedFrameAnalysis>> futures =
-                    new ArrayList<>();
+        List<CompletableFuture<IndexedFrameAnalysis>> futures =
+                new ArrayList<>();
 
+        try {
             for (
                     int index = 0;
                     index < frames.size();
                     index++
             ) {
-                int frameIndex =
-                        index;
+                cancellationManager.checkCancelled(
+                        fileId
+                );
 
-                VideoFrame frame =
-                        frames.get(
-                                index
-                        );
+                int frameIndex = index;
+                VideoFrame frame = frames.get(index);
 
                 CompletableFuture<IndexedFrameAnalysis> future =
                         CompletableFuture.supplyAsync(
-                                () -> analyzeFrame(
-                                        frameIndex,
-                                        frames.size(),
-                                        frame
-                                ),
+                                () -> {
+                                    cancellationManager.checkCancelled(
+                                            fileId
+                                    );
+
+                                    return analyzeFrame(
+                                            fileId,
+                                            frameIndex,
+                                            frames.size(),
+                                            frame
+                                    );
+                                },
                                 executorService
                         );
 
@@ -85,11 +97,46 @@ public class VideoFrameAnalyzer {
                 );
             }
 
+            List<IndexedFrameAnalysis> indexedAnalyses =
+                    new ArrayList<>();
+
+            for (CompletableFuture<IndexedFrameAnalysis> future : futures) {
+                cancellationManager.checkCancelled(
+                        fileId
+                );
+
+                try {
+                    indexedAnalyses.add(
+                            future.get()
+                    );
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+
+                    throw new FileAnalysisCancelledException(
+                            fileId,
+                            exception
+                    );
+                } catch (ExecutionException exception) {
+                    Throwable cause =
+                            exception.getCause();
+
+                    if (cause instanceof FileAnalysisCancelledException cancelledException) {
+                        throw cancelledException;
+                    }
+
+                    if (cause instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+
+                    throw new IllegalStateException(
+                            "영상 프레임 Vision 분석 중 오류가 발생했습니다.",
+                            cause
+                    );
+                }
+            }
+
             List<VideoFrameAnalysis> analyses =
-                    futures.stream()
-                            .map(
-                                    CompletableFuture::join
-                            )
+                    indexedAnalyses.stream()
                             .sorted(
                                     Comparator.comparingInt(
                                             IndexedFrameAnalysis::index
@@ -113,7 +160,13 @@ public class VideoFrameAnalyzer {
 
             return analyses;
         } finally {
-            executorService.shutdown();
+            futures.forEach(future ->
+                    future.cancel(
+                            true
+                    )
+            );
+
+            executorService.shutdownNow();
         }
     }
 
@@ -197,14 +250,23 @@ public class VideoFrameAnalyzer {
     }
 
     private IndexedFrameAnalysis analyzeFrame(
+            String fileId,
             int index,
             int totalCount,
             VideoFrame frame
     ) {
+        cancellationManager.checkCancelled(
+                fileId
+        );
+
         String description =
                 analyze(
                         frame.path()
                 );
+
+        cancellationManager.checkCancelled(
+                fileId
+        );
 
         log.info(
                 "영상 프레임 분석 진행. index={}, total={}, timestampMillis={}, framePath={}",

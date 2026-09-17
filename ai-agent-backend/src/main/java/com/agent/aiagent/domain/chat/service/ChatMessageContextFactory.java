@@ -41,6 +41,22 @@ public class ChatMessageContextFactory {
             List<String> documentFileIds,
             List<String> encodedImages
     ) {
+        return createContext(
+                roomId,
+                regenerate,
+                documentFileIds,
+                encodedImages,
+                null
+        );
+    }
+
+    public ChatMessageContext createContext(
+            String roomId,
+            boolean regenerate,
+            List<String> documentFileIds,
+            List<String> encodedImages,
+            AgentProgressReporter progressReporter
+    ) {
         List<ChatModelMessage> messages =
                 conversationSummaryService.createConversationContext(
                         roomId,
@@ -62,7 +78,8 @@ public class ChatMessageContextFactory {
                         roomId,
                         messages,
                         documentFileIds,
-                        encodedImages
+                        encodedImages,
+                        progressReporter
                 );
 
         log.info(
@@ -85,7 +102,8 @@ public class ChatMessageContextFactory {
             String roomId,
             List<ChatModelMessage> messages,
             List<String> documentFileIds,
-            List<String> encodedImages
+            List<String> encodedImages,
+            AgentProgressReporter progressReporter
     ) {
         for (
                 int index = messages.size() - 1;
@@ -99,6 +117,13 @@ public class ChatMessageContextFactory {
                 continue;
             }
 
+            if (progressReporter != null) {
+                progressReporter.running(
+                        "rag_search",
+                        "관련 자료 검색 중..."
+                );
+            }
+
             RagPromptResult ragPromptResult =
                     ragPromptBuilder.buildResult(
                             roomId,
@@ -106,6 +131,13 @@ public class ChatMessageContextFactory {
                             messages,
                             message.getContent()
                     );
+
+            if (progressReporter != null) {
+                progressReporter.completed(
+                        "rag_search",
+                        "관련 자료 검색 완료"
+                );
+            }
 
             String content =
                     ragPromptResult.prompt();

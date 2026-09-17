@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class CalculatorTool implements AgentTool {
@@ -127,4 +128,9 @@ public class CalculatorTool implements AgentTool {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
+    public void testAsyncMethod() {
+        CompletableFuture.supplyAsync(() -> {
+            return "Async result";
+        }).thenAccept(result -> System.out.println(result));
+    }
 }

@@ -1,5 +1,8 @@
 package com.agent.aiagent.domain.video.service;
 
+import com.agent.aiagent.domain.file.service.FileAnalysisCancellationManager;
+import com.agent.aiagent.domain.file.service.FileAnalysisCancelledException;
+
 import com.agent.aiagent.domain.video.model.VideoTranscript;
 import com.agent.aiagent.domain.video.model.VideoTranscriptSegment;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WhisperTranscriber {
 
+    private final FileAnalysisCancellationManager cancellationManager;
+
     private final ObjectMapper objectMapper;
 
     @Value("${app.whisper.executable-path}")
@@ -32,6 +37,7 @@ public class WhisperTranscriber {
     private String modelPath;
 
     public VideoTranscript transcribe(
+            String fileId,
             Path audioPath
     ) {
         validateAudioPath(
@@ -81,9 +87,20 @@ public class WhisperTranscriber {
                 true
         );
 
+        cancellationManager.checkCancelled(
+                fileId
+        );
+
+        Process process = null;
+
         try {
-            Process process =
+            process =
                     processBuilder.start();
+
+            cancellationManager.registerProcess(
+                    fileId,
+                    process
+            );
 
             String output =
                     readProcessOutput(
@@ -92,6 +109,10 @@ public class WhisperTranscriber {
 
             int exitCode =
                     process.waitFor();
+
+            cancellationManager.checkCancelled(
+                    fileId
+            );
 
             if (exitCode != 0) {
                 throw new IllegalStateException(
@@ -127,6 +148,9 @@ public class WhisperTranscriber {
 
             return transcript;
         } catch (IOException exception) {
+            cancellationManager.checkCancelled(
+                    fileId
+            );
             throw new IllegalStateException(
                     "Whisper 실행 중 오류가 발생했습니다.",
                     exception
@@ -134,11 +158,18 @@ public class WhisperTranscriber {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
 
-            throw new IllegalStateException(
-                    "Whisper 실행이 중단되었습니다.",
+            throw new FileAnalysisCancelledException(
+                    fileId,
                     exception
             );
         } finally {
+            if (process != null) {
+                cancellationManager.unregisterProcess(
+                        fileId,
+                        process
+                );
+            }
+
             deleteIfExists(
                     jsonPath
             );

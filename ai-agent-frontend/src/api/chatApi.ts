@@ -137,6 +137,13 @@ export async function deleteChatRoom(
     );
 }
 
+export type ChatFileStatus =
+    | "UPLOADED"
+    | "ANALYZING"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED";
+
 export interface ChatFileUploadResponse {
     id: string;
     roomId: string;
@@ -144,6 +151,7 @@ export interface ChatFileUploadResponse {
     contentType: string | null;
     extension: string;
     size: number;
+    status: ChatFileStatus;
 }
 
 export async function uploadChatFile(
@@ -177,8 +185,19 @@ export interface ChatFileResponse {
     contentType: string | null;
     extension: string;
     size: number;
-    status: string;
+    status: ChatFileStatus;
     createdAt: string;
+}
+
+export type FileAnalysisStepStatus =
+    | "running"
+    | "completed"
+    | "failed";
+
+export interface FileAnalysisStep {
+    code: string;
+    status: FileAnalysisStepStatus;
+    message: string;
 }
 
 export async function getChatFiles(
@@ -211,4 +230,139 @@ export async function deleteChatFile(
             },
         },
     );
+}
+
+export async function cancelChatFileAnalysis(
+    fileId: string,
+): Promise<void> {
+    await axios.post(
+        `${API_BASE_URL}/api/files/${fileId}/cancel`,
+    );
+}
+
+export function streamFileAnalysisProgress(
+    fileId: string,
+    onStep: (step: FileAnalysisStep) => void,
+    signal?: AbortSignal,
+): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const eventSource =
+            new EventSource(
+                `${API_BASE_URL}/api/files/${fileId}/progress`,
+            );
+
+        let settled = false;
+
+        const cleanup = (): void => {
+            eventSource.close();
+
+            if (signal) {
+                signal.removeEventListener(
+                    "abort",
+                    handleAbort,
+                );
+            }
+        };
+
+        const complete = (): void => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanup();
+            resolve();
+        };
+
+        const fail = (
+            error: Error,
+        ): void => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanup();
+            reject(error);
+        };
+
+        const handleAbort = (): void => {
+            fail(
+                new DOMException(
+                    "파일 분석 대기가 중단되었습니다.",
+                    "AbortError",
+                ),
+            );
+        };
+
+        eventSource.addEventListener(
+            "file_step",
+            (event) => {
+                try {
+                    const step =
+                        JSON.parse(
+                            (event as MessageEvent<string>).data,
+                        ) as FileAnalysisStep;
+
+                    onStep(
+                        step,
+                    );
+
+                    if (
+                        step.code === "file_analysis"
+                        && step.status === "completed"
+                    ) {
+                        complete();
+                        return;
+                    }
+
+                    if (
+                        step.code === "file_analysis"
+                        && step.status === "failed"
+                    ) {
+                        fail(
+                            new Error(
+                                step.message,
+                            ),
+                        );
+                    }
+                } catch (error) {
+                    fail(
+                        error instanceof Error
+                            ? error
+                            : new Error(
+                                "파일 분석 진행 상태를 처리하지 못했습니다.",
+                            ),
+                    );
+                }
+            },
+        );
+
+        eventSource.onerror = () => {
+            if (settled) {
+                return;
+            }
+
+            fail(
+                new Error(
+                    "파일 분석 진행 상태 연결이 종료되었습니다.",
+                ),
+            );
+        };
+
+        if (signal) {
+            if (signal.aborted) {
+                handleAbort();
+                return;
+            }
+
+            signal.addEventListener(
+                "abort",
+                handleAbort,
+                {
+                    once: true,
+                },
+            );
+        }
+    });
 }

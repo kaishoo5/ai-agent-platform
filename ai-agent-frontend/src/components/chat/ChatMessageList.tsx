@@ -46,6 +46,22 @@ function ChatMessageList() {
         (state) => state.updateMessageVideoResult,
     );
 
+    const updateMessageSources = useChatStore(
+        (state) => state.updateMessageSources,
+    );
+
+    const messageExecutionSteps = useChatStore(
+        (state) => state.messageExecutionSteps,
+    );
+
+    const updateMessageExecutionStep = useChatStore(
+        (state) => state.updateMessageExecutionStep,
+    );
+
+    const clearMessageExecutionSteps = useChatStore(
+        (state) => state.clearMessageExecutionSteps,
+    );
+
     const activeRoom = rooms.find(
         (room) => room.id === activeRoomId,
     );
@@ -139,6 +155,10 @@ function ChatMessageList() {
         const previousVideoResult =
             assistantMessage.videoResult;
 
+        const previousSources = [
+            ...assistantMessage.sources,
+        ];
+
         const abortController =
             new AbortController();
 
@@ -154,6 +174,16 @@ function ChatMessageList() {
             null,
         );
 
+        updateMessageSources(
+            activeRoomId,
+            assistantMessageId,
+            [],
+        );
+
+        clearMessageExecutionSteps(
+            assistantMessageId,
+        );
+
         startGenerating(
             abortController,
         );
@@ -164,6 +194,10 @@ function ChatMessageList() {
                 requestMessages,
                 {
                     onChunk: (chunk) => {
+                        clearMessageExecutionSteps(
+                            assistantMessageId,
+                        );
+
                         appendMessageContent(
                             activeRoomId,
                             assistantMessageId,
@@ -176,6 +210,26 @@ function ChatMessageList() {
                             activeRoomId,
                             assistantMessageId,
                             videoResult,
+                        );
+                    },
+
+                    onSources: (sources) => {
+                        updateMessageSources(
+                            activeRoomId,
+                            assistantMessageId,
+                            sources,
+                        );
+                    },
+
+                    onAgentStep: (step) => {
+                        updateMessageExecutionStep(
+                            assistantMessageId,
+                            {
+                                id: `agent:${step.code}`,
+                                code: step.code,
+                                status: step.status,
+                                message: step.message,
+                            },
                         );
                     },
                 },
@@ -207,6 +261,16 @@ function ChatMessageList() {
                     activeRoomId,
                     assistantMessageId,
                     previousVideoResult,
+                );
+
+                updateMessageSources(
+                    activeRoomId,
+                    assistantMessageId,
+                    previousSources,
+                );
+
+                clearMessageExecutionSteps(
+                    assistantMessageId,
                 );
 
                 return;
@@ -271,6 +335,11 @@ function ChatMessageList() {
                             }
                             isGenerating={
                                 isGenerating
+                            }
+                            executionSteps={
+                                messageExecutionSteps[
+                                    message.id
+                                    ] ?? []
                             }
                             onRegenerate={() => {
                                 void handleRegenerate(
