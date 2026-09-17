@@ -1,9 +1,57 @@
-import {NavLink, Outlet,} from "react-router-dom";
+import {useEffect, useState,} from "react";
+import {NavLink, Outlet, useLocation,} from "react-router-dom";
 
 import ChatRoomList from "../components/chat/ChatRoomList";
 import ThemeToggle from "../components/common/ThemeToggle";
 
 function MainLayout() {
+    const location = useLocation();
+
+    const [isChatDrawerOpen, setIsChatDrawerOpen] =
+        useState(false);
+
+    useEffect(() => {
+        setIsChatDrawerOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!isChatDrawerOpen) {
+            return;
+        }
+
+        const handleKeyDown = (
+            event: KeyboardEvent,
+        ): void => {
+            if (event.key === "Escape") {
+                setIsChatDrawerOpen(false);
+            }
+        };
+
+        window.addEventListener(
+            "keydown",
+            handleKeyDown,
+        );
+
+        return () => {
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown,
+            );
+        };
+    }, [isChatDrawerOpen]);
+
+    const handleChatNavClick = (): void => {
+        if (window.innerWidth <= 640) {
+            setIsChatDrawerOpen(
+                (current) => !current,
+            );
+        }
+    };
+
+    const handleCloseChatDrawer = (): void => {
+        setIsChatDrawerOpen(false);
+    };
+
     return (
         <div className="app-layout">
             <aside className="sidebar">
@@ -31,6 +79,7 @@ function MainLayout() {
                                 ? "sidebar-nav-item active"
                                 : "sidebar-nav-item"
                         }
+                        onClick={handleChatNavClick}
                     >
                         <span className="sidebar-nav-icon">
                             ◇
@@ -79,6 +128,50 @@ function MainLayout() {
                     </div>
                 </div>
             </aside>
+
+            {isChatDrawerOpen && (
+                <>
+                    <button
+                        type="button"
+                        className="mobile-chat-drawer-backdrop"
+                        aria-label="채팅 목록 닫기"
+                        onClick={handleCloseChatDrawer}
+                    />
+
+                    <aside className="mobile-chat-drawer">
+                        <div className="mobile-chat-drawer-header">
+                            <div>
+                                <strong>
+                                    Chats
+                                </strong>
+
+                                <span>
+                                    Recent conversations
+                                </span>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="mobile-chat-drawer-close"
+                                aria-label="채팅 목록 닫기"
+                                onClick={handleCloseChatDrawer}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <ChatRoomList
+                            onRoomSelected={
+                                handleCloseChatDrawer
+                            }
+                        />
+
+                        <div className="mobile-chat-drawer-theme">
+                            <ThemeToggle />
+                        </div>
+                    </aside>
+                </>
+            )}
 
             <main className="main-content">
                 <Outlet />

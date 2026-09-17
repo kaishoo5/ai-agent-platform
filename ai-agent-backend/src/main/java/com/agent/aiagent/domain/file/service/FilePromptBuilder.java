@@ -2,6 +2,8 @@ package com.agent.aiagent.domain.file.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
+import com.agent.aiagent.domain.rag.model.ChatSource;
+import com.agent.aiagent.domain.rag.model.FilePromptResult;
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.domain.rag.service.RagChunkRerankService;
 import lombok.RequiredArgsConstructor;
@@ -37,8 +39,27 @@ public class FilePromptBuilder {
             String searchQuestion,
             List<String> searchQuestions
     ) {
+        return buildResult(
+                roomId,
+                fileIds,
+                userQuestion,
+                searchQuestion,
+                searchQuestions
+        ).prompt();
+    }
+
+    public FilePromptResult buildResult(
+            String roomId,
+            List<String> fileIds,
+            String userQuestion,
+            String searchQuestion,
+            List<String> searchQuestions
+    ) {
         if (fileIds == null || fileIds.isEmpty()) {
-            return userQuestion;
+            return new FilePromptResult(
+                    userQuestion,
+                    List.of()
+            );
         }
 
         List<ChatFile> chatFiles =
@@ -55,12 +76,32 @@ public class FilePromptBuilder {
                         searchQuestions
                 );
 
+        Map<String, ChatFile> chatFileMap =
+                chatFiles.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        ChatFile::getId,
+                                        Function.identity()
+                                )
+                        );
+
         List<RetrievedChunk> searchedChunks =
                 ragChunkRerankService.rerank(
                         searchQuestion,
                         candidateChunks,
                         FINAL_TOP_K
                 );
+
+        List<ChatSource> sources =
+                searchedChunks.stream()
+                        .map(result ->
+                                createChatSource(
+                                        result,
+                                        chatFileMap
+                                )
+                        )
+                        .filter(Objects::nonNull)
+                        .toList();
 
         Map<String, List<RetrievedChunk>> searchedChunkMap =
                 searchedChunks.stream()
@@ -193,42 +234,57 @@ public class FilePromptBuilder {
         prompt.append(
                 """
                 위 검색 참고자료를 근거로 다음 사용자 질문에 답변하세요.
-        
+
                 답변 작성 규칙:
                 1. 검색 참고자료에 있는 내용만 사실로 답변하세요.
                 2. 참고자료에 없는 내용은 추측해서 만들지 마세요.
-                3. 참고자료를 근거로 작성한 문장이나 문단 끝에는 반드시 출처를 표시하세요.
-                4. 출처는 각 참고자료에 제공된 형식을 그대로 사용하세요.
-                5. 출처 형식은 반드시 다음과 같아야 합니다.
-        
-                   [파일명, Chunk 번호]
-        
-                6. 하나의 문장에 여러 참고자료를 사용했다면 출처를 연속해서 표시하세요.
-        
-                   예:
-                   검색 품질 개선과 Reranker 도입이 결정되었습니다.
-                   [project.txt, Chunk 2] [project.txt, Chunk 5]
-        
-                7. 존재하지 않는 파일명이나 Chunk 번호를 만들지 마세요.
-                8. 답변 마지막에는 실제 답변에서 인용한 출처만 중복 없이 정리하세요.
-        
-                   출처:
-                   - 파일명, Chunk 번호
-                   - 파일명, Chunk 번호
-        
-                9. 임베딩 점수, 키워드 점수, 최종 검색 점수는 사용자에게 설명하지 마세요.
-                10. 검색 참고자료에서 답을 찾지 못했다면 찾지 못했다고 명확하게 답변하세요.
-                11. 검색 참고자료에 "영상 구간"이 제공되어 있고 사용자가 영상의 시간이나 장면 위치를 질문한 경우,
-                    반드시 제공된 영상 구간을 근거로 답변하세요.
-                12. 영상 구간이 제공되지 않은 경우 시간 정보를 추측해서 만들지 마세요.
-        
+                3. 파일명, Chunk 번호, 출처 목록을 답변 본문에 직접 출력하지 마세요.
+                4. 임베딩 점수, 키워드 점수, 최종 검색 점수는 사용자에게 설명하지 마세요.
+                5. 검색 참고자료에서 답을 찾지 못했다면 찾지 못했다고 명확하게 답변하세요.
+                6. 검색 참고자료에 "영상 구간"이 제공되어 있고 사용자가 영상의 시간이나 장면 위치를 질문한 경우,
+                   반드시 제공된 영상 구간을 근거로 답변하세요.
+                7. 영상 구간이 제공되지 않은 경우 시간 정보를 추측해서 만들지 마세요.
+
                 사용자 질문:
                 """
         );
 
         prompt.append(userQuestion);
 
-        return prompt.toString();
+        return new FilePromptResult(
+                prompt.toString(),
+                sources
+        );
+    }
+
+    private ChatSource createChatSource(
+            RetrievedChunk result,
+            Map<String, ChatFile> chatFileMap
+    ) {
+        if (
+                result == null
+                        || result.chunk() == null
+        ) {
+            return null;
+        }
+
+        ChatFile chatFile =
+                chatFileMap.get(
+                        result.chunk().getFileId()
+                );
+
+        if (chatFile == null) {
+            return null;
+        }
+
+        return new ChatSource(
+                chatFile.getId(),
+                chatFile.getOriginalName(),
+                chatFile.getExtension(),
+                result.chunk().getChunkIndex(),
+                result.chunk().getStartMillis(),
+                result.chunk().getEndMillis()
+        );
     }
 
     private String buildRetrievedChunkContent(
@@ -243,7 +299,6 @@ public class FilePromptBuilder {
 
         return """
         [검색 참고자료]
-        출처 표기: [%s, Chunk %d]
         파일 ID: %s
         파일명: %s
         Chunk 번호: %d
@@ -254,8 +309,6 @@ public class FilePromptBuilder {
         참고자료 내용:
         %s
         """.formatted(
-                chatFile.getOriginalName(),
-                result.chunk().getChunkIndex(),
                 chatFile.getId(),
                 chatFile.getOriginalName(),
                 result.chunk().getChunkIndex(),

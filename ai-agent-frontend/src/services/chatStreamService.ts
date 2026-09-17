@@ -1,4 +1,5 @@
-import type {ChatMessage, VideoSummaryResult,} from "../types/chat";
+import type {ChatMessage, ChatSource, VideoSummaryResult} from "../types/chat";
+import API_BASE_URL from "../config/api.ts";
 
 interface ChatStreamRequestMessage {
     role: "user" | "assistant";
@@ -19,6 +20,10 @@ interface ChatStreamHandlers {
 
     onVideoResult?: (
         videoResult: VideoSummaryResult,
+    ) => void;
+
+    onSources?: (
+        sources: ChatSource[],
     ) => void;
 }
 
@@ -51,7 +56,7 @@ export async function streamChat(
     };
 
     const response = await fetch(
-        "http://localhost:8080/api/chat/stream",
+        `${API_BASE_URL}/api/chat/stream`,
         {
             method: "POST",
             headers: {
@@ -178,6 +183,22 @@ export async function streamChat(
 
                     handlers.onChunk(
                         chunk,
+                    );
+
+                    continue;
+                }
+
+                if (
+                    eventName === "source_result"
+                    && data
+                ) {
+                    const sources =
+                        JSON.parse(
+                            data,
+                        ) as ChatSource[];
+
+                    handlers.onSources?.(
+                        sources,
                     );
 
                     continue;

@@ -5,6 +5,7 @@ import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {vscDarkPlus} from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import type {ChatMessage} from "../../types/chat";
+import SourceChips from "./SourceChips";
 import VideoResultCard from "./VideoResultCard";
 
 interface ChatMessageItemProps {
@@ -261,6 +262,14 @@ function ChatMessageItem({
                                                     {message.content}
                                                 </ReactMarkdown>
                                             </div>
+                                        )}
+
+                                        {message.sources.length > 0 && (
+                                            <SourceChips
+                                                sources={
+                                                    message.sources
+                                                }
+                                            />
                                         )}
 
                                         {message.videoResult && (

@@ -1,6 +1,12 @@
 import {useChatStore} from "../../store/chatStore";
 
-function ChatRoomList() {
+interface ChatRoomListProps {
+    onRoomSelected?: () => void;
+}
+
+function ChatRoomList({
+                          onRoomSelected,
+                      }: ChatRoomListProps) {
     const rooms = useChatStore(
         (state) => state.rooms,
     );
@@ -24,12 +30,24 @@ function ChatRoomList() {
     const handleCreateRoom = async (): Promise<void> => {
         try {
             await createRoom();
+
+            onRoomSelected?.();
         } catch (error) {
             console.error(
                 "채팅방 생성 중 오류가 발생했습니다.",
                 error,
             );
         }
+    };
+
+    const handleSelectRoom = async (
+        roomId: string,
+    ): Promise<void> => {
+        await setActiveRoom(
+            roomId,
+        );
+
+        onRoomSelected?.();
     };
 
     const handleDeleteRoom = async (
@@ -56,7 +74,9 @@ function ChatRoomList() {
                     +
                 </span>
 
-                <span>New chat</span>
+                <span>
+                    New chat
+                </span>
             </button>
 
             <div className="chat-room-header">
@@ -79,7 +99,7 @@ function ChatRoomList() {
                             role="button"
                             tabIndex={0}
                             onClick={() => {
-                                void setActiveRoom(
+                                void handleSelectRoom(
                                     room.id,
                                 );
                             }}
@@ -88,7 +108,7 @@ function ChatRoomList() {
                                     event.key === "Enter"
                                     || event.key === " "
                                 ) {
-                                    void setActiveRoom(
+                                    void handleSelectRoom(
                                         room.id,
                                     );
                                 }

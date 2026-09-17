@@ -8,7 +8,7 @@ import {
     getChatRoomMessages,
     getChatRooms,
 } from "../api/chatApi";
-import type {ChatFile, ChatMessage, ChatRoom, VideoSummaryResult} from "../types/chat";
+import type {ChatFile, ChatMessage, ChatRoom, ChatSource, VideoSummaryResult,} from "../types/chat";
 
 interface ChatStore {
     rooms: ChatRoom[];
@@ -60,6 +60,12 @@ interface ChatStore {
         roomId: string,
         messageId: string,
         videoResult: VideoSummaryResult | null,
+    ) => void;
+
+    updateMessageSources: (
+        roomId: string,
+        messageId: string,
+        sources: ChatSource[],
     ) => void;
 
     replaceMessages: (
@@ -409,6 +415,34 @@ export const useChatStore = create<ChatStore>((
                         return {
                             ...message,
                             videoResult,
+                        };
+                    }),
+                };
+            }),
+        }));
+    },
+
+    updateMessageSources: (
+        roomId,
+        messageId,
+        sources,
+    ) => {
+        set((state) => ({
+            rooms: state.rooms.map((room) => {
+                if (room.id !== roomId) {
+                    return room;
+                }
+
+                return {
+                    ...room,
+                    messages: room.messages.map((message) => {
+                        if (message.id !== messageId) {
+                            return message;
+                        }
+
+                        return {
+                            ...message,
+                            sources,
                         };
                     }),
                 };

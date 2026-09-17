@@ -2,6 +2,8 @@ package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.model.ChatAttachmentContext;
+import com.agent.aiagent.domain.chat.model.ChatExecutionContext;
+import com.agent.aiagent.domain.chat.model.ChatMessageContext;
 import com.agent.aiagent.domain.tool.service.ToolRegistry;
 import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
@@ -23,18 +25,29 @@ public class ChatModelRequestFactory {
     public ChatModelRequest create(
             ChatRequest request
     ) {
+        return createContext(
+                request
+        ).modelRequest();
+    }
+
+    public ChatExecutionContext createContext(
+            ChatRequest request
+    ) {
         ChatAttachmentContext attachmentContext =
                 chatAttachmentContextFactory.create(
                         request
                 );
 
-        List<ChatModelMessage> messages =
-                chatMessageContextFactory.create(
+        ChatMessageContext messageContext =
+                chatMessageContextFactory.createContext(
                         request.getRoomId(),
                         request.isRegenerate(),
                         attachmentContext.documentFileIds(),
                         attachmentContext.encodedImages()
                 );
+
+        List<ChatModelMessage> messages =
+                messageContext.messages();
 
         List<ChatModelTool> tools =
                 toolRegistry.getSpecifications()
@@ -50,18 +63,24 @@ public class ChatModelRequestFactory {
                         : ChatModelType.TEXT;
 
         log.info(
-                "AI 요청 생성 완료. roomId={}, modelType={}, documentCount={}, imageCount={}",
+                "AI 요청 생성 완료. roomId={}, modelType={}, documentCount={}, imageCount={}, sourceCount={}",
                 request.getRoomId(),
                 modelType,
                 attachmentContext.documentFileIds().size(),
-                attachmentContext.encodedImages().size()
+                attachmentContext.encodedImages().size(),
+                messageContext.sources().size()
         );
 
-        return new ChatModelRequest(
-                modelType,
-                messages,
-                tools
+        ChatModelRequest modelRequest =
+                new ChatModelRequest(
+                        modelType,
+                        messages,
+                        tools
+                );
+
+        return new ChatExecutionContext(
+                modelRequest,
+                messageContext.sources()
         );
     }
-
 }

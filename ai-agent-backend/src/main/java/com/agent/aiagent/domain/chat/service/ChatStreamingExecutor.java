@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.rag.model.ChatSource;
 import com.agent.aiagent.domain.video.model.VideoSummaryResult;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
@@ -13,6 +14,7 @@ import reactor.core.Disposable;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -33,7 +35,8 @@ public class ChatStreamingExecutor {
         return execute(
                 request,
                 chatModelRequest,
-                null
+                null,
+                List.of()
         );
     }
 
@@ -41,6 +44,20 @@ public class ChatStreamingExecutor {
             ChatRequest request,
             ChatModelRequest chatModelRequest,
             VideoSummaryResult videoSummaryResult
+    ) {
+        return execute(
+                request,
+                chatModelRequest,
+                videoSummaryResult,
+                List.of()
+        );
+    }
+
+    public SseEmitter execute(
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            VideoSummaryResult videoSummaryResult,
+            List<ChatSource> sources
     ) {
         SseEmitter emitter =
                 new SseEmitter(
@@ -61,6 +78,23 @@ public class ChatStreamingExecutor {
 
         AtomicBoolean responseSaved =
                 new AtomicBoolean(false);
+
+        List<ChatSource> safeSources =
+                sources == null
+                        ? List.of()
+                        : List.copyOf(
+                        sources
+                );
+
+        sendSources(
+                emitter,
+                safeSources,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
 
         sendVideoSummaryResult(
                 emitter,
@@ -208,19 +242,28 @@ public class ChatStreamingExecutor {
                                                     videoSummaryResult
                                             );
 
+                                    String sourceResultJson =
+                                            safeSources.isEmpty()
+                                                    ? null
+                                                    : objectMapper.writeValueAsString(
+                                                    safeSources
+                                            );
+
                                     if (request.isRegenerate()) {
                                         chatPersistenceService
                                                 .replaceLastAssistantMessage(
                                                         roomId,
                                                         assistantContent.toString(),
-                                                        videoResultJson
+                                                        videoResultJson,
+                                                        sourceResultJson
                                                 );
                                     } else {
                                         chatPersistenceService
                                                 .saveAssistantMessage(
                                                         roomId,
                                                         assistantContent.toString(),
-                                                        videoResultJson
+                                                        videoResultJson,
+                                                        sourceResultJson
                                                 );
                                     }
                                 }
@@ -282,6 +325,67 @@ public class ChatStreamingExecutor {
         );
 
         return emitter;
+    }
+
+    private void sendSources(
+            SseEmitter emitter,
+            List<ChatSource> sources,
+            AtomicBoolean terminated
+    ) {
+        if (
+                sources == null
+                        || sources.isEmpty()
+        ) {
+            return;
+        }
+
+        try {
+            emitter.send(
+                    SseEmitter.event()
+                            .name("source_result")
+                            .data(
+                                    objectMapper.writeValueAsString(
+                                            sources
+                                    )
+                            )
+            );
+
+            log.info(
+                    "RAG 출처 SSE 전송 완료. sourceCount={}",
+                    sources.size()
+            );
+        } catch (
+                AsyncRequestNotUsableException exception
+        ) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "RAG 출처 전송 전에 클라이언트 연결이 종료되었습니다."
+            );
+        } catch (IOException exception) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "RAG 출처 SSE 전송 중 연결이 종료되었습니다."
+            );
+        } catch (Exception exception) {
+            terminated.set(
+                    true
+            );
+
+            log.error(
+                    "RAG 출처 SSE 전송 중 오류가 발생했습니다.",
+                    exception
+            );
+
+            emitter.completeWithError(
+                    exception
+            );
+        }
     }
 
     private void sendVideoSummaryResult(

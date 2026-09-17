@@ -3,6 +3,8 @@ package com.agent.aiagent.domain.rag.service;
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.file.service.FilePromptBuilder;
+import com.agent.aiagent.domain.rag.model.FilePromptResult;
+import com.agent.aiagent.domain.rag.model.RagPromptResult;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,11 +35,27 @@ public class RagPromptBuilder {
             List<ChatModelMessage> messages,
             String userContent
     ) {
+        return buildResult(
+                roomId,
+                documentFileIds,
+                messages,
+                userContent
+        ).prompt();
+    }
+
+    public RagPromptResult buildResult(
+            String roomId,
+            List<String> documentFileIds,
+            List<ChatModelMessage> messages,
+            String userContent
+    ) {
         if (
                 documentFileIds == null
                         || documentFileIds.isEmpty()
         ) {
-            return userContent;
+            return RagPromptResult.withoutSources(
+                    userContent
+            );
         }
 
         List<ChatFile> chatFiles =
@@ -65,7 +83,9 @@ public class RagPromptBuilder {
                         chatFiles.size()
                 );
 
-                return videoSummaryPrompt;
+                return RagPromptResult.withoutSources(
+                        videoSummaryPrompt
+                );
             }
         }
 
@@ -80,8 +100,8 @@ public class RagPromptBuilder {
                         searchQuestion
                 );
 
-        String prompt =
-                filePromptBuilder.build(
+        FilePromptResult filePromptResult =
+                filePromptBuilder.buildResult(
                         roomId,
                         documentFileIds,
                         userContent,
@@ -90,13 +110,17 @@ public class RagPromptBuilder {
                 );
 
         log.info(
-                "RAG 프롬프트 생성 완료. roomId={}, documentCount={}, queryCount={}",
+                "RAG 프롬프트 생성 완료. roomId={}, documentCount={}, queryCount={}, sourceCount={}",
                 roomId,
                 documentFileIds.size(),
-                searchQuestions.size()
+                searchQuestions.size(),
+                filePromptResult.sources().size()
         );
 
-        return prompt;
+        return new RagPromptResult(
+                filePromptResult.prompt(),
+                filePromptResult.sources()
+        );
     }
 
     private boolean isVideoSummaryQuestion(
@@ -125,7 +149,6 @@ public class RagPromptBuilder {
                 || question.contains("전체내용")
                 || question.contains("영상내용")
                 || question.contains("줄거리")
-                || question.contains("요약해줘")
                 || question.contains("요약해줘")
                 || question.contains("무슨이야기")
                 || question.contains("무슨내용")

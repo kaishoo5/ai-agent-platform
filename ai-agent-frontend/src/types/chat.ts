@@ -14,12 +14,22 @@ export interface VideoSummaryResult {
     downloadUrl: string;
 }
 
+export interface ChatSource {
+    fileId: string;
+    fileName: string;
+    extension: string;
+    chunkIndex: number;
+    startMillis: number | null;
+    endMillis: number | null;
+}
+
 export interface ChatMessage {
     id: string;
     roomId: string;
     role: ChatMessageRole;
     content: string;
     videoResult: VideoSummaryResult | null;
+    sources: ChatSource[];
     createdAt: string;
 }
 

@@ -1,11 +1,9 @@
 import type {VideoSummaryResult,} from "../../types/chat";
+import API_BASE_URL from "../../config/api";
 
 interface VideoResultCardProps {
     videoResult: VideoSummaryResult;
 }
-
-const API_BASE_URL =
-    "http://localhost:8080";
 
 function formatDuration(
     durationSeconds: number,

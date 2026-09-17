@@ -2,6 +2,7 @@ package com.agent.aiagent.domain.tool.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.service.ChatStreamingExecutor;
+import com.agent.aiagent.domain.rag.model.ChatSource;
 import com.agent.aiagent.domain.tool.model.ToolResult;
 import com.agent.aiagent.domain.video.model.VideoSummaryResult;
 import com.agent.aiagent.domain.video.service.VideoSummaryFileService;
@@ -43,11 +44,31 @@ public class ToolCallingExecutor {
             ChatRequest request,
             ChatModelRequest chatModelRequest
     ) {
+        return execute(
+                request,
+                chatModelRequest,
+                List.of()
+        );
+    }
+
+    public SseEmitter execute(
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            List<ChatSource> sources
+    ) {
+        List<ChatSource> safeSources =
+                sources == null
+                        ? List.of()
+                        : List.copyOf(
+                        sources
+                );
 
         if (chatModelRequest.tools().isEmpty()) {
             return chatStreamingExecutor.execute(
                     request,
-                    chatModelRequest
+                    chatModelRequest,
+                    null,
+                    safeSources
             );
         }
 
@@ -76,7 +97,8 @@ public class ToolCallingExecutor {
                 return chatStreamingExecutor.execute(
                         request,
                         currentRequest,
-                        videoSummaryResult
+                        videoSummaryResult,
+                        safeSources
                 );
             }
 
@@ -157,7 +179,8 @@ public class ToolCallingExecutor {
                 return chatStreamingExecutor.execute(
                         request,
                         finalRequest,
-                        videoSummaryResult
+                        videoSummaryResult,
+                        safeSources
                 );
             }
         }
@@ -170,7 +193,8 @@ public class ToolCallingExecutor {
         return chatStreamingExecutor.execute(
                 request,
                 currentRequest,
-                videoSummaryResult
+                videoSummaryResult,
+                safeSources
         );
     }
 

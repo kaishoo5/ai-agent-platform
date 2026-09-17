@@ -10,6 +10,7 @@ public record ChatMessageResponse(
         String role,
         String content,
         String videoResult,
+        String sourceResult,
         LocalDateTime createdAt
 ) {
 
@@ -22,6 +23,7 @@ public record ChatMessageResponse(
                 chatMessage.getRole(),
                 chatMessage.getContent(),
                 chatMessage.getVideoResult(),
+                chatMessage.getSourceResult(),
                 chatMessage.getCreatedAt()
         );
     }

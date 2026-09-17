@@ -31,6 +31,9 @@ public class ChatMessage {
     @Column(name = "VIDEO_RESULT", columnDefinition = "LONGTEXT")
     private String videoResult;
 
+    @Column(name = "SOURCE_RESULT", columnDefinition = "LONGTEXT")
+    private String sourceResult;
+
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -43,6 +46,7 @@ public class ChatMessage {
                 room,
                 role,
                 content,
+                null,
                 null
         );
     }
@@ -53,11 +57,28 @@ public class ChatMessage {
             String content,
             String videoResult
     ) {
+        this(
+                room,
+                role,
+                content,
+                videoResult,
+                null
+        );
+    }
+
+    public ChatMessage(
+            ChatRoom room,
+            String role,
+            String content,
+            String videoResult,
+            String sourceResult
+    ) {
         this.id = UUID.randomUUID().toString();
         this.room = room;
         this.role = role;
         this.content = content;
         this.videoResult = videoResult;
+        this.sourceResult = sourceResult;
     }
 
     public void updateContent(

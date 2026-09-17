@@ -1,4 +1,12 @@
-import {type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState,} from "react";
+import {
+    type ChangeEvent,
+    type ClipboardEvent,
+    type DragEvent,
+    type KeyboardEvent,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 
 import {uploadChatFile} from "../../api/chatApi";
 import {streamChat} from "../../services/chatStreamService";
@@ -129,7 +137,6 @@ function SelectedFilePreview({
 
     useEffect(() => {
         if (!isImageFile(file.name)) {
-            setPreviewUrl(null);
 
             return;
         }
@@ -163,6 +170,19 @@ function SelectedFilePreview({
     );
 }
 
+function createMessageId(): string {
+    if (
+        typeof crypto !== "undefined"
+        && typeof crypto.randomUUID === "function"
+    ) {
+        return crypto.randomUUID();
+    }
+
+    return `temp-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 11)}`;
+}
+
 function ChatInput() {
     const [input, setInput] =
         useState("");
@@ -172,6 +192,12 @@ function ChatInput() {
 
     const [fileError, setFileError] =
         useState<string | null>(null);
+
+    const [isDraggingFile, setIsDraggingFile] =
+        useState(false);
+
+    const dragDepthRef =
+        useRef(0);
 
     const [deletingFileIds, setDeletingFileIds] =
         useState<Set<string>>(
@@ -246,6 +272,10 @@ function ChatInput() {
         (state) => state.updateMessageVideoResult,
     );
 
+    const updateMessageSources = useChatStore(
+        (state) => state.updateMessageSources,
+    );
+
     useEffect(() => {
         if (isGenerating) {
             return;
@@ -279,17 +309,13 @@ function ChatInput() {
             )}px`;
     };
 
-    const handleFileChange = (
-        event: ChangeEvent<HTMLInputElement>,
+    const addFiles = (
+        files: File[],
     ): void => {
-        const files =
-            Array.from(
-                event.target.files ?? [],
-            );
-
-        event.target.value = "";
-
-        if (files.length === 0) {
+        if (
+            files.length === 0
+            || isGenerating
+        ) {
             return;
         }
 
@@ -303,14 +329,11 @@ function ChatInput() {
             setFileError(
                 "파일은 최대 5개까지 첨부할 수 있습니다.",
             );
-
             return;
         }
 
         const acceptedFiles: File[] = [];
-
-        let errorMessage: string | null =
-            null;
+        let errorMessage: string | null = null;
 
         for (const file of files) {
             if (
@@ -319,7 +342,6 @@ function ChatInput() {
             ) {
                 errorMessage =
                     "파일은 최대 5개까지 첨부할 수 있습니다.";
-
                 break;
             }
 
@@ -335,7 +357,6 @@ function ChatInput() {
             ) {
                 errorMessage =
                     `지원하지 않는 파일 형식입니다: ${file.name}`;
-
                 continue;
             }
 
@@ -349,7 +370,6 @@ function ChatInput() {
                     VIDEO_EXTENSIONS.has(extension)
                         ? `영상 파일 크기는 4GB를 초과할 수 없습니다: ${file.name}`
                         : `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`;
-
                 continue;
             }
 
@@ -372,7 +392,6 @@ function ChatInput() {
             if (isDuplicated) {
                 errorMessage =
                     `이미 선택한 파일입니다: ${file.name}`;
-
                 continue;
             }
 
@@ -399,12 +418,142 @@ function ChatInput() {
         );
     };
 
+    const handleFileChange = (
+        event: ChangeEvent<HTMLInputElement>,
+    ): void => {
+        addFiles(
+            Array.from(
+                event.currentTarget.files ?? [],
+            ),
+        );
+    };
+
     const handleFileButtonClick = (): void => {
         if (isGenerating) {
             return;
         }
 
-        fileInputRef.current?.click();
+        const fileInput =
+            fileInputRef.current;
+
+        if (!fileInput) {
+            return;
+        }
+
+        fileInput.value = "";
+        fileInput.click();
+    };
+
+    const handleDragEnter = (
+        event: DragEvent<HTMLDivElement>,
+    ): void => {
+        event.preventDefault();
+
+        if (isGenerating) {
+            return;
+        }
+
+        dragDepthRef.current += 1;
+        setIsDraggingFile(true);
+    };
+
+    const handleDragOver = (
+        event: DragEvent<HTMLDivElement>,
+    ): void => {
+        event.preventDefault();
+
+        if (isGenerating) {
+            return;
+        }
+
+        event.dataTransfer.dropEffect =
+            "copy";
+    };
+
+    const handleDragLeave = (
+        event: DragEvent<HTMLDivElement>,
+    ): void => {
+        event.preventDefault();
+
+        if (isGenerating) {
+            return;
+        }
+
+        dragDepthRef.current =
+            Math.max(
+                0,
+                dragDepthRef.current - 1,
+            );
+
+        if (dragDepthRef.current === 0) {
+            setIsDraggingFile(false);
+        }
+    };
+
+    const handleDrop = (
+        event: DragEvent<HTMLDivElement>,
+    ): void => {
+        event.preventDefault();
+
+        dragDepthRef.current = 0;
+        setIsDraggingFile(false);
+
+        if (isGenerating) {
+            return;
+        }
+
+        addFiles(
+            Array.from(
+                event.dataTransfer.files ?? [],
+            ),
+        );
+    };
+
+    const handlePaste = (
+        event: ClipboardEvent<HTMLTextAreaElement>,
+    ): void => {
+        if (isGenerating) {
+            return;
+        }
+
+        const clipboardFiles =
+            Array.from(
+                event.clipboardData.files ?? [],
+            );
+
+        if (clipboardFiles.length > 0) {
+            event.preventDefault();
+            addFiles(clipboardFiles);
+            return;
+        }
+
+        const pastedFiles: File[] = [];
+
+        for (
+            const item
+            of Array.from(event.clipboardData.items)
+            ) {
+            if (
+                item.kind !== "file"
+                || !item.type.startsWith("image/")
+            ) {
+                continue;
+            }
+
+            const file =
+                item.getAsFile();
+
+            if (file) {
+                pastedFiles.push(file);
+            }
+        }
+
+        if (pastedFiles.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        addFiles(pastedFiles);
     };
 
     const handleRemoveFile = (
@@ -516,20 +665,22 @@ function ChatInput() {
             targetRoom?.messages ?? [];
 
         const userMessage: ChatMessage = {
-            id: crypto.randomUUID(),
+            id: createMessageId(),
             roomId: targetRoomId,
             role: "USER",
             content: trimmedInput,
             videoResult: null,
+            sources: [],
             createdAt: new Date().toISOString(),
         };
 
         const assistantMessage: ChatMessage = {
-            id: crypto.randomUUID(),
+            id: createMessageId(),
             roomId: targetRoomId,
             role: "ASSISTANT",
             content: "",
             videoResult: null,
+            sources: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -601,6 +752,14 @@ function ChatInput() {
                             targetRoomId,
                             assistantMessage.id,
                             videoResult,
+                        );
+                    },
+
+                    onSources: (sources) => {
+                        updateMessageSources(
+                            targetRoomId,
+                            assistantMessage.id,
+                            sources,
                         );
                     },
                 },
@@ -676,14 +835,6 @@ function ChatInput() {
         stopGenerating();
     };
 
-    const handleSubmit = (
-        event: FormEvent<HTMLFormElement>,
-    ): void => {
-        event.preventDefault();
-
-        void sendMessage();
-    };
-
     const handleKeyDown = (
         event: KeyboardEvent<HTMLTextAreaElement>,
     ): void => {
@@ -698,9 +849,12 @@ function ChatInput() {
     };
 
     return (
-        <form
+        <div
             className="chat-input-area"
-            onSubmit={handleSubmit}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
         >
             <input
                 ref={fileInputRef}
@@ -711,6 +865,23 @@ function ChatInput() {
                 disabled={isGenerating}
                 onChange={handleFileChange}
             />
+
+            {isDraggingFile && !isGenerating && (
+                <div
+                    className="file-drop-overlay"
+                    aria-hidden="true"
+                >
+                    <div className="file-drop-overlay-content">
+                        <span className="file-drop-overlay-icon">+</span>
+
+                        <strong>파일을 여기에 놓으세요</strong>
+
+                        <span>
+                            최대 5개까지 첨부할 수 있습니다
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div className="chat-composer">
                 {activeRoomFiles.length > 0 && (
@@ -874,6 +1045,7 @@ function ChatInput() {
                     disabled={isGenerating}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
                 />
 
                 <div className="chat-composer-actions">
@@ -913,9 +1085,12 @@ function ChatInput() {
                             )
                             : (
                                 <button
-                                    type="submit"
+                                    type="button"
                                     className="composer-send-button"
                                     disabled={!input.trim()}
+                                    onClick={() => {
+                                        void sendMessage();
+                                    }}
                                     aria-label="메시지 전송"
                                     title="전송"
                                 >
@@ -929,7 +1104,7 @@ function ChatInput() {
             <div className="chat-composer-footer">
                 Enter로 전송 · Shift + Enter로 줄바꿈
             </div>
-        </form>
+        </div>
     );
 }
 

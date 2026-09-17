@@ -1,10 +1,12 @@
 import axios from "axios";
+import API_BASE_URL from "../config/api";
 
 import type {
     ChatMessage,
     ChatMessageRole,
     ChatRoomCreateRequest,
     ChatRoomResponse,
+    ChatSource,
     VideoSummaryResult
 } from "../types/chat";
 
@@ -14,11 +16,12 @@ interface ChatMessageResponse {
     role: string;
     content: string;
     videoResult: string | null;
+    sourceResult: string | null;
     createdAt: string;
 }
 
 const chatApi = axios.create({
-    baseURL: "http://localhost:8080/api/chat",
+    baseURL: `${API_BASE_URL}/api/chat`,
     headers: {
         "Content-Type": "application/json",
     },
@@ -55,6 +58,34 @@ function parseVideoResult(
     }
 }
 
+function parseSources(
+    sourceResult: string | null,
+): ChatSource[] {
+    if (!sourceResult) {
+        return [];
+    }
+
+    try {
+        const parsed =
+            JSON.parse(
+                sourceResult,
+            ) as unknown;
+
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed as ChatSource[];
+    } catch (error) {
+        console.error(
+            "RAG 출처 결과를 파싱하는 중 오류가 발생했습니다.",
+            error,
+        );
+
+        return [];
+    }
+}
+
 export async function getChatRooms(): Promise<ChatRoomResponse[]> {
     const response = await chatApi.get<ChatRoomResponse[]>(
         "/rooms",
@@ -82,13 +113,19 @@ export async function getChatRoomMessages(
     );
 
     return response.data.map((message) => ({
-        ...message,
+        id: message.id,
+        roomId: message.roomId,
         role: convertMessageRole(
             message.role,
         ),
+        content: message.content,
         videoResult: parseVideoResult(
             message.videoResult,
         ),
+        sources: parseSources(
+            message.sourceResult,
+        ),
+        createdAt: message.createdAt,
     }));
 }
 
@@ -126,7 +163,7 @@ export async function uploadChatFile(
     );
 
     const response = await axios.post<ChatFileUploadResponse>(
-        "http://localhost:8080/api/files",
+        `${API_BASE_URL}/api/files`,
         formData,
     );
 
@@ -150,7 +187,7 @@ export async function getChatFiles(
 
     const response =
         await axios.get<ChatFileResponse[]>(
-            "http://localhost:8080/api/files",
+            `${API_BASE_URL}/api/files`,
             {
                 params: {
                     roomId,
@@ -167,7 +204,7 @@ export async function deleteChatFile(
 ): Promise<void> {
 
     await axios.delete(
-        `http://localhost:8080/api/files/${fileId}`,
+        `${API_BASE_URL}/api/files/${fileId}`,
         {
             params: {
                 roomId,

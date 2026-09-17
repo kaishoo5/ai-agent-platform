@@ -1,5 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
+import com.agent.aiagent.domain.chat.model.ChatMessageContext;
+import com.agent.aiagent.domain.rag.model.RagPromptResult;
 import com.agent.aiagent.domain.rag.service.RagPromptBuilder;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -24,6 +27,20 @@ public class ChatMessageContextFactory {
             List<String> documentFileIds,
             List<String> encodedImages
     ) {
+        return createContext(
+                roomId,
+                regenerate,
+                documentFileIds,
+                encodedImages
+        ).messages();
+    }
+
+    public ChatMessageContext createContext(
+            String roomId,
+            boolean regenerate,
+            List<String> documentFileIds,
+            List<String> encodedImages
+    ) {
         List<ChatModelMessage> messages =
                 conversationSummaryService.createConversationContext(
                         roomId,
@@ -34,29 +51,37 @@ public class ChatMessageContextFactory {
                 documentFileIds.isEmpty()
                         && encodedImages.isEmpty()
         ) {
-            return messages;
+            return new ChatMessageContext(
+                    messages,
+                    List.of()
+            );
         }
 
-        applyAttachmentsToLastUserMessage(
-                roomId,
-                messages,
-                documentFileIds,
-                encodedImages
-        );
+        RagPromptResult ragPromptResult =
+                applyAttachmentsToLastUserMessage(
+                        roomId,
+                        messages,
+                        documentFileIds,
+                        encodedImages
+                );
 
         log.info(
-                "채팅 메시지 컨텍스트 생성 완료. roomId={}, messageCount={}, regenerate={}, documentCount={}, imageCount={}",
+                "채팅 메시지 컨텍스트 생성 완료. roomId={}, messageCount={}, regenerate={}, documentCount={}, imageCount={}, sourceCount={}",
                 roomId,
                 messages.size(),
                 regenerate,
                 documentFileIds.size(),
-                encodedImages.size()
+                encodedImages.size(),
+                ragPromptResult.sources().size()
         );
 
-        return messages;
+        return new ChatMessageContext(
+                messages,
+                ragPromptResult.sources()
+        );
     }
 
-    private void applyAttachmentsToLastUserMessage(
+    private RagPromptResult applyAttachmentsToLastUserMessage(
             String roomId,
             List<ChatModelMessage> messages,
             List<String> documentFileIds,
@@ -74,13 +99,16 @@ public class ChatMessageContextFactory {
                 continue;
             }
 
-            String content =
-                    ragPromptBuilder.build(
+            RagPromptResult ragPromptResult =
+                    ragPromptBuilder.buildResult(
                             roomId,
                             documentFileIds,
                             messages,
                             message.getContent()
                     );
+
+            String content =
+                    ragPromptResult.prompt();
 
             if (!documentFileIds.isEmpty()) {
                 content =
@@ -94,7 +122,7 @@ public class ChatMessageContextFactory {
                                         "- fileId: " + fileId
                                 )
                                 .collect(
-                                        java.util.stream.Collectors.joining(
+                                        Collectors.joining(
                                                 System.lineSeparator()
                                         )
                                 );
@@ -114,12 +142,16 @@ public class ChatMessageContextFactory {
                     )
             );
 
-            return;
+            return ragPromptResult;
         }
 
         log.warn(
                 "첨부파일을 적용할 사용자 메시지를 찾지 못했습니다. roomId={}",
                 roomId
+        );
+
+        return RagPromptResult.withoutSources(
+                ""
         );
     }
 }

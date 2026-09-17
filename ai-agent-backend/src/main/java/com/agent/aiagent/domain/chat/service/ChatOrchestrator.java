@@ -1,8 +1,8 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.chat.model.ChatExecutionContext;
 import com.agent.aiagent.domain.tool.service.ToolCallingExecutor;
-import com.agent.aiagent.provider.chat.ChatModelRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -43,30 +43,46 @@ public class ChatOrchestrator {
                 request.isRegenerate()
         );
 
-        ChatModelRequest chatModelRequest =
-                chatModelRequestFactory.create(
+        ChatExecutionContext executionContext =
+                chatModelRequestFactory.createContext(
                         request
                 );
 
+        log.info(
+                "채팅 실행 컨텍스트 생성 완료. roomId={}, sourceCount={}",
+                roomId,
+                executionContext.sources().size()
+        );
+
         return toolCallingExecutor.execute(
                 request,
-                chatModelRequest
+                executionContext.modelRequest(),
+                executionContext.sources()
         );
     }
 
-    private String getLastUserMessageContent(ChatRequest request) {
+    private String getLastUserMessageContent(
+            ChatRequest request
+    ) {
         return request.getMessages()
                 .stream()
                 .filter(message ->
-                        USER_ROLE.equalsIgnoreCase(message.getRole())
+                        USER_ROLE.equalsIgnoreCase(
+                                message.getRole()
+                        )
                 )
                 .reduce((first, second) -> second)
-                .map(message -> message.getContent())
-                .filter(content -> !content.isBlank())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "사용자 메시지가 없습니다."
-                ));
+                .map(message ->
+                        message.getContent()
+                )
+                .filter(content ->
+                        !content.isBlank()
+                )
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "사용자 메시지가 없습니다."
+                        )
+                );
     }
-
 }

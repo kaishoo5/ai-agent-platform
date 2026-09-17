@@ -77,6 +77,7 @@ public class ChatPersistenceService {
         saveAssistantMessage(
                 roomId,
                 content,
+                null,
                 null
         );
     }
@@ -85,6 +86,20 @@ public class ChatPersistenceService {
             String roomId,
             String content,
             String videoResult
+    ) {
+        saveAssistantMessage(
+                roomId,
+                content,
+                videoResult,
+                null
+        );
+    }
+
+    public void saveAssistantMessage(
+            String roomId,
+            String content,
+            String videoResult,
+            String sourceResult
     ) {
         if (
                 content == null
@@ -109,7 +124,8 @@ public class ChatPersistenceService {
                             chatRoom,
                             ASSISTANT_ROLE,
                             content,
-                            videoResult
+                            videoResult,
+                            sourceResult
                     );
 
             chatMessageRepository.save(
@@ -127,6 +143,7 @@ public class ChatPersistenceService {
         replaceLastAssistantMessage(
                 roomId,
                 content,
+                null,
                 null
         );
     }
@@ -135,6 +152,20 @@ public class ChatPersistenceService {
             String roomId,
             String content,
             String videoResult
+    ) {
+        replaceLastAssistantMessage(
+                roomId,
+                content,
+                videoResult,
+                null
+        );
+    }
+
+    public void replaceLastAssistantMessage(
+            String roomId,
+            String content,
+            String videoResult,
+            String sourceResult
     ) {
         if (
                 content == null
@@ -168,7 +199,8 @@ public class ChatPersistenceService {
                             chatRoom,
                             ASSISTANT_ROLE,
                             content,
-                            videoResult
+                            videoResult,
+                            sourceResult
                     );
 
             chatMessageRepository.save(
