@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -122,6 +123,14 @@ public class ConversationSummaryService {
 
         List<ChatModelMessage> contextMessages =
                 new ArrayList<>();
+
+        contextMessages.add(
+                new ChatModelMessage(
+                        SYSTEM_ROLE,
+                        createSystemPrompt(),
+                        null
+                )
+        );
 
         if (StringUtils.hasText(chatRoom.getSummary())) {
             contextMessages.add(
@@ -299,6 +308,25 @@ public class ConversationSummaryService {
 
         return builder.toString()
                 .trim();
+    }
+
+    private String createSystemPrompt() {
+        LocalDate currentDate =
+                LocalDate.now();
+
+        return """
+            현재 날짜는 %s입니다.
+
+            현재 날짜와 관련된 질문에서는 반드시 위 날짜를 기준으로 판단하세요.
+            모델의 학습 데이터에 포함된 과거 날짜나 기존 지식을 현재 날짜로 간주하지 마세요.
+            "현재", "오늘", "최근", "최신" 등 시점에 따라 답이 달라지는 질문에서는
+            과거의 정보를 현재 사실인 것처럼 단정하지 마세요.
+
+            최신 정보를 확인할 수 없는 경우에는 알고 있는 과거 정보를 최신 정보처럼 만들어내지 말고,
+            최신 정보인지 확인할 수 없다는 점을 명확히 알려주세요.
+            """.formatted(
+                currentDate
+        );
     }
 
     private String createSummaryMemoryPrompt(

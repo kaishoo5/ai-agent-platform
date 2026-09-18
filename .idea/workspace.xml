@@ -4,13 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add cancellable async file analysis with progress tracking">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: improve agent execution progress and tool response handling">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatOrchestrator.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatOrchestrator.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/FileAnalysisProgressService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/FileAnalysisProgressService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -340,7 +336,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add agent tool registry and current time tool" />
     <MESSAGE value="feat: add tool executor" />
     <MESSAGE value="feat: add tool specifications" />
     <MESSAGE value="feat: add chat model tool definitions" />
@@ -365,7 +360,8 @@
     <MESSAGE value="feat: add video summary result card and download support" />
     <MESSAGE value="feat: enhance file attachment with drag and drop and paste" />
     <MESSAGE value="feat: add cancellable async file analysis with progress tracking" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add cancellable async file analysis with progress tracking" />
+    <MESSAGE value="feat: improve agent execution progress and tool response handling" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: improve agent execution progress and tool response handling" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
