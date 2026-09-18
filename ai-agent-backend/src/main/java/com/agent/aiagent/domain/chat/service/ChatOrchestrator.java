@@ -136,7 +136,8 @@ public class ChatOrchestrator {
                     emitter,
                     request,
                     executionContext.modelRequest(),
-                    executionContext.sources()
+                    executionContext.sources(),
+                    progressReporter
             );
         } catch (Exception exception) {
             log.error(

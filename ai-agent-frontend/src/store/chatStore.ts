@@ -387,10 +387,20 @@ export const useChatStore = create<ChatStore>((
                 ),
             ]);
 
-            get().replaceMessages(
-                roomId,
-                messages,
-            );
+            const {
+                isGenerating,
+                activeRoomId,
+            } = get();
+
+            if (
+                !isGenerating
+                || activeRoomId !== roomId
+            ) {
+                get().replaceMessages(
+                    roomId,
+                    messages,
+                );
+            }
 
             get().replaceFiles(
                 roomId,

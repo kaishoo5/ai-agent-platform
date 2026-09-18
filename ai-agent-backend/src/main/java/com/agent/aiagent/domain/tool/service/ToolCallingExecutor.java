@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.tool.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.chat.service.AgentProgressReporter;
 import com.agent.aiagent.domain.chat.service.ChatStreamingExecutor;
 import com.agent.aiagent.domain.rag.model.ChatSource;
 import com.agent.aiagent.domain.tool.model.ToolResult;
@@ -63,7 +64,8 @@ public class ToolCallingExecutor {
                 emitter,
                 request,
                 chatModelRequest,
-                sources
+                sources,
+                null
         );
     }
 
@@ -72,6 +74,22 @@ public class ToolCallingExecutor {
             ChatRequest request,
             ChatModelRequest chatModelRequest,
             List<ChatSource> sources
+    ) {
+        return execute(
+                emitter,
+                request,
+                chatModelRequest,
+                sources,
+                null
+        );
+    }
+
+    public SseEmitter execute(
+            SseEmitter emitter,
+            ChatRequest request,
+            ChatModelRequest chatModelRequest,
+            List<ChatSource> sources,
+            AgentProgressReporter progressReporter
     ) {
         List<ChatSource> safeSources =
                 sources == null
@@ -101,10 +119,53 @@ public class ToolCallingExecutor {
                 round <= MAX_TOOL_CALL_ROUNDS;
                 round++
         ) {
+            boolean firstRound =
+                    round == 1;
+
+            String progressCode =
+                    firstRound
+                            ? "request_analysis"
+                            : "answer_generation";
+
+            String runningMessage =
+                    firstRound
+                            ? "요청 분석 중..."
+                            : "답변 생성 중...";
+
+            String completedMessage =
+                    firstRound
+                            ? "요청 분석 완료"
+                            : "답변 생성 완료";
+
+            if (progressReporter != null) {
+                progressReporter.running(
+                        progressCode,
+                        runningMessage
+                );
+            }
+
             ChatModelResponse response =
                     chatModelProvider.chatOnce(
                             currentRequest
                     );
+
+            /*
+             * 첫 번째 round는 도구 사용 여부를 판단하는 단계이므로
+             * 완료 상태를 보여준다.
+             *
+             * 두 번째 이후 round는 최종 답변 생성 단계다.
+             * 응답이 도착하면 곧바로 message SSE가 전송되므로
+             * answer_generation completed를 굳이 전송하지 않는다.
+             */
+            if (
+                    progressReporter != null
+                            && firstRound
+            ) {
+                progressReporter.completed(
+                        progressCode,
+                        completedMessage
+                );
+            }
 
             if (!response.hasToolCalls()) {
                 log.debug(
@@ -112,12 +173,28 @@ public class ToolCallingExecutor {
                         round
                 );
 
-                return chatStreamingExecutor.execute(
-                        emitter,
-                        request,
-                        currentRequest,
-                        videoSummaryResult,
-                        safeSources
+                return chatStreamingExecutor
+                        .executeCompletedResponse(
+                                emitter,
+                                request,
+                                response.content(),
+                                videoSummaryResult,
+                                safeSources
+                        );
+            }
+
+            /*
+             * 두 번째 이후 round에서도 또 다른 Tool Call이 나온 경우
+             * 답변 생성 단계가 끝난 것이 아니라 추가 도구 실행이
+             * 필요한 상태이므로 completed 처리한다.
+             */
+            if (
+                    progressReporter != null
+                            && !firstRound
+            ) {
+                progressReporter.completed(
+                        progressCode,
+                        completedMessage
                 );
             }
 
@@ -133,10 +210,24 @@ public class ToolCallingExecutor {
                             .toList()
             );
 
+            if (progressReporter != null) {
+                progressReporter.running(
+                        "tool_execution",
+                        "도구 실행 중..."
+                );
+            }
+
             List<ToolResult> toolResults =
                     toolCallProcessor.execute(
                             response.toolCalls()
                     );
+
+            if (progressReporter != null) {
+                progressReporter.completed(
+                        "tool_execution",
+                        "도구 실행 완료"
+                );
+            }
 
             for (
                     int index = 0;
@@ -195,6 +286,13 @@ public class ToolCallingExecutor {
                                 List.of()
                         );
 
+                if (progressReporter != null) {
+                    progressReporter.running(
+                            "answer_generation",
+                            "답변 생성 중..."
+                    );
+                }
+
                 return chatStreamingExecutor.execute(
                         emitter,
                         request,
@@ -209,6 +307,13 @@ public class ToolCallingExecutor {
                 "Tool Calling 최대 반복 횟수에 도달했습니다. maxRounds={}",
                 MAX_TOOL_CALL_ROUNDS
         );
+
+        if (progressReporter != null) {
+            progressReporter.running(
+                    "answer_generation",
+                    "답변 생성 중..."
+            );
+        }
 
         return chatStreamingExecutor.execute(
                 emitter,

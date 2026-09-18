@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class ChatStreamingExecutor {
 
-    private static final long SSE_TIMEOUT = 300_000L;
+    private static final long SSE_TIMEOUT = 3_600_000L; // 1시간
 
     private final ChatModelProvider chatModelProvider;
     private final ChatPersistenceService chatPersistenceService;
@@ -318,6 +318,148 @@ public class ChatStreamingExecutor {
                 terminated,
                 responseSaved
         );
+
+        return emitter;
+    }
+
+    public SseEmitter executeCompletedResponse(
+            SseEmitter emitter,
+            ChatRequest request,
+            String content,
+            VideoSummaryResult videoSummaryResult,
+            List<ChatSource> sources
+    ) {
+        String roomId =
+                request.getRoomId();
+
+        AtomicBoolean terminated =
+                new AtomicBoolean(false);
+
+        List<ChatSource> safeSources =
+                sources == null
+                        ? List.of()
+                        : List.copyOf(
+                        sources
+                );
+
+        String safeContent =
+                content == null
+                        ? ""
+                        : content;
+
+        sendSources(
+                emitter,
+                safeSources,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
+
+        sendVideoSummaryResult(
+                emitter,
+                videoSummaryResult,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
+
+        try {
+            if (!safeContent.isEmpty()) {
+                emitter.send(
+                        SseEmitter.event()
+                                .name("message")
+                                .data(
+                                        objectMapper.writeValueAsString(
+                                                safeContent
+                                        )
+                                )
+                );
+            }
+
+            String videoResultJson =
+                    videoSummaryResult == null
+                            ? null
+                            : objectMapper.writeValueAsString(
+                            videoSummaryResult
+                    );
+
+            String sourceResultJson =
+                    safeSources.isEmpty()
+                            ? null
+                            : objectMapper.writeValueAsString(
+                            safeSources
+                    );
+
+            if (request.isRegenerate()) {
+                chatPersistenceService
+                        .replaceLastAssistantMessage(
+                                roomId,
+                                safeContent,
+                                videoResultJson,
+                                sourceResultJson
+                        );
+            } else {
+                chatPersistenceService
+                        .saveAssistantMessage(
+                                roomId,
+                                safeContent,
+                                videoResultJson,
+                                sourceResultJson
+                        );
+            }
+
+            emitter.send(
+                    SseEmitter.event()
+                            .name("done")
+                            .data("")
+            );
+
+            emitter.complete();
+
+            log.debug(
+                    "완료된 AI 응답 SSE 전송 및 저장 완료. roomId={}, contentLength={}",
+                    roomId,
+                    safeContent.length()
+            );
+        } catch (
+                AsyncRequestNotUsableException exception
+        ) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "완료된 AI 응답 전송 전에 클라이언트 연결이 종료되었습니다. roomId={}",
+                    roomId
+            );
+        } catch (IOException exception) {
+            terminated.set(
+                    true
+            );
+
+            log.info(
+                    "완료된 AI 응답 SSE 전송 중 연결이 종료되었습니다. roomId={}",
+                    roomId
+            );
+        } catch (Exception exception) {
+            terminated.set(
+                    true
+            );
+
+            log.error(
+                    "완료된 AI 응답 저장 또는 SSE 처리 중 오류가 발생했습니다. roomId={}",
+                    roomId,
+                    exception
+            );
+
+            emitter.completeWithError(
+                    exception
+            );
+        }
 
         return emitter;
     }

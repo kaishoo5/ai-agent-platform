@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FileAnalysisProgressService {
 
     private static final long SSE_TIMEOUT =
-            30L * 60L * 1000L;
+            60L * 60L * 1000L;
 
     private final ObjectMapper objectMapper;
 
