@@ -256,6 +256,14 @@ function ChatInput() {
         (state) => state.isGenerating,
     );
 
+    const generatingRoomId = useChatStore(
+        (state) => state.generatingRoomId,
+    );
+
+    const isActiveRoomGenerating =
+        isGenerating
+        && generatingRoomId === activeRoomId;
+
     const startGenerating = useChatStore(
         (state) => state.startGenerating,
     );
@@ -726,6 +734,7 @@ function ChatInput() {
             new AbortController();
 
         startGenerating(
+            targetRoomId,
             abortController,
         );
 
@@ -1154,7 +1163,7 @@ function ChatInput() {
                     </div>
 
                     <div className="chat-composer-actions-right">
-                        {isGenerating
+                        {isActiveRoomGenerating
                             ? (
                                 <button
                                     type="button"

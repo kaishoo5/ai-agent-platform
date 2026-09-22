@@ -4,11 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: 쇼츠 다중 생성 및 하이라이트 탐색 최적화">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: front eslint change">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/model/VideoResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/model/VideoResult.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/layouts/MainLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/layouts/MainLayout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/VideoResultCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/VideoResultCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -338,7 +343,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add chat model tool definitions" />
     <MESSAGE value="feat: add chat model tool mapper" />
     <MESSAGE value="feat: add tool support to chat model request" />
     <MESSAGE value="feat: populate chat model request with tool definitions" />
@@ -363,7 +367,8 @@
     <MESSAGE value="feat: improve agent execution progress and tool response handling" />
     <MESSAGE value="feat: add current date context to system prompt" />
     <MESSAGE value="feat: 쇼츠 다중 생성 및 하이라이트 탐색 최적화" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: 쇼츠 다중 생성 및 하이라이트 탐색 최적화" />
+    <MESSAGE value="feat: front eslint change" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: front eslint change" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

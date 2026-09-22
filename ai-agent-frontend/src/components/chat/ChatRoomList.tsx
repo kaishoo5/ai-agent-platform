@@ -1,4 +1,5 @@
 import {useChatStore} from "../../store/chatStore";
+import {useNavigate} from "react-router-dom";
 
 interface ChatRoomListProps {
     onRoomSelected?: () => void;
@@ -7,6 +8,8 @@ interface ChatRoomListProps {
 function ChatRoomList({
                           onRoomSelected,
                       }: ChatRoomListProps) {
+    const navigate = useNavigate();
+
     const rooms = useChatStore(
         (state) => state.rooms,
     );
@@ -31,6 +34,10 @@ function ChatRoomList({
         try {
             await createRoom();
 
+            navigate(
+                "/",
+            );
+
             onRoomSelected?.();
         } catch (error) {
             console.error(
@@ -45,6 +52,10 @@ function ChatRoomList({
     ): Promise<void> => {
         await setActiveRoom(
             roomId,
+        );
+
+        navigate(
+            "/",
         );
 
         onRoomSelected?.();

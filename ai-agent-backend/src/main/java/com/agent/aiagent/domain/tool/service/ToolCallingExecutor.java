@@ -403,7 +403,8 @@ public class ToolCallingExecutor {
                 fileName,
                 durationSeconds,
                 streamUrl,
-                downloadUrl
+                downloadUrl,
+                "SUMMARY"
         );
     }
 
@@ -504,7 +505,8 @@ public class ToolCallingExecutor {
                             fileName,
                             durationSeconds,
                             streamUrl,
-                            downloadUrl
+                            downloadUrl,
+                            "SHORTS"
                     )
             );
         }

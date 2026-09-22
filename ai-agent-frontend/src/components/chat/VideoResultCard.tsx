@@ -36,6 +36,29 @@ function VideoResultCard({
     const downloadUrl =
         `${API_BASE_URL}${videoResult.downloadUrl}`;
 
+    const isShorts =
+        videoResult.type === "SHORTS";
+
+    const title =
+        isShorts
+            ? "AI Video Shorts"
+            : "AI Video Summary";
+
+    const description =
+        isShorts
+            ? "Generated shorts video"
+            : "Generated summary video";
+
+    const durationLabel =
+        isShorts
+            ? "Duration"
+            : "Target duration";
+
+    const downloadTitle =
+        isShorts
+            ? "쇼츠 영상 다운로드"
+            : "요약 영상 다운로드";
+
     const handleDownload = (): void => {
         window.open(
             downloadUrl,
@@ -60,11 +83,11 @@ function VideoResultCard({
 
                 <div className="video-result-title">
                     <strong>
-                        AI Video Summary
+                        {title}
                     </strong>
 
                     <span>
-                        Generated summary video
+                        {description}
                     </span>
                 </div>
             </div>
@@ -86,7 +109,7 @@ function VideoResultCard({
                     </span>
 
                     <span className="video-result-duration">
-                        Target duration ·{" "}
+                        {durationLabel} ·{" "}
                         {formatDuration(
                             videoResult.durationSeconds,
                         )}
@@ -97,7 +120,7 @@ function VideoResultCard({
                     type="button"
                     className="video-result-download"
                     onClick={handleDownload}
-                    title="요약 영상 다운로드"
+                    title={downloadTitle}
                 >
                     <svg
                         viewBox="0 0 24 24"

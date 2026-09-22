@@ -10,6 +10,9 @@ import {
 } from "../api/chatApi";
 import type {ChatFile, ChatMessage, ChatRoom, ChatSource, VideoSummaryResult,} from "../types/chat";
 
+const ACTIVE_ROOM_STORAGE_KEY =
+    "ai-agent-active-room-id";
+
 export type ExecutionStepStatus =
     | "running"
     | "completed"
@@ -33,6 +36,8 @@ interface ChatStore {
 
     isGenerating: boolean;
 
+    generatingRoomId: string | null;
+
     abortController: AbortController | null;
 
     messageExecutionSteps: Record<string, ExecutionStep[]>;
@@ -47,6 +52,7 @@ interface ChatStore {
     ) => void;
 
     startGenerating: (
+        roomId: string,
         abortController: AbortController,
     ) => void;
 
@@ -141,6 +147,8 @@ export const useChatStore = create<ChatStore>((
 
     isGenerating: false,
 
+    generatingRoomId: null,
+
     abortController: null,
 
     messageExecutionSteps: {},
@@ -208,10 +216,12 @@ export const useChatStore = create<ChatStore>((
     },
 
     startGenerating: (
+        roomId,
         abortController,
     ) => {
         set({
             isGenerating: true,
+            generatingRoomId: roomId,
             abortController,
         });
     },
@@ -219,6 +229,7 @@ export const useChatStore = create<ChatStore>((
     finishGenerating: () => {
         set({
             isGenerating: false,
+            generatingRoomId: null,
             abortController: null,
         });
     },
@@ -269,7 +280,18 @@ export const useChatStore = create<ChatStore>((
                 return;
             }
 
-            const activeRoomId = rooms[0].id;
+            const storedActiveRoomId =
+                localStorage.getItem(
+                    ACTIVE_ROOM_STORAGE_KEY,
+                );
+
+            const activeRoomId =
+                rooms.some(
+                    (room) =>
+                        room.id === storedActiveRoomId,
+                )
+                    ? storedActiveRoomId!
+                    : rooms[0].id;
 
             set({
                 rooms,
@@ -356,6 +378,11 @@ export const useChatStore = create<ChatStore>((
             activeRoomId: room.id,
         }));
 
+        localStorage.setItem(
+            ACTIVE_ROOM_STORAGE_KEY,
+            room.id,
+        );
+
         return room.id;
     },
 
@@ -373,6 +400,11 @@ export const useChatStore = create<ChatStore>((
         set({
             activeRoomId: roomId,
         });
+
+        localStorage.setItem(
+            ACTIVE_ROOM_STORAGE_KEY,
+            roomId,
+        );
 
         try {
             const [

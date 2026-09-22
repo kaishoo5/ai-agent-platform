@@ -18,6 +18,14 @@ function ChatMessageList() {
         (state) => state.isGenerating,
     );
 
+    const generatingRoomId = useChatStore(
+        (state) => state.generatingRoomId,
+    );
+
+    const isActiveRoomGenerating =
+        isGenerating
+        && generatingRoomId === activeRoomId;
+
     const appendMessageContent = useChatStore(
         (state) => state.appendMessageContent,
     );
@@ -66,14 +74,13 @@ function ChatMessageList() {
         (room) => room.id === activeRoomId,
     );
 
-    const messages =
-        useMemo(
-            () =>
-                activeRoom?.messages ?? [],
-            [
-                activeRoom?.messages,
-            ],
-        );
+    const messages = useMemo(
+        () =>
+            activeRoom?.messages ?? [],
+        [
+            activeRoom?.messages,
+        ],
+    );
 
     const messageEndRef =
         useRef<HTMLDivElement | null>(null);
@@ -192,6 +199,7 @@ function ChatMessageList() {
         );
 
         startGenerating(
+            activeRoomId,
             abortController,
         );
 
@@ -341,7 +349,7 @@ function ChatMessageList() {
                                 === lastAssistantMessage?.id
                             }
                             isGenerating={
-                                isGenerating
+                                isActiveRoomGenerating
                             }
                             executionSteps={
                                 messageExecutionSteps[

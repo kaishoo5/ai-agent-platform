@@ -6,12 +6,17 @@ export type MessageRole =
     | "user"
     | "assistant";
 
+export type VideoResultType =
+    | "SUMMARY"
+    | "SHORTS";
+
 export interface VideoSummaryResult {
     fileId: string;
     fileName: string;
     durationSeconds: number;
     streamUrl: string;
     downloadUrl: string;
+    type: VideoResultType;
 }
 
 export interface ChatSource {

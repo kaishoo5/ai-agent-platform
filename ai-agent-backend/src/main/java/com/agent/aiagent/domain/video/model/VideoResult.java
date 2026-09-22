@@ -5,6 +5,7 @@ public record VideoResult(
         String fileName,
         long durationSeconds,
         String streamUrl,
-        String downloadUrl
+        String downloadUrl,
+        String type
 ) {
 }
