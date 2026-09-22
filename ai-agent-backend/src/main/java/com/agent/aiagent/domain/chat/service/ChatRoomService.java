@@ -3,6 +3,7 @@ package com.agent.aiagent.domain.chat.service;
 import com.agent.aiagent.domain.chat.dto.ChatMessageResponse;
 import com.agent.aiagent.domain.chat.dto.ChatRoomCreateRequest;
 import com.agent.aiagent.domain.chat.dto.ChatRoomResponse;
+import com.agent.aiagent.domain.chat.dto.ChatRoomTitleUpdateRequest;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
@@ -56,6 +57,24 @@ public class ChatRoomService {
                 .stream()
                 .map(ChatMessageResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public ChatRoomResponse updateTitle(
+            String roomId,
+            ChatRoomTitleUpdateRequest request
+    ) {
+        ChatRoom chatRoom = findRoom(roomId);
+
+        String title = normalizeTitle(
+                request == null
+                        ? null
+                        : request.title()
+        );
+
+        chatRoom.updateTitle(title);
+
+        return ChatRoomResponse.from(chatRoom);
     }
 
     @Transactional

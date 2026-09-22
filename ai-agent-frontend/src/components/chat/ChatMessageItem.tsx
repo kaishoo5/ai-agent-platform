@@ -22,6 +22,106 @@ interface CodeBlockProps {
     code: string;
 }
 
+
+interface MarkdownNode {
+    type: string;
+    value?: string;
+    children?: MarkdownNode[];
+}
+
+function remarkRepairStrongMarkdown() {
+    return (tree: MarkdownNode): void => {
+        repairStrongMarkdownNodes(
+            tree,
+        );
+    };
+}
+
+function repairStrongMarkdownNodes(
+    node: MarkdownNode,
+): void {
+    if (
+        !node.children
+        || node.type === "code"
+        || node.type === "inlineCode"
+    ) {
+        return;
+    }
+
+    const repairedChildren: MarkdownNode[] = [];
+
+    node.children.forEach((child) => {
+        if (
+            child.type !== "text"
+            || !child.value
+            || !child.value.includes("**")
+        ) {
+            repairStrongMarkdownNodes(
+                child,
+            );
+
+            repairedChildren.push(
+                child,
+            );
+
+            return;
+        }
+
+        const pattern =
+            /\*\*([^*\n]+?)\*\*/g;
+
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while (
+            (match = pattern.exec(child.value)) !== null
+            ) {
+            if (match.index > lastIndex) {
+                repairedChildren.push({
+                    type: "text",
+                    value: child.value.slice(
+                        lastIndex,
+                        match.index,
+                    ),
+                });
+            }
+
+            repairedChildren.push({
+                type: "strong",
+                children: [
+                    {
+                        type: "text",
+                        value: match[1],
+                    },
+                ],
+            });
+
+            lastIndex =
+                match.index + match[0].length;
+        }
+
+        if (lastIndex === 0) {
+            repairedChildren.push(
+                child,
+            );
+
+            return;
+        }
+
+        if (lastIndex < child.value.length) {
+            repairedChildren.push({
+                type: "text",
+                value: child.value.slice(
+                    lastIndex,
+                ),
+            });
+        }
+    });
+
+    node.children =
+        repairedChildren;
+}
+
 function getLanguageLabel(
     language: string,
 ): string {
@@ -164,7 +264,9 @@ function ChatMessageItem({
                 }, 1500);
             } catch (error) {
                 console.error(
-                    "AI 답변 복사 중 오류가 발생했습니다.",
+                    isUser
+                        ? "사용자 질문 복사 중 오류가 발생했습니다."
+                        : "AI 답변 복사 중 오류가 발생했습니다.",
                     error,
                 );
             }
@@ -250,6 +352,7 @@ function ChatMessageItem({
                                                 <ReactMarkdown
                                                     remarkPlugins={[
                                                         remarkGfm,
+                                                        remarkRepairStrongMarkdown,
                                                     ]}
                                                     components={{
                                                         code({
@@ -330,8 +433,7 @@ function ChatMessageItem({
                                 )}
                     </div>
 
-                    {!isUser
-                        && !isLoading
+                    {!isLoading
                         && (
                             <div className="message-actions">
                                 <button
@@ -340,6 +442,22 @@ function ChatMessageItem({
                                     onClick={() => {
                                         void handleMessageCopy();
                                     }}
+                                    aria-label={
+                                        isMessageCopied
+                                            ? isUser
+                                                ? "질문 복사됨"
+                                                : "답변 복사됨"
+                                            : isUser
+                                                ? "질문 복사"
+                                                : "답변 복사"
+                                    }
+                                    title={
+                                        isMessageCopied
+                                            ? "복사됨"
+                                            : isUser
+                                                ? "질문 복사"
+                                                : "답변 복사"
+                                    }
                                 >
                                     <span className="message-action-icon">
                                         ⧉
@@ -350,7 +468,8 @@ function ChatMessageItem({
                                         : "복사"}
                                 </button>
 
-                                {isLastAssistant
+                                {!isUser
+                                    && isLastAssistant
                                     && !isGenerating
                                     && (
                                         <button
@@ -359,6 +478,8 @@ function ChatMessageItem({
                                             onClick={
                                                 onRegenerate
                                             }
+                                            aria-label="답변 다시 생성"
+                                            title="답변 다시 생성"
                                         >
                                             <span className="message-action-icon">
                                                 ↻

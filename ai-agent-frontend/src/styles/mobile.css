@@ -1,0 +1,221 @@
+/* =========================================================
+   MOBILE CHAT DRAWER
+   ========================================================= */
+
+.mobile-chat-drawer,
+.mobile-chat-drawer-backdrop {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .mobile-chat-drawer-backdrop {
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .mobile-chat-drawer {
+        position: fixed;
+        z-index: 1001;
+        top: 0;
+        bottom: 0;
+        left: 70px;
+        display: flex;
+        width: min(300px, calc(100vw - 90px));
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: 1px solid var(--theme-border);
+        background: var(--theme-sidebar);
+        box-shadow: 18px 0 45px rgba(0, 0, 0, 0.35);
+        animation: mobile-chat-drawer-open 0.18s ease-out;
+    }
+
+    .mobile-chat-drawer-header {
+        display: flex;
+        height: 76px;
+        flex: 0 0 76px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 14px 0 16px;
+        border-bottom: 1px solid var(--theme-border-soft);
+    }
+
+    .mobile-chat-drawer-header > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .mobile-chat-drawer-header strong {
+        color: var(--theme-text-strong);
+        font-size: 15px;
+        font-weight: 650;
+    }
+
+    .mobile-chat-drawer-header span {
+        color: var(--theme-text-muted);
+        font-size: 10px;
+    }
+
+    .mobile-chat-drawer-close {
+        display: flex;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        color: var(--theme-text-secondary);
+        font-size: 22px;
+        font-weight: 300;
+        line-height: 1;
+    }
+
+    .mobile-chat-drawer-close:hover {
+        color: var(--theme-text-strong);
+        background: var(--theme-surface-hover);
+    }
+
+    /*
+     * 기존 모바일 규칙에서 .chat-room-section이 display:none이므로
+     * drawer 내부에서만 다시 표시한다.
+     */
+    .mobile-chat-drawer .chat-room-section {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        margin-top: 0;
+        padding: 14px 10px 10px;
+    }
+
+    .mobile-chat-drawer .new-chat-button {
+        flex: 0 0 42px;
+    }
+
+    .mobile-chat-drawer .chat-room-header {
+        padding-top: 20px;
+    }
+
+    .mobile-chat-drawer .chat-room-list {
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .mobile-chat-drawer .chat-room-delete-button {
+        opacity: 1;
+    }
+
+    @keyframes mobile-chat-drawer-open {
+        from {
+            transform: translateX(-12px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+}
+
+@media (max-width: 640px) {
+    .mobile-chat-drawer-theme {
+        flex: 0 0 auto;
+        padding: 14px;
+        border-top: 1px solid var(--theme-border-soft);
+    }
+
+    .mobile-chat-drawer .theme-setting {
+        display: block;
+    }
+}
+
+/* =========================================================
+   MOBILE VIEWPORT / CHAT INPUT TOUCH FIX
+   ========================================================= */
+@media (max-width: 640px) {
+    html,
+    body,
+    #root {
+        width: 100%;
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+
+    body {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
+    #root,
+    .app-layout,
+    .main-content,
+    .chat-page {
+        width: 100%;
+        height: 100dvh;
+        min-height: 0;
+    }
+
+    .main-content,
+    .chat-page {
+        overflow: hidden;
+    }
+
+    .message-list {
+        min-height: 0;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .chat-input-area {
+        position: relative;
+        z-index: 20;
+        flex: 0 0 auto;
+        width: 100%;
+        padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+        touch-action: manipulation;
+    }
+
+    .chat-composer {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .chat-input,
+    .composer-icon-button,
+    .composer-send-button,
+    .composer-stop-button,
+    .composer-file-remove {
+        position: relative;
+        z-index: 2;
+        pointer-events: auto;
+        touch-action: manipulation;
+    }
+
+    .composer-send-button,
+    .composer-icon-button {
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    .chat-composer-footer {
+        display: none;
+    }
+}
+

@@ -183,19 +183,26 @@ public class ChatStreamingExecutor {
                                         roomId
                                 );
                             } catch (Exception exception) {
-                                terminated.set(
-                                        true
-                                );
+                                if (
+                                        terminated.compareAndSet(
+                                                false,
+                                                true
+                                        )
+                                ) {
+                                    log.error(
+                                            "AI 응답 전송 중 오류가 발생했습니다. roomId={}",
+                                            roomId,
+                                            exception
+                                    );
 
-                                log.error(
-                                        "AI 응답 전송 중 오류가 발생했습니다. roomId={}",
-                                        roomId,
-                                        exception
-                                );
-
-                                emitter.completeWithError(
-                                        exception
-                                );
+                                    try {
+                                        emitter.completeWithError(
+                                                exception
+                                        );
+                                    } catch (IllegalStateException ignored) {
+                                        // 이미 완료된 emitter
+                                    }
+                                }
                             }
                         },
                         error -> {
@@ -215,9 +222,17 @@ public class ChatStreamingExecutor {
                                     error
                             );
 
-                            emitter.completeWithError(
-                                    error
+                            terminated.set(
+                                    true
                             );
+
+                            try {
+                                emitter.completeWithError(
+                                        error
+                                );
+                            } catch (IllegalStateException ignored) {
+                                // 이미 완료된 emitter
+                            }
                         },
                         () -> {
                             if (
@@ -308,9 +323,13 @@ public class ChatStreamingExecutor {
                                         exception
                                 );
 
-                                emitter.completeWithError(
-                                        exception
-                                );
+                                try {
+                                    emitter.completeWithError(
+                                            exception
+                                    );
+                                } catch (IllegalStateException ignored) {
+                                    // 이미 완료된 emitter
+                                }
                             }
                         }
                 );
@@ -694,7 +713,11 @@ public class ChatStreamingExecutor {
                     disposable
             );
 
-            emitter.complete();
+            try {
+                emitter.complete();
+            } catch (IllegalStateException ignored) {
+                // 이미 완료된 emitter
+            }
         });
 
         emitter.onError(error -> {

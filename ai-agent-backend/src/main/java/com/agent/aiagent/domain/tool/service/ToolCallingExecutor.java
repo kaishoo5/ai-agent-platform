@@ -181,6 +181,42 @@ public class ToolCallingExecutor {
             }
 
             if (!response.hasToolCalls()) {
+                String content =
+                        response.content();
+
+                if (
+                        content == null
+                                || content.isBlank()
+                ) {
+                    log.warn(
+                            "Tool Calling 최종 응답이 비어 있습니다. "
+                                    + "스트리밍 응답으로 재시도합니다. round={}",
+                            round
+                    );
+
+                    ChatModelRequest finalRequest =
+                            new ChatModelRequest(
+                                    currentRequest.modelType(),
+                                    currentRequest.messages(),
+                                    List.of()
+                            );
+
+                    if (progressReporter != null) {
+                        progressReporter.running(
+                                "answer_generation",
+                                "답변 생성 중..."
+                        );
+                    }
+
+                    return chatStreamingExecutor.execute(
+                            emitter,
+                            request,
+                            finalRequest,
+                            videoResults,
+                            safeSources
+                    );
+                }
+
                 log.debug(
                         "Tool Calling 종료. round={}, videoCount={}",
                         round,
@@ -191,7 +227,7 @@ public class ToolCallingExecutor {
                         .executeCompletedResponse(
                                 emitter,
                                 request,
-                                response.content(),
+                                content,
                                 videoResults,
                                 safeSources
                         );

@@ -1,0 +1,553 @@
+/* =========================================================
+   CHAT INPUT AREA
+   ========================================================= */
+
+.chat-input-area {
+    position: relative;
+    z-index: 10;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 12px 24px 18px;
+    background:
+            linear-gradient(
+                    180deg,
+                    rgba(11, 13, 18, 0),
+                    rgba(11, 13, 18, 0.96) 22%,
+                    #0b0d12 45%
+            );
+}
+
+
+/* =========================================================
+   HIDDEN FILE INPUT
+   ========================================================= */
+
+.file-input-hidden {
+    position: fixed !important;
+    top: -10000px !important;
+    left: -10000px !important;
+    display: block !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+
+/* =========================================================
+   COMPOSER
+   ========================================================= */
+
+.chat-composer {
+    width: min(860px, 100%);
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid #323640;
+    border-radius: 16px;
+    background: #171a20;
+    box-shadow:
+            0 14px 38px rgba(0, 0, 0, 0.28);
+    transition:
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
+}
+
+.chat-composer:focus-within {
+    border-color: #484f5b;
+    box-shadow:
+            0 16px 42px rgba(0, 0, 0, 0.34);
+}
+
+
+/* =========================================================
+   COMPOSER TEXTAREA
+   ========================================================= */
+
+.chat-input {
+    display: block;
+    width: 100%;
+    min-height: 58px;
+    max-height: 180px;
+    margin: 0;
+    padding: 17px 18px 9px;
+    resize: none;
+    overflow-y: auto;
+    border: 0;
+    outline: 0;
+    color: #e8eaee;
+    background: transparent;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.chat-input::placeholder {
+    color: #626975;
+}
+
+.chat-input:disabled {
+    opacity: 0.65;
+}
+
+.chat-input {
+    scrollbar-width: thin;
+    scrollbar-color: #30343d transparent;
+}
+
+.chat-input::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat-input::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-input::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: #30343d;
+}
+
+
+/* =========================================================
+   COMPOSER ACTIONS
+   ========================================================= */
+
+.chat-composer-actions {
+    display: flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 9px 9px 10px;
+}
+
+.chat-composer-actions-left,
+.chat-composer-actions-right {
+    display: flex;
+    align-items: center;
+}
+
+.chat-composer-actions-left {
+    min-width: 0;
+    gap: 9px;
+}
+
+.composer-icon-button {
+    display: flex;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    color: #9aa1ac;
+    font-size: 21px;
+    font-weight: 300;
+    line-height: 1;
+    transition:
+            color 0.15s ease,
+            background 0.15s ease;
+}
+
+.composer-icon-button:hover:not(:disabled) {
+    color: #f0f1f3;
+    background: #262a32;
+}
+
+.composer-icon-button:disabled {
+    color: #484e58;
+}
+
+.composer-file-hint {
+    min-width: 0;
+    overflow: hidden;
+    color: #565d68;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   SEND BUTTON
+   ========================================================= */
+
+.composer-send-button {
+    display: flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    color: #111318;
+    background: #e8eaed;
+    font-size: 18px;
+    font-weight: 700;
+    transition:
+            transform 0.15s ease,
+            background 0.15s ease,
+            opacity 0.15s ease;
+}
+
+.composer-send-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #ffffff;
+}
+
+.composer-send-button:disabled {
+    color: #666d77;
+    background: #2b2f37;
+    opacity: 0.65;
+}
+
+
+/* =========================================================
+   STOP BUTTON
+   ========================================================= */
+
+.composer-stop-button {
+    display: flex;
+    height: 34px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 11px;
+    border: 1px solid #3b404a;
+    border-radius: 9px;
+    color: #d6d9de;
+    background: #20242b;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.composer-stop-button:hover {
+    background: #292e37;
+}
+
+.composer-stop-icon {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: #aeb4bd;
+}
+
+
+/* =========================================================
+   FILE SECTIONS
+   ========================================================= */
+
+.composer-file-section {
+    padding: 12px 12px 3px;
+    border-bottom: 1px solid #242831;
+    background: rgba(255, 255, 255, 0.008);
+}
+
+.composer-file-section.selected {
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.composer-file-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 2px;
+    color: #686f7a;
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+
+.composer-file-list {
+    display: flex;
+    max-width: 100%;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 7px;
+    scrollbar-width: thin;
+    scrollbar-color: #30343d transparent;
+}
+
+.composer-file-list::-webkit-scrollbar {
+    height: 4px;
+}
+
+.composer-file-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.composer-file-list::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: #30343d;
+}
+
+
+/* =========================================================
+   FILE CARD
+   ========================================================= */
+
+.composer-file-item {
+    position: relative;
+    display: flex;
+    width: 220px;
+    min-width: 220px;
+    height: 56px;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 32px 8px 8px;
+    border: 1px solid #2e323b;
+    border-radius: 10px;
+    background: #1d2027;
+    transition:
+            border-color 0.15s ease,
+            background 0.15s ease,
+            transform 0.15s ease;
+}
+
+.composer-file-item:hover {
+    border-color: #3a404b;
+    background: #22262e;
+    transform: translateY(-1px);
+}
+
+.composer-file-item.uploaded {
+    background: #191c22;
+}
+
+.composer-file-item.uploaded:hover {
+    background: #1e2128;
+}
+
+.composer-file-type {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #353a44;
+    border-radius: 8px;
+    color: #aeb4be;
+    background: #242831;
+    font-size: 8px;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+}
+
+.composer-file-info {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.composer-file-name {
+    overflow: hidden;
+    color: #c8ccd3;
+    font-size: 10px;
+    font-weight: 550;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composer-file-size {
+    color: #626975;
+    font-size: 9px;
+}
+
+.composer-file-remove {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    display: flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: 6px;
+    color: #5f6671;
+    font-size: 14px;
+    opacity: 0.55;
+    transition:
+            opacity 0.15s ease,
+            color 0.15s ease,
+            background 0.15s ease;
+}
+
+.composer-file-item:hover .composer-file-remove {
+    opacity: 1;
+}
+
+.composer-file-remove:hover:not(:disabled) {
+    color: #f0f1f3;
+    background: #2a2e37;
+}
+
+.composer-file-remove:disabled {
+    opacity: 0.45;
+}
+
+
+/* =========================================================
+   IMAGE FILE
+   ========================================================= */
+
+.composer-file-item.image {
+    width: 230px;
+    min-width: 230px;
+}
+
+.selected-file-preview {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    object-fit: cover;
+    border: 1px solid #353a44;
+    border-radius: 8px;
+    background: #22262e;
+}
+
+
+/* =========================================================
+   FILE ERROR
+   ========================================================= */
+
+.composer-file-error {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 8px 12px 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    border-radius: 8px;
+    color: #d99a9a;
+    background: rgba(127, 29, 29, 0.1);
+    font-size: 10px;
+}
+
+.composer-file-error > span {
+    display: flex;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 50%;
+    font-size: 8px;
+}
+
+
+/* =========================================================
+   COMPOSER FOOTER
+   ========================================================= */
+
+.chat-composer-footer {
+    width: min(860px, 100%);
+    margin: 7px auto 0;
+    color: #4d535e;
+    font-size: 9px;
+    text-align: center;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .message-list-inner {
+        width: min(760px, calc(100% - 40px));
+    }
+
+    .chat-composer,
+    .chat-composer-footer {
+        width: min(760px, 100%);
+    }
+}
+
+@media (max-width: 800px) {
+    .sidebar {
+        width: 220px;
+        flex-basis: 220px;
+    }
+
+    .message-list-inner {
+        width: calc(100% - 32px);
+        padding-top: 30px;
+    }
+
+    .chat-input-area {
+        padding-right: 16px;
+        padding-left: 16px;
+    }
+
+    .message-item.user .message-row {
+        max-width: 82%;
+    }
+}
+
+@media (max-width: 640px) {
+    .sidebar {
+        width: 70px;
+        flex-basis: 70px;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .sidebar-brand {
+        justify-content: center;
+        padding: 0;
+    }
+
+    .sidebar-brand-text,
+    .sidebar-nav-item span:not(.sidebar-nav-icon),
+    .chat-room-section,
+    .sidebar-status div {
+        display: none;
+    }
+
+    .sidebar-nav-item {
+        justify-content: center;
+        padding: 0;
+    }
+
+    .sidebar-status {
+        justify-content: center;
+        padding: 10px 0;
+    }
+
+    .chat-header {
+        padding: 0 16px;
+    }
+
+    .message-list-inner {
+        width: calc(100% - 24px);
+    }
+
+    .message-item.user .message-row {
+        max-width: 90%;
+    }
+
+    .message-avatar {
+        width: 28px;
+        height: 28px;
+        flex-basis: 28px;
+    }
+
+    .message-item.assistant .message-body {
+        width: calc(100% - 40px);
+    }
+
+    .composer-file-hint {
+        display: none;
+    }
+}
+
+

@@ -1,9 +1,36 @@
-import {useEffect, useMemo, useRef} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 
 import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
 
 import ChatMessageItem from "./ChatMessageItem";
+
+const PROMPT_SUGGESTIONS = [
+    {
+        icon: "⌕",
+        title: "웹에서 찾아보기",
+        description: "최신 정보를 검색해서 알려줘",
+        prompt: "오늘 주요 AI 뉴스를 찾아서 정리해줘",
+    },
+    {
+        icon: "▤",
+        title: "파일 분석",
+        description: "문서의 내용을 분석하고 요약",
+        prompt: "첨부한 파일의 핵심 내용을 분석해서 정리해줘",
+    },
+    {
+        icon: "▶",
+        title: "영상 분석",
+        description: "영상 내용과 주요 장면 분석",
+        prompt: "첨부한 영상의 내용을 분석하고 핵심 내용을 정리해줘",
+    },
+    {
+        icon: "</>",
+        title: "코드 도움",
+        description: "코드 작성과 개발 문제 해결",
+        prompt: "Java로 예제 코드를 작성하고 자세히 설명해줘",
+    },
+];
 
 function ChatMessageList() {
     const rooms = useChatStore(
@@ -85,6 +112,15 @@ function ChatMessageList() {
     const messageEndRef =
         useRef<HTMLDivElement | null>(null);
 
+    const messageListRef =
+        useRef<HTMLDivElement | null>(null);
+
+    const [isNearBottom, setIsNearBottom] =
+        useState(true);
+
+    const previousRoomIdRef =
+        useRef<string | null>(null);
+
     const lastAssistantMessage = [...messages]
         .reverse()
         .find(
@@ -93,10 +129,69 @@ function ChatMessageList() {
         );
 
     useEffect(() => {
+        if (!activeRoomId) {
+            return;
+        }
+
+        const roomChanged =
+            previousRoomIdRef.current
+            !== activeRoomId;
+
+        previousRoomIdRef.current =
+            activeRoomId;
+
+        if (
+            roomChanged
+            || isNearBottom
+        ) {
+            messageEndRef.current?.scrollIntoView({
+                behavior: roomChanged
+                    ? "auto"
+                    : "smooth",
+            });
+        }
+    }, [
+        activeRoomId,
+        messages,
+        isNearBottom,
+    ]);
+
+    const handleScroll = (): void => {
+        const messageList =
+            messageListRef.current;
+
+        if (!messageList) {
+            return;
+        }
+
+        const distanceFromBottom =
+            messageList.scrollHeight
+            - messageList.scrollTop
+            - messageList.clientHeight;
+
+        setIsNearBottom(
+            distanceFromBottom <= 120,
+        );
+    };
+
+    const handleScrollToBottom = (): void => {
         messageEndRef.current?.scrollIntoView({
             behavior: "smooth",
         });
-    }, [messages]);
+    };
+
+    const handlePromptSuggestion = (
+        prompt: string,
+    ): void => {
+        window.dispatchEvent(
+            new CustomEvent(
+                "chat:prompt-suggestion",
+                {
+                    detail: prompt,
+                },
+            ),
+        );
+    };
 
     const handleRegenerate = async (
         assistantMessageId: string,
@@ -330,6 +425,37 @@ function ChatMessageList() {
                             <br />
                             일반적인 질문까지 AI Agent에게 요청해보세요.
                         </p>
+
+                        <div className="empty-chat-suggestions">
+                            {PROMPT_SUGGESTIONS.map(
+                                (suggestion) => (
+                                    <button
+                                        key={suggestion.title}
+                                        type="button"
+                                        className="empty-chat-suggestion"
+                                        onClick={() => {
+                                            handlePromptSuggestion(
+                                                suggestion.prompt,
+                                            );
+                                        }}
+                                    >
+                                        <span className="empty-chat-suggestion-icon">
+                                            {suggestion.icon}
+                                        </span>
+
+                                        <span className="empty-chat-suggestion-content">
+                                            <strong>
+                                                {suggestion.title}
+                                            </strong>
+
+                                            <span>
+                                                {suggestion.description}
+                                            </span>
+                                        </span>
+                                    </button>
+                                ),
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -337,7 +463,11 @@ function ChatMessageList() {
     }
 
     return (
-        <div className="message-list message-list-active">
+        <div
+            ref={messageListRef}
+            className="message-list message-list-active"
+            onScroll={handleScroll}
+        >
             <div className="message-list-inner">
                 <div className="conversation-stream">
                     {messages.map((message) => (
@@ -370,6 +500,24 @@ function ChatMessageList() {
                     />
                 </div>
             </div>
+
+            {!isNearBottom && (
+                <button
+                    type="button"
+                    className="scroll-to-bottom-button"
+                    aria-label="최신 메시지로 이동"
+                    title="최신 메시지로 이동"
+                    onClick={handleScrollToBottom}
+                >
+                    <span aria-hidden="true">
+                        ↓
+                    </span>
+
+                    <span>
+                        최신 메시지
+                    </span>
+                </button>
+            )}
         </div>
     );
 }

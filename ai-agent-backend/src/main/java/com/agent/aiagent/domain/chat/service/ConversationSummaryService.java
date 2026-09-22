@@ -267,26 +267,26 @@ public class ConversationSummaryService {
                 );
 
         return chatModelProvider.chatOnce(
-                        new ChatModelRequest(
-                                ChatModelType.TEXT,
-                                List.of(
-                                        new ChatModelMessage(
-                                                SYSTEM_ROLE,
-                                                """
-                                                당신은 장기 대화를 압축하는 Conversation Memory 요약기입니다.
-                                                기존 기억과 새로운 대화를 병합하여 중요한 사실과 진행 상황을 보존합니다.
-                                                """,
-                                                null
-                                        ),
-                                        new ChatModelMessage(
-                                                "user",
-                                                prompt,
-                                                null
-                                        )
+                new ChatModelRequest(
+                        ChatModelType.TEXT,
+                        List.of(
+                                new ChatModelMessage(
+                                        SYSTEM_ROLE,
+                                        """
+                                        당신은 장기 대화를 압축하는 Conversation Memory 요약기입니다.
+                                        기존 기억과 새로운 대화를 병합하여 중요한 사실과 진행 상황을 보존합니다.
+                                        """,
+                                        null
                                 ),
-                                List.of()
-                        )
-                ).content();
+                                new ChatModelMessage(
+                                        "user",
+                                        prompt,
+                                        null
+                                )
+                        ),
+                        List.of()
+                )
+        ).content();
     }
 
     private String buildConversationText(
@@ -338,6 +338,16 @@ public class ConversationSummaryService {
             웹 검색 기능을 사용할 수 없다고 답변하지 마세요.
 
             검색 결과로 확인할 수 없는 사실은 임의로 만들거나 추측하지 마세요.
+
+            답변은 표준 Markdown 형식으로 작성하세요.
+            제목, 목록, 강조, 표, 코드 블록 등은 Markdown 문법을 사용하세요.
+
+            HTML 태그는 사용하지 마세요.
+            특히 <span>, <div>, <font>, <br> 등의 HTML 태그와
+            style 속성을 사용한 색상 또는 스타일 표현을 사용하지 마세요.
+
+            특정 텍스트를 강조해야 하는 경우 HTML 대신
+            Markdown의 **굵게**, *기울임*, `인라인 코드` 등의 문법을 사용하세요.
             """.formatted(
                 currentDate,
                 currentDate.getYear()

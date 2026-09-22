@@ -3,6 +3,7 @@ package com.agent.aiagent.infra.provider.ollama;
 import com.agent.aiagent.infra.ollama.OllamaClient;
 import com.agent.aiagent.infra.provider.ollama.dto.*;
 import com.agent.aiagent.provider.chat.*;
+import com.agent.aiagent.settings.service.ModelSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -23,6 +24,7 @@ public class OllamaChatModelProvider
     private final OllamaClient ollamaClient;
     private final OllamaToolMapper ollamaToolMapper;
     private final ObjectMapper objectMapper;
+    private final ModelSettingsService modelSettingsService;
 
     @Override
     public ChatModelResponse chatOnce(
@@ -338,10 +340,10 @@ public class OllamaChatModelProvider
     ) {
         return switch (modelType) {
             case TEXT ->
-                    OllamaClient.MODEL_TEXT;
+                    modelSettingsService.getTextModel();
 
             case VISION ->
-                    OllamaClient.MODEL_VISION;
+                    modelSettingsService.getVisionModel();
         };
     }
 }

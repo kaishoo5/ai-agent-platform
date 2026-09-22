@@ -58,6 +58,10 @@ export interface ChatRoomCreateRequest {
     title: string;
 }
 
+export interface ChatRoomTitleUpdateRequest {
+    title: string;
+}
+
 export interface ChatRequest {
     message: string;
 }

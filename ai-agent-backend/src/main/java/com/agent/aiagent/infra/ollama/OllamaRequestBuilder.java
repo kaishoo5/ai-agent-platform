@@ -20,8 +20,16 @@ public class OllamaRequestBuilder {
             List<OllamaTool> tools,
             boolean stream
     ) {
+        boolean hasImages =
+                messages != null
+                        && messages.stream()
+                        .anyMatch(message ->
+                                message.getImages() != null
+                                        && !message.getImages().isEmpty()
+                        );
+
         int contextSize =
-                OllamaClient.MODEL_VISION.equals(model)
+                hasImages
                         ? VISION_CONTEXT_SIZE
                         : TEXT_CONTEXT_SIZE;
 

@@ -1,6 +1,7 @@
 package com.agent.aiagent.infra.ollama;
 
 import com.agent.aiagent.infra.provider.ollama.dto.*;
+import com.agent.aiagent.settings.service.ModelSettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -15,16 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OllamaClient {
 
-    public static final String MODEL_TEXT =
-            "gpt-oss:20b";
-
-    public static final String MODEL_VISION =
-            "qwen3-vl:4b";
-
-    public static final String MODEL_EMBEDDING =
-            "embeddinggemma";
-
     private final WebClient ollamaWebClient;
+    private final ModelSettingsService modelSettingsService;
 
     public Flux<OllamaChatResponse> chat(
             String model,
@@ -83,7 +76,7 @@ public class OllamaClient {
 
         OllamaEmbeddingRequest request =
                 new OllamaEmbeddingRequest(
-                        MODEL_EMBEDDING,
+                        modelSettingsService.getEmbeddingModel(),
                         inputs
                 );
 
@@ -105,7 +98,7 @@ public class OllamaClient {
                                                     log.error(
                                                             "Ollama embedding 호출 실패. status={}, model={}, body={}",
                                                             clientResponse.statusCode(),
-                                                            MODEL_EMBEDDING,
+                                                            modelSettingsService.getEmbeddingModel(),
                                                             errorBody
                                                     );
 

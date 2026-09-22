@@ -1,0 +1,100 @@
+/* =========================================================
+   SOURCE CHIPS
+   ========================================================= */
+
+.source-chips {
+    width: 100%;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--theme-border-soft);
+}
+
+.source-chips-header {
+    margin-bottom: 9px;
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.source-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.source-chip {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    height: 34px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px 0 7px;
+    overflow: hidden;
+    border: 1px solid var(--theme-border);
+    border-radius: 9px;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface);
+    font-size: 11px;
+    line-height: 1;
+    transition:
+            border-color 0.15s ease,
+            background 0.15s ease,
+            transform 0.15s ease;
+}
+
+.source-chip:hover {
+    border-color: var(--theme-text-muted);
+    background: var(--theme-surface-hover);
+    transform: translateY(-1px);
+}
+
+.source-chip-type {
+    display: inline-flex;
+    height: 20px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    border: 1px solid var(--theme-border);
+    border-radius: 5px;
+    color: var(--theme-text-muted);
+    background: var(--theme-surface-strong);
+    font-size: 8px;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+}
+
+.source-chip-name {
+    max-width: 230px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--theme-text);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.source-chip-location {
+    flex: 0 0 auto;
+    padding-left: 7px;
+    border-left: 1px solid var(--theme-border-soft);
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .source-chip {
+        width: 100%;
+    }
+
+    .source-chip-name {
+        max-width: none;
+        flex: 1;
+    }
+}
+

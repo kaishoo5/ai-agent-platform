@@ -16,9 +16,8 @@ public class ChatRequest {
     @NotBlank
     private String roomId;
 
-    @Valid
     @NotEmpty
-    private List<ChatMessageRequest> messages;
+    private List<@Valid ChatMessageRequest> messages;
 
     private boolean regenerate;
 

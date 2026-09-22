@@ -6,6 +6,7 @@ import type {
     ChatMessageRole,
     ChatRoomCreateRequest,
     ChatRoomResponse,
+    ChatRoomTitleUpdateRequest,
     ChatSource,
     VideoSummaryResult
 } from "../types/chat";
@@ -115,6 +116,18 @@ export async function createChatRoom(
 ): Promise<ChatRoomResponse> {
     const response = await chatApi.post<ChatRoomResponse>(
         "/rooms",
+        request,
+    );
+
+    return response.data;
+}
+
+export async function updateChatRoomTitle(
+    roomId: string,
+    request: ChatRoomTitleUpdateRequest,
+): Promise<ChatRoomResponse> {
+    const response = await chatApi.patch<ChatRoomResponse>(
+        `/rooms/${roomId}/title`,
         request,
     );
 

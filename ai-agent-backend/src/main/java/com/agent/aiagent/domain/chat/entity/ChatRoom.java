@@ -38,6 +38,12 @@ public class ChatRoom {
         this.title = title;
     }
 
+    public void changeTitle(
+            String title
+    ) {
+        this.title = title;
+    }
+
     public void updateSummary(
             String summary
     ) {
@@ -45,19 +51,15 @@ public class ChatRoom {
         this.summaryUpdatedAt = LocalDateTime.now();
     }
 
-    public void updateTitle(String title) {
+    public void updateTitle(
+            String title
+    ) {
         this.title = title;
         this.updatedAt = LocalDateTime.now();
     }
 
     public void touch() {
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public void changeTitle(
-            String title
-    ) {
-        this.title = title;
     }
 
     @PrePersist

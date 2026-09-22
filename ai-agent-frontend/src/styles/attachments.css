@@ -1,0 +1,79 @@
+/* =========================================================
+   FILE DROP OVERLAY
+   ========================================================= */
+
+.file-drop-overlay {
+    position: absolute;
+    z-index: 30;
+    inset: 6px 24px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #697281;
+    border-radius: 16px;
+    background: rgba(17, 19, 24, 0.94);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+}
+
+.file-drop-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    color: #c9ced6;
+    text-align: center;
+}
+
+.file-drop-overlay-icon {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+    border: 1px solid #4a515d;
+    border-radius: 11px;
+    color: #f0f2f5;
+    background: #252a32;
+    font-size: 25px;
+    font-weight: 300;
+    line-height: 1;
+}
+
+.file-drop-overlay-content strong {
+    color: #f0f2f5;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.file-drop-overlay-content > span:last-child {
+    color: #777f8b;
+    font-size: 10px;
+}
+
+[data-theme="light"] .file-drop-overlay {
+    border-color: #aab1bb;
+    background: rgba(247, 248, 250, 0.95);
+}
+
+[data-theme="light"] .file-drop-overlay-icon {
+    border-color: #d4d9df;
+    color: #ffffff;
+    background: #252a32;
+}
+
+[data-theme="light"] .file-drop-overlay-content strong {
+    color: #252a32;
+}
+
+[data-theme="light"] .file-drop-overlay-content > span:last-child {
+    color: #737b86;
+}
+
+@media (max-width: 640px) {
+    .file-drop-overlay {
+        display: none;
+    }
+}
+

@@ -4,7 +4,6 @@ import {
     type DragEvent,
     type KeyboardEvent,
     useEffect,
-    useMemo,
     useRef,
     useState,
 } from "react";
@@ -133,22 +132,14 @@ type SelectedFilePreviewProps = {
 function SelectedFilePreview({
                                  file,
                              }: SelectedFilePreviewProps) {
-    const previewUrl =
-        useMemo(() => {
-            if (!isImageFile(file.name)) {
-                return null;
-            }
-
-            return URL.createObjectURL(file);
-        }, [
-            file,
-        ]);
+    const [previewUrl] =
+        useState(() =>
+            URL.createObjectURL(
+                file,
+            )
+        );
 
     useEffect(() => {
-        if (!previewUrl) {
-            return;
-        }
-
         return () => {
             URL.revokeObjectURL(
                 previewUrl,
@@ -308,6 +299,51 @@ function ChatInput() {
         isGenerating,
         activeRoomId,
     ]);
+
+    useEffect(() => {
+        const handlePromptSuggestion = (
+            event: Event,
+        ): void => {
+            const customEvent =
+                event as CustomEvent<string>;
+
+            setInput(
+                customEvent.detail,
+            );
+
+            requestAnimationFrame(() => {
+                const textarea =
+                    inputRef.current;
+
+                if (!textarea) {
+                    return;
+                }
+
+                textarea.style.height =
+                    "auto";
+
+                textarea.style.height =
+                    `${Math.min(
+                        textarea.scrollHeight,
+                        180,
+                    )}px`;
+
+                textarea.focus();
+            });
+        };
+
+        window.addEventListener(
+            "chat:prompt-suggestion",
+            handlePromptSuggestion,
+        );
+
+        return () => {
+            window.removeEventListener(
+                "chat:prompt-suggestion",
+                handlePromptSuggestion,
+            );
+        };
+    }, []);
 
     const handleChange = (
         event: ChangeEvent<HTMLTextAreaElement>,

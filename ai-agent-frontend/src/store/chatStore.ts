@@ -7,6 +7,7 @@ import {
     getChatFiles,
     getChatRoomMessages,
     getChatRooms,
+    updateChatRoomTitle,
 } from "../api/chatApi";
 import type {ChatFile, ChatMessage, ChatRoom, ChatSource, VideoSummaryResult,} from "../types/chat";
 
@@ -128,6 +129,11 @@ interface ChatStore {
 
     deleteRoom: (
         roomId: string,
+    ) => Promise<void>;
+
+    updateRoomTitle: (
+        roomId: string,
+        title: string,
     ) => Promise<void>;
 
     refreshRooms: () => Promise<void>;
@@ -704,6 +710,31 @@ export const useChatStore = create<ChatStore>((
                     messages: [],
                 };
             }),
+        }));
+    },
+
+    updateRoomTitle: async (
+        roomId,
+        title,
+    ) => {
+        const roomResponse =
+            await updateChatRoomTitle(
+                roomId,
+                {
+                    title,
+                },
+            );
+
+        set((state) => ({
+            rooms: state.rooms.map((room) =>
+                room.id === roomId
+                    ? {
+                        ...room,
+                        title: roomResponse.title,
+                        updatedAt: roomResponse.updatedAt,
+                    }
+                    : room
+            ),
         }));
     },
 
