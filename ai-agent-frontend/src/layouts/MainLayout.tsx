@@ -7,12 +7,11 @@ import ThemeToggle from "../components/common/ThemeToggle";
 function MainLayout() {
     const location = useLocation();
 
-    const [isChatDrawerOpen, setIsChatDrawerOpen] =
-        useState(false);
+    const [chatDrawerPathname, setChatDrawerPathname] =
+        useState<string | null>(null);
 
-    useEffect(() => {
-        setIsChatDrawerOpen(false);
-    }, [location.pathname]);
+    const isChatDrawerOpen =
+        chatDrawerPathname === location.pathname;
 
     useEffect(() => {
         if (!isChatDrawerOpen) {
@@ -23,7 +22,7 @@ function MainLayout() {
             event: KeyboardEvent,
         ): void => {
             if (event.key === "Escape") {
-                setIsChatDrawerOpen(false);
+                setChatDrawerPathname(null);
             }
         };
 
@@ -42,14 +41,17 @@ function MainLayout() {
 
     const handleChatNavClick = (): void => {
         if (window.innerWidth <= 640) {
-            setIsChatDrawerOpen(
-                (current) => !current,
+            setChatDrawerPathname(
+                (current) =>
+                    current === location.pathname
+                        ? null
+                        : location.pathname,
             );
         }
     };
 
     const handleCloseChatDrawer = (): void => {
-        setIsChatDrawerOpen(false);
+        setChatDrawerPathname(null);
     };
 
     return (

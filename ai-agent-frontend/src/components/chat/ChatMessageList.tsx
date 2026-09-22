@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useMemo, useRef} from "react";
 
 import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
@@ -66,7 +66,14 @@ function ChatMessageList() {
         (room) => room.id === activeRoomId,
     );
 
-    const messages = activeRoom?.messages ?? [];
+    const messages =
+        useMemo(
+            () =>
+                activeRoom?.messages ?? [],
+            [
+                activeRoom?.messages,
+            ],
+        );
 
     const messageEndRef =
         useRef<HTMLDivElement | null>(null);

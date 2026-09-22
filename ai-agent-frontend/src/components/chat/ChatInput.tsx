@@ -4,6 +4,7 @@ import {
     type DragEvent,
     type KeyboardEvent,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -132,29 +133,29 @@ type SelectedFilePreviewProps = {
 function SelectedFilePreview({
                                  file,
                              }: SelectedFilePreviewProps) {
-    const [previewUrl, setPreviewUrl] =
-        useState<string | null>(null);
+    const previewUrl =
+        useMemo(() => {
+            if (!isImageFile(file.name)) {
+                return null;
+            }
+
+            return URL.createObjectURL(file);
+        }, [
+            file,
+        ]);
 
     useEffect(() => {
-        if (!isImageFile(file.name)) {
-
+        if (!previewUrl) {
             return;
         }
 
-        const objectUrl =
-            URL.createObjectURL(file);
-
-        setPreviewUrl(
-            objectUrl,
-        );
-
         return () => {
             URL.revokeObjectURL(
-                objectUrl,
+                previewUrl,
             );
         };
     }, [
-        file,
+        previewUrl,
     ]);
 
     if (!previewUrl) {
