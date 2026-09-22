@@ -7,7 +7,8 @@ import java.util.List;
 
 public record ChatExecutionContext(
         ChatModelRequest modelRequest,
-        List<ChatSource> sources
+        List<ChatSource> sources,
+        List<String> documentFileIds
 ) {
 
     public ChatExecutionContext {
@@ -16,6 +17,13 @@ public record ChatExecutionContext(
                         ? List.of()
                         : List.copyOf(
                         sources
+                );
+
+        documentFileIds =
+                documentFileIds == null
+                        ? List.of()
+                        : List.copyOf(
+                        documentFileIds
                 );
     }
 }

@@ -2,7 +2,6 @@ package com.agent.aiagent.domain.video.service;
 
 import com.agent.aiagent.domain.file.service.FileAnalysisCancellationManager;
 import com.agent.aiagent.domain.file.service.FileAnalysisCancelledException;
-
 import com.agent.aiagent.domain.video.model.VideoFrame;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,12 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class VideoFrameExtractor {
 
-    private static final int FRAME_INTERVAL_SECONDS = 30;
+    private static final int FRAME_INTERVAL_SECONDS =
+            30;
+
+    private static final int MAX_FRAME_COUNT =
+            30;
+
     private final FileAnalysisCancellationManager cancellationManager;
 
     public List<VideoFrame> extract(
@@ -41,6 +45,26 @@ public class VideoFrameExtractor {
                         .toAbsolutePath()
                         .normalize();
 
+        long durationSeconds =
+                getVideoDurationSeconds(
+                        fileId,
+                        normalizedVideoPath
+                );
+
+        int frameIntervalSeconds =
+                calculateFrameIntervalSeconds(
+                        durationSeconds
+                );
+
+        log.info(
+                "영상 프레임 추출 간격 결정. videoPath={}, durationSeconds={}, baseIntervalSeconds={}, frameIntervalSeconds={}, maxFrameCount={}",
+                normalizedVideoPath,
+                durationSeconds,
+                FRAME_INTERVAL_SECONDS,
+                frameIntervalSeconds,
+                MAX_FRAME_COUNT
+        );
+
         Path frameDirectory =
                 createFrameDirectory(
                         normalizedVideoPath
@@ -54,6 +78,7 @@ public class VideoFrameExtractor {
             cancellationManager.checkCancelled(
                     fileId
             );
+
             throw new IllegalStateException(
                     "영상 프레임 디렉터리 생성 중 오류가 발생했습니다.",
                     exception
@@ -89,7 +114,7 @@ public class VideoFrameExtractor {
         );
 
         command.add(
-                "fps=1/" + FRAME_INTERVAL_SECONDS
+                "fps=1/" + frameIntervalSeconds
         );
 
         command.add(
@@ -105,10 +130,12 @@ public class VideoFrameExtractor {
         );
 
         log.info(
-                "영상 프레임 추출 시작. videoPath={}, frameDirectory={}, intervalSeconds={}",
+                "영상 프레임 추출 시작. videoPath={}, frameDirectory={}, intervalSeconds={}, durationSeconds={}, maxFrameCount={}",
                 normalizedVideoPath,
                 frameDirectory,
-                FRAME_INTERVAL_SECONDS
+                frameIntervalSeconds,
+                durationSeconds,
+                MAX_FRAME_COUNT
         );
 
         ProcessBuilder processBuilder =
@@ -124,7 +151,8 @@ public class VideoFrameExtractor {
                 fileId
         );
 
-        Process process = null;
+        Process process =
+                null;
 
         try {
             process =
@@ -157,29 +185,51 @@ public class VideoFrameExtractor {
 
             List<Path> framePaths;
 
-            try (Stream<Path> stream = Files.list(frameDirectory)) {
-                framePaths = stream
-                        .filter(Files::isRegularFile)
-                        .filter(path -> path.getFileName()
-                                .toString()
-                                .toLowerCase()
-                                .endsWith(".jpg"))
-                        .sorted()
-                        .toList();
+            try (
+                    Stream<Path> stream =
+                            Files.list(
+                                    frameDirectory
+                            )
+            ) {
+                framePaths =
+                        stream
+                                .filter(
+                                        Files::isRegularFile
+                                )
+                                .filter(path ->
+                                        path.getFileName()
+                                                .toString()
+                                                .toLowerCase()
+                                                .endsWith(".jpg")
+                                )
+                                .sorted()
+                                .toList();
             }
 
-            List<VideoFrame> frames = IntStream.range(0, framePaths.size())
-                    .mapToObj(index -> new VideoFrame(
-                            index * FRAME_INTERVAL_SECONDS * 1_000L,
-                            framePaths.get(index)
-                    ))
-                    .toList();
+            List<VideoFrame> frames =
+                    IntStream.range(
+                                    0,
+                                    framePaths.size()
+                            )
+                            .mapToObj(index ->
+                                    new VideoFrame(
+                                            index
+                                                    * frameIntervalSeconds
+                                                    * 1_000L,
+                                            framePaths.get(
+                                                    index
+                                            )
+                                    )
+                            )
+                            .toList();
 
             log.info(
-                    "영상 프레임 추출 완료. videoPath={}, frameDirectory={}, frameCount={}",
+                    "영상 프레임 추출 완료. videoPath={}, frameDirectory={}, frameCount={}, intervalSeconds={}, durationSeconds={}",
                     videoPath,
                     frameDirectory,
-                    frames.size()
+                    frames.size(),
+                    frameIntervalSeconds,
+                    durationSeconds
             );
 
             return frames;
@@ -193,7 +243,8 @@ public class VideoFrameExtractor {
                     exception
             );
         } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
+            Thread.currentThread()
+                    .interrupt();
 
             deleteDirectory(
                     frameDirectory
@@ -211,6 +262,169 @@ public class VideoFrameExtractor {
                 );
             }
         }
+    }
+
+    private long getVideoDurationSeconds(
+            String fileId,
+            Path videoPath
+    ) {
+        List<String> command =
+                new ArrayList<>();
+
+        command.add(
+                "ffprobe"
+        );
+
+        command.add(
+                "-v"
+        );
+
+        command.add(
+                "error"
+        );
+
+        command.add(
+                "-show_entries"
+        );
+
+        command.add(
+                "format=duration"
+        );
+
+        command.add(
+                "-of"
+        );
+
+        command.add(
+                "default=noprint_wrappers=1:nokey=1"
+        );
+
+        command.add(
+                videoPath.toString()
+        );
+
+        ProcessBuilder processBuilder =
+                new ProcessBuilder(
+                        command
+                );
+
+        processBuilder.redirectErrorStream(
+                true
+        );
+
+        cancellationManager.checkCancelled(
+                fileId
+        );
+
+        Process process =
+                null;
+
+        try {
+            process =
+                    processBuilder.start();
+
+            cancellationManager.registerProcess(
+                    fileId,
+                    process
+            );
+
+            String output =
+                    readProcessOutput(
+                            process
+                    )
+                            .trim();
+
+            int exitCode =
+                    process.waitFor();
+
+            if (exitCode != 0) {
+                throw new IllegalStateException(
+                        "영상 길이 조회에 실패했습니다."
+                                + System.lineSeparator()
+                                + output
+                );
+            }
+
+            if (output.isBlank()) {
+                throw new IllegalStateException(
+                        "영상 길이 조회 결과가 없습니다."
+                );
+            }
+
+            double duration =
+                    Double.parseDouble(
+                            output
+                    );
+
+            long durationSeconds =
+                    Math.max(
+                            1L,
+                            (long) Math.ceil(
+                                    duration
+                            )
+                    );
+
+            log.info(
+                    "영상 길이 조회 완료. videoPath={}, durationSeconds={}",
+                    videoPath,
+                    durationSeconds
+            );
+
+            return durationSeconds;
+        } catch (IOException exception) {
+            cancellationManager.checkCancelled(
+                    fileId
+            );
+
+            throw new IllegalStateException(
+                    "FFprobe 실행 중 오류가 발생했습니다.",
+                    exception
+            );
+        } catch (InterruptedException exception) {
+            Thread.currentThread()
+                    .interrupt();
+
+            throw new FileAnalysisCancelledException(
+                    fileId,
+                    exception
+            );
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException(
+                    "영상 길이 값을 변환할 수 없습니다.",
+                    exception
+            );
+        } finally {
+            if (process != null) {
+                cancellationManager.unregisterProcess(
+                        fileId,
+                        process
+                );
+            }
+        }
+    }
+
+    private int calculateFrameIntervalSeconds(
+            long durationSeconds
+    ) {
+        long dynamicIntervalSeconds =
+                (
+                        durationSeconds
+                                + MAX_FRAME_COUNT
+                                - 1
+                )
+                        / MAX_FRAME_COUNT;
+
+        long intervalSeconds =
+                Math.max(
+                        FRAME_INTERVAL_SECONDS,
+                        dynamicIntervalSeconds
+                );
+
+        if (intervalSeconds > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+
+        return (int) intervalSeconds;
     }
 
     private Path createFrameDirectory(

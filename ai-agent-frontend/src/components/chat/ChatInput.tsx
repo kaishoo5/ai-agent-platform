@@ -680,7 +680,7 @@ function ChatInput() {
             roomId: targetRoomId,
             role: "USER",
             content: trimmedInput,
-            videoResult: null,
+            videoResult: [],
             sources: [],
             createdAt: new Date().toISOString(),
         };
@@ -690,7 +690,7 @@ function ChatInput() {
             roomId: targetRoomId,
             role: "ASSISTANT",
             content: "",
-            videoResult: null,
+            videoResult: [],
             sources: [],
             createdAt: new Date().toISOString(),
         };

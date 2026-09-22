@@ -39,22 +39,38 @@ function convertMessageRole(
 
 function parseVideoResult(
     videoResult: string | null,
-): VideoSummaryResult | null {
+): VideoSummaryResult[] {
     if (!videoResult) {
-        return null;
+        return [];
     }
 
     try {
-        return JSON.parse(
-            videoResult,
-        ) as VideoSummaryResult;
+        const parsed =
+            JSON.parse(
+                videoResult,
+            ) as unknown;
+
+        if (Array.isArray(parsed)) {
+            return parsed as VideoSummaryResult[];
+        }
+
+        if (
+            parsed
+            && typeof parsed === "object"
+        ) {
+            return [
+                parsed as VideoSummaryResult,
+            ];
+        }
+
+        return [];
     } catch (error) {
         console.error(
-            "영상 요약 결과를 파싱하는 중 오류가 발생했습니다.",
+            "영상 결과를 파싱하는 중 오류가 발생했습니다.",
             error,
         );
 
-        return null;
+        return [];
     }
 }
 

@@ -1,5 +1,6 @@
 package com.agent.aiagent.domain.tool.service;
 
+import com.agent.aiagent.domain.tool.model.ToolExecutionContext;
 import com.agent.aiagent.domain.tool.model.ToolResult;
 import com.agent.aiagent.domain.tool.model.ToolSpecification;
 
@@ -9,7 +10,18 @@ public interface AgentTool {
 
     ToolSpecification getSpecification();
 
-    ToolResult execute(Map<String, Object> arguments);
+    ToolResult execute(
+            Map<String, Object> arguments
+    );
+
+    default ToolResult execute(
+            Map<String, Object> arguments,
+            ToolExecutionContext context
+    ) {
+        return execute(
+                arguments
+        );
+    }
 
     default String getName() {
         return getSpecification().name();

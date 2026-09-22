@@ -15,6 +15,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -151,6 +154,7 @@ public class WhisperTranscriber {
             cancellationManager.checkCancelled(
                     fileId
             );
+
             throw new IllegalStateException(
                     "Whisper 실행 중 오류가 발생했습니다.",
                     exception
@@ -179,9 +183,14 @@ public class WhisperTranscriber {
     private VideoTranscript parseTranscript(
             Path jsonPath
     ) throws IOException {
+        String json =
+                readJsonSafely(
+                        jsonPath
+                );
+
         JsonNode root =
                 objectMapper.readTree(
-                        jsonPath.toFile()
+                        json
                 );
 
         String language =
@@ -264,6 +273,55 @@ public class WhisperTranscriber {
                         segments
                 )
         );
+    }
+
+    private String readJsonSafely(
+            Path jsonPath
+    ) throws IOException {
+        CharsetDecoder decoder =
+                StandardCharsets.UTF_8
+                        .newDecoder()
+                        .onMalformedInput(
+                                CodingErrorAction.REPLACE
+                        )
+                        .onUnmappableCharacter(
+                                CodingErrorAction.REPLACE
+                        );
+
+        StringBuilder builder =
+                new StringBuilder();
+
+        try (
+                Reader reader =
+                        new InputStreamReader(
+                                Files.newInputStream(
+                                        jsonPath
+                                ),
+                                decoder
+                        )
+        ) {
+            char[] buffer =
+                    new char[8192];
+
+            int length;
+
+            while (
+                    (
+                            length =
+                                    reader.read(
+                                            buffer
+                                    )
+                    ) != -1
+            ) {
+                builder.append(
+                        buffer,
+                        0,
+                        length
+                );
+            }
+        }
+
+        return builder.toString();
     }
 
     private String getLanguage(

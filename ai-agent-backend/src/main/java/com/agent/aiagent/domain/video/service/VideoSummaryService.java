@@ -12,7 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
@@ -21,6 +26,7 @@ public class VideoSummaryService {
 
     private static final int SEGMENTS_PER_SUMMARY_BATCH = 50;
     private static final int MAX_SEGMENT_TEXT_LENGTH = 1_500;
+    private static final int SUMMARY_CONCURRENCY = 3;
 
     private final ChatModelProvider chatModelProvider;
 
@@ -81,42 +87,140 @@ public class VideoSummaryService {
     private List<String> summarizeBatches(
             List<VideoTranscriptSegment> segments
     ) {
-        List<String> summaries =
+        ExecutorService executorService =
+                Executors.newFixedThreadPool(
+                        SUMMARY_CONCURRENCY
+                );
+
+        List<CompletableFuture<IndexedSummary>> futures =
                 new ArrayList<>();
 
-        for (
-                int start = 0;
-                start < segments.size();
-                start += SEGMENTS_PER_SUMMARY_BATCH
-        ) {
-            int end =
-                    Math.min(
-                            start + SEGMENTS_PER_SUMMARY_BATCH,
-                            segments.size()
-                    );
+        try {
+            int batchIndex =
+                    0;
 
-            List<VideoTranscriptSegment> batch =
-                    segments.subList(
-                            start,
-                            end
-                    );
+            for (
+                    int start = 0;
+                    start < segments.size();
+                    start += SEGMENTS_PER_SUMMARY_BATCH
+            ) {
+                int end =
+                        Math.min(
+                                start + SEGMENTS_PER_SUMMARY_BATCH,
+                                segments.size()
+                        );
 
-            String summary =
-                    summarizeBatch(
-                            batch,
-                            start,
-                            end,
-                            segments.size()
-                    );
+                List<VideoTranscriptSegment> batch =
+                        List.copyOf(
+                                segments.subList(
+                                        start,
+                                        end
+                                )
+                        );
 
-            if (StringUtils.hasText(summary)) {
-                summaries.add(
-                        summary
+                int currentBatchIndex =
+                        batchIndex;
+
+                int currentStart =
+                        start;
+
+                int currentEnd =
+                        end;
+
+                CompletableFuture<IndexedSummary> future =
+                        CompletableFuture.supplyAsync(
+                                () -> {
+                                    String summary =
+                                            summarizeBatch(
+                                                    batch,
+                                                    currentStart,
+                                                    currentEnd,
+                                                    segments.size()
+                                            );
+
+                                    return new IndexedSummary(
+                                            currentBatchIndex,
+                                            summary
+                                    );
+                                },
+                                executorService
+                        );
+
+                futures.add(
+                        future
                 );
-            }
-        }
 
-        return summaries;
+                batchIndex++;
+            }
+
+            List<IndexedSummary> indexedSummaries =
+                    new ArrayList<>();
+
+            for (
+                    CompletableFuture<IndexedSummary> future : futures
+            ) {
+                try {
+                    IndexedSummary indexedSummary =
+                            future.get();
+
+                    if (
+                            indexedSummary != null
+                                    && StringUtils.hasText(
+                                    indexedSummary.summary()
+                            )
+                    ) {
+                        indexedSummaries.add(
+                                indexedSummary
+                        );
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread()
+                            .interrupt();
+
+                    throw new IllegalStateException(
+                            "영상 부분 요약 처리 중 인터럽트가 발생했습니다.",
+                            exception
+                    );
+                } catch (ExecutionException exception) {
+                    Throwable cause =
+                            exception.getCause();
+
+                    if (cause instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+
+                    throw new IllegalStateException(
+                            "영상 부분 요약 처리 중 오류가 발생했습니다.",
+                            cause
+                    );
+                }
+            }
+
+            indexedSummaries.sort(
+                    Comparator.comparingInt(
+                            IndexedSummary::index
+                    )
+            );
+
+            return indexedSummaries
+                    .stream()
+                    .map(
+                            IndexedSummary::summary
+                    )
+                    .toList();
+        } finally {
+            for (
+                    CompletableFuture<IndexedSummary> future : futures
+            ) {
+                if (!future.isDone()) {
+                    future.cancel(
+                            true
+                    );
+                }
+            }
+
+            executorService.shutdownNow();
+        }
     }
 
     private String summarizeBatch(
@@ -173,6 +277,9 @@ public class VideoSummaryService {
                         transcriptPrompt
                 );
 
+        long startedAt =
+                System.nanoTime();
+
         try {
             String summary =
                     chatModelProvider.chatOnce(
@@ -198,19 +305,25 @@ public class VideoSummaryService {
                     ).content();
 
             log.info(
-                    "영상 부분 요약 완료. startSegment={}, endSegment={}, totalSegment={}",
+                    "영상 부분 요약 완료. startSegment={}, endSegment={}, totalSegment={}, elapsed={}ms",
                     start,
                     end,
-                    total
+                    total,
+                    elapsedMillis(
+                            startedAt
+                    )
             );
 
             return summary;
         } catch (Exception exception) {
             log.warn(
-                    "영상 부분 요약 실패. startSegment={}, endSegment={}, totalSegment={}",
+                    "영상 부분 요약 실패. startSegment={}, endSegment={}, totalSegment={}, elapsed={}ms",
                     start,
                     end,
                     total,
+                    elapsedMillis(
+                            startedAt
+                    ),
                     exception
             );
 
@@ -259,32 +372,49 @@ public class VideoSummaryService {
                         summaryPrompt
                 );
 
+        long startedAt =
+                System.nanoTime();
+
         try {
-            return chatModelProvider.chatOnce(
-                    new ChatModelRequest(
-                            ChatModelType.TEXT,
-                            List.of(
-                                    new ChatModelMessage(
-                                            "system",
-                                            """
-                                            당신은 여러 구간의 영상 요약을 통합하여
-                                            하나의 일관된 전체 영상 요약을 작성하는 도우미입니다.
-                                            """,
-                                            null
+            String summary =
+                    chatModelProvider.chatOnce(
+                            new ChatModelRequest(
+                                    ChatModelType.TEXT,
+                                    List.of(
+                                            new ChatModelMessage(
+                                                    "system",
+                                                    """
+                                                    당신은 여러 구간의 영상 요약을 통합하여
+                                                    하나의 일관된 전체 영상 요약을 작성하는 도우미입니다.
+                                                    """,
+                                                    null
+                                            ),
+                                            new ChatModelMessage(
+                                                    "user",
+                                                    userPrompt,
+                                                    null
+                                            )
                                     ),
-                                    new ChatModelMessage(
-                                            "user",
-                                            userPrompt,
-                                            null
-                                    )
-                            ),
-                            List.of()
+                                    List.of()
+                            )
+                    ).content();
+
+            log.info(
+                    "영상 최종 요약 완료. partialSummaryCount={}, elapsed={}ms",
+                    partialSummaries.size(),
+                    elapsedMillis(
+                            startedAt
                     )
-            ).content();
+            );
+
+            return summary;
         } catch (Exception exception) {
             log.warn(
-                    "영상 최종 요약 실패. partialSummaryCount={}",
+                    "영상 최종 요약 실패. partialSummaryCount={}, elapsed={}ms",
                     partialSummaries.size(),
+                    elapsedMillis(
+                            startedAt
+                    ),
                     exception
             );
 
@@ -342,5 +472,20 @@ public class VideoSummaryService {
                 minutes,
                 seconds
         );
+    }
+
+    private long elapsedMillis(
+            long startedAt
+    ) {
+        return (
+                System.nanoTime()
+                        - startedAt
+        ) / 1_000_000L;
+    }
+
+    private record IndexedSummary(
+            int index,
+            String summary
+    ) {
     }
 }

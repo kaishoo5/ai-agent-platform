@@ -142,7 +142,10 @@ function ChatMessageItem({
     const isLoading =
         !isUser
         && message.content.length === 0
-        && !message.videoResult;
+        && (
+            !message.videoResult
+            || message.videoResult.length === 0
+        );
 
     const hasExecutionSteps =
         executionSteps.length > 0;
@@ -309,12 +312,19 @@ function ChatMessageItem({
                                             />
                                         )}
 
-                                        {message.videoResult && (
-                                            <VideoResultCard
-                                                videoResult={
-                                                    message.videoResult
-                                                }
-                                            />
+                                        {message.videoResult?.map(
+                                            (videoResult) => (
+                                                <VideoResultCard
+                                                    key={
+                                                        videoResult.fileId
+                                                        + ":"
+                                                        + videoResult.fileName
+                                                    }
+                                                    videoResult={
+                                                        videoResult
+                                                    }
+                                                />
+                                            ),
                                         )}
                                     </>
                                 )}

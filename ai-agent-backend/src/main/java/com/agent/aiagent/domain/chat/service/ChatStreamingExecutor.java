@@ -2,7 +2,7 @@ package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.rag.model.ChatSource;
-import com.agent.aiagent.domain.video.model.VideoSummaryResult;
+import com.agent.aiagent.domain.video.model.VideoResult;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,7 @@ public class ChatStreamingExecutor {
     public SseEmitter execute(
             ChatRequest request,
             ChatModelRequest chatModelRequest,
-            VideoSummaryResult videoSummaryResult,
+            List<VideoResult> videoResults,
             List<ChatSource> sources
     ) {
         SseEmitter emitter =
@@ -47,7 +47,7 @@ public class ChatStreamingExecutor {
                 emitter,
                 request,
                 chatModelRequest,
-                videoSummaryResult,
+                videoResults,
                 sources
         );
     }
@@ -56,7 +56,7 @@ public class ChatStreamingExecutor {
             SseEmitter emitter,
             ChatRequest request,
             ChatModelRequest chatModelRequest,
-            VideoSummaryResult videoSummaryResult,
+            List<VideoResult> videoResults,
             List<ChatSource> sources
     ) {
         String roomId =
@@ -81,6 +81,13 @@ public class ChatStreamingExecutor {
                         sources
                 );
 
+        List<VideoResult> safeVideoResults =
+                videoResults == null
+                        ? List.of()
+                        : List.copyOf(
+                        videoResults
+                );
+
         sendSources(
                 emitter,
                 safeSources,
@@ -91,9 +98,9 @@ public class ChatStreamingExecutor {
             return emitter;
         }
 
-        sendVideoSummaryResult(
+        sendVideoResults(
                 emitter,
-                videoSummaryResult,
+                safeVideoResults,
                 terminated
         );
 
@@ -231,10 +238,10 @@ public class ChatStreamingExecutor {
                                         )
                                 ) {
                                     String videoResultJson =
-                                            videoSummaryResult == null
+                                            safeVideoResults.isEmpty()
                                                     ? null
                                                     : objectMapper.writeValueAsString(
-                                                    videoSummaryResult
+                                                    safeVideoResults
                                             );
 
                                     String sourceResultJson =
@@ -326,7 +333,7 @@ public class ChatStreamingExecutor {
             SseEmitter emitter,
             ChatRequest request,
             String content,
-            VideoSummaryResult videoSummaryResult,
+            List<VideoResult> videoResults,
             List<ChatSource> sources
     ) {
         String roomId =
@@ -342,52 +349,30 @@ public class ChatStreamingExecutor {
                         sources
                 );
 
+        List<VideoResult> safeVideoResults =
+                videoResults == null
+                        ? List.of()
+                        : List.copyOf(
+                        videoResults
+                );
+
         String safeContent =
                 content == null
                         ? ""
                         : content;
 
-        sendSources(
-                emitter,
-                safeSources,
-                terminated
-        );
-
-        if (terminated.get()) {
-            return emitter;
-        }
-
-        sendVideoSummaryResult(
-                emitter,
-                videoSummaryResult,
-                terminated
-        );
-
-        if (terminated.get()) {
-            return emitter;
-        }
+        String videoResultJson;
+        String sourceResultJson;
 
         try {
-            if (!safeContent.isEmpty()) {
-                emitter.send(
-                        SseEmitter.event()
-                                .name("message")
-                                .data(
-                                        objectMapper.writeValueAsString(
-                                                safeContent
-                                        )
-                                )
-                );
-            }
-
-            String videoResultJson =
-                    videoSummaryResult == null
+            videoResultJson =
+                    safeVideoResults.isEmpty()
                             ? null
                             : objectMapper.writeValueAsString(
-                            videoSummaryResult
+                            safeVideoResults
                     );
 
-            String sourceResultJson =
+            sourceResultJson =
                     safeSources.isEmpty()
                             ? null
                             : objectMapper.writeValueAsString(
@@ -412,6 +397,63 @@ public class ChatStreamingExecutor {
                         );
             }
 
+            log.debug(
+                    "완료된 AI 응답 저장 완료. roomId={}, contentLength={}, videoCount={}",
+                    roomId,
+                    safeContent.length(),
+                    safeVideoResults.size()
+            );
+        } catch (Exception exception) {
+            log.error(
+                    "완료된 AI 응답 저장 중 오류가 발생했습니다. roomId={}",
+                    roomId,
+                    exception
+            );
+
+            try {
+                emitter.completeWithError(
+                        exception
+                );
+            } catch (Exception ignored) {
+                // 이미 종료된 SSE일 수 있으므로 무시
+            }
+
+            return emitter;
+        }
+
+        sendSources(
+                emitter,
+                safeSources,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
+
+        sendVideoResults(
+                emitter,
+                safeVideoResults,
+                terminated
+        );
+
+        if (terminated.get()) {
+            return emitter;
+        }
+
+        try {
+            if (!safeContent.isEmpty()) {
+                emitter.send(
+                        SseEmitter.event()
+                                .name("message")
+                                .data(
+                                        objectMapper.writeValueAsString(
+                                                safeContent
+                                        )
+                                )
+                );
+            }
+
             emitter.send(
                     SseEmitter.event()
                             .name("done")
@@ -421,9 +463,10 @@ public class ChatStreamingExecutor {
             emitter.complete();
 
             log.debug(
-                    "완료된 AI 응답 SSE 전송 및 저장 완료. roomId={}, contentLength={}",
+                    "완료된 AI 응답 SSE 전송 완료. roomId={}, contentLength={}, videoCount={}",
                     roomId,
-                    safeContent.length()
+                    safeContent.length(),
+                    safeVideoResults.size()
             );
         } catch (
                 AsyncRequestNotUsableException exception
@@ -433,7 +476,7 @@ public class ChatStreamingExecutor {
             );
 
             log.info(
-                    "완료된 AI 응답 전송 전에 클라이언트 연결이 종료되었습니다. roomId={}",
+                    "완료된 AI 응답은 저장되었지만 클라이언트 연결이 이미 종료되었습니다. roomId={}",
                     roomId
             );
         } catch (IOException exception) {
@@ -442,7 +485,7 @@ public class ChatStreamingExecutor {
             );
 
             log.info(
-                    "완료된 AI 응답 SSE 전송 중 연결이 종료되었습니다. roomId={}",
+                    "완료된 AI 응답은 저장되었지만 SSE 전송 중 연결이 종료되었습니다. roomId={}",
                     roomId
             );
         } catch (Exception exception) {
@@ -450,13 +493,9 @@ public class ChatStreamingExecutor {
                     true
             );
 
-            log.error(
-                    "완료된 AI 응답 저장 또는 SSE 처리 중 오류가 발생했습니다. roomId={}",
+            log.warn(
+                    "완료된 AI 응답은 저장되었지만 SSE 처리 중 오류가 발생했습니다. roomId={}",
                     roomId,
-                    exception
-            );
-
-            emitter.completeWithError(
                     exception
             );
         }
@@ -525,12 +564,16 @@ public class ChatStreamingExecutor {
         }
     }
 
-    private void sendVideoSummaryResult(
+    private void sendVideoResults(
             SseEmitter emitter,
-            VideoSummaryResult videoSummaryResult,
+            List<VideoResult> videoResults,
             AtomicBoolean terminated
     ) {
-        if (videoSummaryResult == null) {
+        if (
+                videoResults == null
+                        || videoResults.isEmpty()
+                        || terminated.get()
+        ) {
             return;
         }
 
@@ -540,27 +583,26 @@ public class ChatStreamingExecutor {
                             .name("video_result")
                             .data(
                                     objectMapper.writeValueAsString(
-                                            videoSummaryResult
+                                            videoResults
                                     )
                             )
             );
 
             log.info(
-                    "영상 요약 결과 SSE 전송 완료. fileId={}, fileName={}, durationSeconds={}",
-                    videoSummaryResult.fileId(),
-                    videoSummaryResult.fileName(),
-                    videoSummaryResult.durationSeconds()
+                    "영상 결과 SSE 전송 완료. videoCount={}",
+                    videoResults.size()
             );
         } catch (
-                AsyncRequestNotUsableException exception
+                AsyncRequestNotUsableException
+                | IllegalStateException exception
         ) {
             terminated.set(
                     true
             );
 
             log.info(
-                    "영상 요약 결과 전송 전에 클라이언트 연결이 종료되었습니다. fileId={}",
-                    videoSummaryResult.fileId()
+                    "영상 결과 전송 전에 SSE 연결이 이미 종료되었습니다. videoCount={}",
+                    videoResults.size()
             );
         } catch (IOException exception) {
             terminated.set(
@@ -568,8 +610,8 @@ public class ChatStreamingExecutor {
             );
 
             log.info(
-                    "영상 요약 결과 SSE 전송 중 연결이 종료되었습니다. fileId={}",
-                    videoSummaryResult.fileId()
+                    "영상 결과 SSE 전송 중 연결이 종료되었습니다. videoCount={}",
+                    videoResults.size()
             );
         } catch (Exception exception) {
             terminated.set(
@@ -577,14 +619,18 @@ public class ChatStreamingExecutor {
             );
 
             log.error(
-                    "영상 요약 결과 SSE 전송 중 오류가 발생했습니다. fileId={}",
-                    videoSummaryResult.fileId(),
+                    "영상 결과 SSE 전송 중 오류가 발생했습니다. videoCount={}",
+                    videoResults.size(),
                     exception
             );
 
-            emitter.completeWithError(
-                    exception
-            );
+            try {
+                emitter.completeWithError(
+                        exception
+                );
+            } catch (IllegalStateException ignored) {
+                // 이미 완료된 emitter
+            }
         }
     }
 

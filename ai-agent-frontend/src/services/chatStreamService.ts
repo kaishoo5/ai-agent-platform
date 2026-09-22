@@ -30,7 +30,7 @@ interface ChatStreamHandlers {
     ) => void;
 
     onVideoResult?: (
-        videoResult: VideoSummaryResult,
+        videoResult: VideoSummaryResult[],
     ) => void;
 
     onSources?: (
@@ -239,10 +239,17 @@ export async function streamChat(
                     eventName === "video_result"
                     && data
                 ) {
-                    const videoResult =
+                    const parsed =
                         JSON.parse(
                             data,
-                        ) as VideoSummaryResult;
+                        ) as unknown;
+
+                    const videoResult =
+                        Array.isArray(parsed)
+                            ? parsed as VideoSummaryResult[]
+                            : [
+                                parsed as VideoSummaryResult,
+                            ];
 
                     handlers.onVideoResult?.(
                         videoResult,

@@ -12,6 +12,9 @@ import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,7 +27,7 @@ public class VideoHighlightSelector {
             "[화면 분석]";
 
     private static final long WINDOW_DURATION_MILLIS =
-            5 * 60 * 1000L;
+            10 * 60 * 1000L;
 
     private static final int MAX_CHUNK_CONTENT_LENGTH =
             1_500;
@@ -43,6 +46,9 @@ public class VideoHighlightSelector {
 
     private static final int MAX_REASON_LENGTH =
             300;
+
+    private static final int HIGHLIGHT_WINDOW_CONCURRENCY =
+            2;
 
     /*
      * qwen이 JSON 대신 아래와 같은 텍스트를 반환하는 경우를 위한 fallback.
@@ -211,6 +217,67 @@ public class VideoHighlightSelector {
         );
     }
 
+    public List<VideoHighlightSegment> selectCandidates(
+            String fileId
+    ) {
+        if (!StringUtils.hasText(fileId)) {
+            throw new IllegalArgumentException(
+                    "fileId가 없습니다."
+            );
+        }
+
+        List<ChatFileChunk> chunks =
+                loadVideoChunks(
+                        fileId
+                );
+
+        if (chunks.isEmpty()) {
+            return List.of();
+        }
+
+        long videoEndMillis =
+                chunks.stream()
+                        .mapToLong(
+                                ChatFileChunk::getEndMillis
+                        )
+                        .max()
+                        .orElse(0L);
+
+        List<VideoHighlightSegment> rawCandidates =
+                selectWindowCandidates(
+                        chunks
+                );
+
+        if (rawCandidates.isEmpty()) {
+            return List.of();
+        }
+
+        List<VideoHighlightSegment> normalizedCandidates =
+                normalizeSegments(
+                        rawCandidates,
+                        videoEndMillis
+                );
+
+        if (normalizedCandidates.isEmpty()) {
+            return List.of();
+        }
+
+        List<VideoHighlightSegment> mergedCandidates =
+                mergeOverlappingSegments(
+                        normalizedCandidates
+                );
+
+        log.info(
+                "영상 하이라이트 후보 조회 완료. fileId={}, rawCandidateCount={}, normalizedCandidateCount={}, mergedCandidateCount={}",
+                fileId,
+                rawCandidates.size(),
+                normalizedCandidates.size(),
+                mergedCandidates.size()
+        );
+
+        return mergedCandidates;
+    }
+
     private List<ChatFileChunk> loadVideoChunks(
             String fileId
     ) {
@@ -236,9 +303,6 @@ public class VideoHighlightSelector {
     private List<VideoHighlightSegment> selectWindowCandidates(
             List<ChatFileChunk> chunks
     ) {
-        List<VideoHighlightSegment> candidates =
-                new ArrayList<>();
-
         long videoEndMillis =
                 chunks.stream()
                         .mapToLong(
@@ -247,48 +311,134 @@ public class VideoHighlightSelector {
                         .max()
                         .orElse(0L);
 
-        for (
-                long windowStart = 0;
-                windowStart < videoEndMillis;
-                windowStart += WINDOW_DURATION_MILLIS
-        ) {
-            long windowEnd =
-                    Math.min(
-                            windowStart
-                                    + WINDOW_DURATION_MILLIS,
-                            videoEndMillis
-                    );
+        ExecutorService executorService =
+                Executors.newFixedThreadPool(
+                        HIGHLIGHT_WINDOW_CONCURRENCY
+                );
 
-            List<ChatFileChunk> windowChunks =
-                    findWindowChunks(
-                            chunks,
+        List<CompletableFuture<WindowCandidateResult>> futures =
+                new ArrayList<>();
+
+        try {
+            for (
+                    long windowStart = 0;
+                    windowStart < videoEndMillis;
+                    windowStart += WINDOW_DURATION_MILLIS
+            ) {
+                long currentWindowStart =
+                        windowStart;
+
+                long currentWindowEnd =
+                        Math.min(
+                                currentWindowStart
+                                        + WINDOW_DURATION_MILLIS,
+                                videoEndMillis
+                        );
+
+                List<ChatFileChunk> windowChunks =
+                        findWindowChunks(
+                                chunks,
+                                currentWindowStart,
+                                currentWindowEnd
+                        );
+
+                if (windowChunks.isEmpty()) {
+                    continue;
+                }
+
+                CompletableFuture<WindowCandidateResult> future =
+                        CompletableFuture.supplyAsync(
+                                () ->
+                                        selectWindowCandidates(
+                                                windowChunks,
+                                                currentWindowStart,
+                                                currentWindowEnd
+                                        ),
+                                executorService
+                        );
+
+                futures.add(
+                        future
+                );
+            }
+
+            List<WindowCandidateResult> windowResults =
+                    new ArrayList<>();
+
+            for (
+                    CompletableFuture<WindowCandidateResult> future
+                    : futures
+            ) {
+                try {
+                    WindowCandidateResult result =
+                            future.get();
+
+                    if (result != null) {
+                        windowResults.add(
+                                result
+                        );
+                    }
+                } catch (Exception exception) {
+                    log.warn(
+                            "영상 하이라이트 window 병렬 처리 결과 조회 실패.",
+                            exception
+                    );
+                }
+            }
+
+            windowResults.sort(
+                    Comparator.comparingLong(
+                            WindowCandidateResult::windowStart
+                    )
+            );
+
+            List<VideoHighlightSegment> candidates =
+                    new ArrayList<>();
+
+            for (WindowCandidateResult result : windowResults) {
+                candidates.addAll(
+                        result.candidates()
+                );
+            }
+
+            return candidates;
+        } finally {
+            for (
+                    CompletableFuture<WindowCandidateResult> future
+                    : futures
+            ) {
+                if (!future.isDone()) {
+                    future.cancel(
+                            true
+                    );
+                }
+            }
+
+            executorService.shutdownNow();
+        }
+    }
+
+    private WindowCandidateResult selectWindowCandidates(
+            List<ChatFileChunk> windowChunks,
+            long windowStart,
+            long windowEnd
+    ) {
+        try {
+            log.info(
+                    "영상 하이라이트 window 후보 선정 시작. windowStart={}, windowEnd={}",
+                    windowStart,
+                    windowEnd
+            );
+
+            long startedAt =
+                    System.nanoTime();
+
+            List<VideoHighlightSegment> windowCandidates =
+                    selectCandidatesFromWindow(
+                            windowChunks,
                             windowStart,
                             windowEnd
                     );
-
-            if (windowChunks.isEmpty()) {
-                continue;
-            }
-
-            List<VideoHighlightSegment> windowCandidates;
-
-            try {
-                windowCandidates =
-                        selectCandidatesFromWindow(
-                                windowChunks,
-                                windowStart,
-                                windowEnd
-                        );
-            } catch (Exception exception) {
-                log.warn(
-                        "영상 하이라이트 구간 후보 선정 실패. windowStart={}, windowEnd={}",
-                        windowStart,
-                        windowEnd,
-                        exception
-                );
-
-                continue;
-            }
 
             List<VideoHighlightSegment> adjustedCandidates =
                     adjustWindowCandidates(
@@ -297,20 +447,41 @@ public class VideoHighlightSelector {
                             windowEnd
                     );
 
-            candidates.addAll(
-                    adjustedCandidates
-            );
+            long elapsedMillis =
+                    (
+                            System.nanoTime()
+                                    - startedAt
+                    )
+                            / 1_000_000L;
 
             log.info(
-                    "영상 하이라이트 구간 후보 선정 완료. windowStart={}, windowEnd={}, rawCandidateCount={}, validCandidateCount={}",
+                    "영상 하이라이트 구간 후보 선정 완료. windowStart={}, windowEnd={}, rawCandidateCount={}, validCandidateCount={}, elapsedMillis={}",
                     windowStart,
                     windowEnd,
                     windowCandidates.size(),
-                    adjustedCandidates.size()
+                    adjustedCandidates.size(),
+                    elapsedMillis
+            );
+
+            return new WindowCandidateResult(
+                    windowStart,
+                    windowEnd,
+                    adjustedCandidates
+            );
+        } catch (Exception exception) {
+            log.warn(
+                    "영상 하이라이트 구간 후보 선정 실패. windowStart={}, windowEnd={}",
+                    windowStart,
+                    windowEnd,
+                    exception
+            );
+
+            return new WindowCandidateResult(
+                    windowStart,
+                    windowEnd,
+                    List.of()
             );
         }
-
-        return candidates;
     }
 
     private List<ChatFileChunk> findWindowChunks(
@@ -338,7 +509,7 @@ public class VideoHighlightSelector {
 
         String userPrompt =
                 """
-                다음은 하나의 영상에서 특정 5분 구간의 자막과 화면 분석 결과입니다.
+                다음은 하나의 영상에서 특정 영상 구간의 자막과 화면 분석 결과입니다.
 
                 이 구간에서 전체 영상의 줄거리와 핵심 사건을 요약하는 데
                 반드시 볼 가치가 있는 장면만 선정하세요.
@@ -2247,5 +2418,12 @@ public class VideoHighlightSelector {
                 minutes,
                 seconds
         );
+    }
+
+    private record WindowCandidateResult(
+            long windowStart,
+            long windowEnd,
+            List<VideoHighlightSegment> candidates
+    ) {
     }
 }

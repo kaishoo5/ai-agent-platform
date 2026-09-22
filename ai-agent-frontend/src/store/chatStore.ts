@@ -82,7 +82,7 @@ interface ChatStore {
     updateMessageVideoResult: (
         roomId: string,
         messageId: string,
-        videoResult: VideoSummaryResult | null,
+        videoResult: VideoSummaryResult[],
     ) => void;
 
     updateMessageSources: (

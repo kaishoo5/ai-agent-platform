@@ -16,7 +16,7 @@ import java.util.List;
 public class OllamaClient {
 
     public static final String MODEL_TEXT =
-            "qwen3:4b";
+            "gpt-oss:20b";
 
     public static final String MODEL_VISION =
             "qwen3-vl:4b";
@@ -48,14 +48,6 @@ public class OllamaClient {
                         messages,
                         tools
                 );
-
-        log.info(
-                "Ollama chatOnce 요청. model={}, toolCount={}",
-                model,
-                tools == null
-                        ? 0
-                        : tools.size()
-        );
 
         return ollamaWebClient.post()
                 .uri("/api/chat")
@@ -161,6 +153,14 @@ public class OllamaClient {
                         tools,
                         false
                 );
+
+        log.info(
+                "Ollama chatOnce 요청. model={}, toolCount={}",
+                model,
+                tools == null
+                        ? 0
+                        : tools.size()
+        );
 
         OllamaChatResponse response =
                 ollamaWebClient.post()

@@ -28,7 +28,7 @@ public class VideoFrameAnalyzer {
 
     private static final String USER_ROLE = "user";
 
-    private static final int VISION_CONCURRENCY = 2;
+    private static final int VISION_CONCURRENCY = 3;
 
     private final ChatModelProvider chatModelProvider;
     private final FileAnalysisCancellationManager cancellationManager;
@@ -214,6 +214,9 @@ public class VideoFrameAnalyzer {
                 normalizedFramePath
         );
 
+        long startedAt =
+                System.nanoTime();
+
         ChatModelResponse response =
                 chatModelProvider.chatOnce(
                         new ChatModelRequest(
@@ -224,6 +227,15 @@ public class VideoFrameAnalyzer {
                                 List.of()
                         )
                 );
+
+        log.info(
+                "영상 프레임 Vision 모델 호출 완료. framePath={}, elapsed={}ms",
+                normalizedFramePath,
+                (
+                        System.nanoTime()
+                                - startedAt
+                ) / 1_000_000L
+        );
 
         String content =
                 response.content();

@@ -1,8 +1,6 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.model.ChatMessageContext;
-import com.agent.aiagent.domain.rag.model.RagPromptResult;
-import com.agent.aiagent.domain.rag.service.RagPromptBuilder;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +17,6 @@ public class ChatMessageContextFactory {
     private static final String USER_ROLE = "user";
 
     private final ConversationSummaryService conversationSummaryService;
-    private final RagPromptBuilder ragPromptBuilder;
 
     public List<ChatModelMessage> create(
             String roomId,
@@ -73,37 +70,33 @@ public class ChatMessageContextFactory {
             );
         }
 
-        RagPromptResult ragPromptResult =
-                applyAttachmentsToLastUserMessage(
-                        roomId,
-                        messages,
-                        documentFileIds,
-                        encodedImages,
-                        progressReporter
-                );
+        applyAttachmentsToLastUserMessage(
+                roomId,
+                messages,
+                documentFileIds,
+                encodedImages
+        );
 
         log.info(
-                "채팅 메시지 컨텍스트 생성 완료. roomId={}, messageCount={}, regenerate={}, documentCount={}, imageCount={}, sourceCount={}",
+                "채팅 메시지 컨텍스트 생성 완료. roomId={}, messageCount={}, regenerate={}, documentCount={}, imageCount={}",
                 roomId,
                 messages.size(),
                 regenerate,
                 documentFileIds.size(),
-                encodedImages.size(),
-                ragPromptResult.sources().size()
+                encodedImages.size()
         );
 
         return new ChatMessageContext(
                 messages,
-                ragPromptResult.sources()
+                List.of()
         );
     }
 
-    private RagPromptResult applyAttachmentsToLastUserMessage(
+    private void applyAttachmentsToLastUserMessage(
             String roomId,
             List<ChatModelMessage> messages,
             List<String> documentFileIds,
-            List<String> encodedImages,
-            AgentProgressReporter progressReporter
+            List<String> encodedImages
     ) {
         for (
                 int index = messages.size() - 1;
@@ -117,38 +110,20 @@ public class ChatMessageContextFactory {
                 continue;
             }
 
-            if (progressReporter != null) {
-                progressReporter.running(
-                        "rag_search",
-                        "관련 자료 검색 중..."
-                );
-            }
-
-            RagPromptResult ragPromptResult =
-                    ragPromptBuilder.buildResult(
-                            roomId,
-                            documentFileIds,
-                            messages,
-                            message.getContent()
-                    );
-
-            if (progressReporter != null) {
-                progressReporter.completed(
-                        "rag_search",
-                        "관련 자료 검색 완료"
-                );
-            }
-
             String content =
-                    ragPromptResult.prompt();
+                    message.getContent();
 
             if (!documentFileIds.isEmpty()) {
                 content =
                         content
                                 + System.lineSeparator()
                                 + System.lineSeparator()
-                                + "[현재 첨부 파일]"
-                                + System.lineSeparator()
+                                + """
+                                [현재 첨부 파일]
+                                다음 fileId들은 현재 대화에 첨부된 파일입니다.
+                                첨부파일의 실제 내용이 필요한 경우 제공된 첨부파일 검색 도구를 사용하세요.
+                                파일에 대한 작업을 요청받은 경우 요청에 적합한 도구를 선택하세요.
+                                """
                                 + documentFileIds.stream()
                                 .map(fileId ->
                                         "- fileId: " + fileId
@@ -158,6 +133,7 @@ public class ChatMessageContextFactory {
                                                 System.lineSeparator()
                                         )
                                 );
+
             }
 
             List<String> images =
@@ -174,16 +150,19 @@ public class ChatMessageContextFactory {
                     )
             );
 
-            return ragPromptResult;
+            log.info(
+                    "첨부파일 컨텍스트 적용 완료. roomId={}, documentCount={}, imageCount={}",
+                    roomId,
+                    documentFileIds.size(),
+                    encodedImages.size()
+            );
+
+            return;
         }
 
         log.warn(
                 "첨부파일을 적용할 사용자 메시지를 찾지 못했습니다. roomId={}",
                 roomId
-        );
-
-        return RagPromptResult.withoutSources(
-                ""
         );
     }
 }

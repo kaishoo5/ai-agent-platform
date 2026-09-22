@@ -4,9 +4,35 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: improve agent execution progress and tool response handling">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add current date context to system prompt">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/model/ChatExecutionContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/model/ChatExecutionContext.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatModelRequestFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatOrchestrator.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatOrchestrator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileAnalysisService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/file/service/ChatFileAnalysisService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolExecutionRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolExecutionRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/model/ToolResult.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/AgentTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/AgentTool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallProcessor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallProcessor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoFrameAnalyzer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoFrameAnalyzer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoFrameExtractor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoFrameExtractor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoHighlightSelector.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoHighlightSelector.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoSummaryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/VideoSummaryService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/WhisperTranscriber.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/video/service/WhisperTranscriber.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/services/chatStreamService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/services/chatStreamService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -336,7 +362,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add tool executor" />
     <MESSAGE value="feat: add tool specifications" />
     <MESSAGE value="feat: add chat model tool definitions" />
     <MESSAGE value="feat: add chat model tool mapper" />
@@ -361,7 +386,8 @@
     <MESSAGE value="feat: enhance file attachment with drag and drop and paste" />
     <MESSAGE value="feat: add cancellable async file analysis with progress tracking" />
     <MESSAGE value="feat: improve agent execution progress and tool response handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: improve agent execution progress and tool response handling" />
+    <MESSAGE value="feat: add current date context to system prompt" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add current date context to system prompt" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

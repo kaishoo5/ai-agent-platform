@@ -127,9 +127,10 @@ public class ChatOrchestrator {
             );
 
             log.info(
-                    "채팅 실행 컨텍스트 생성 완료. roomId={}, sourceCount={}",
+                    "채팅 실행 컨텍스트 생성 완료. roomId={}, sourceCount={}, documentFileIds={}",
                     roomId,
-                    executionContext.sources().size()
+                    executionContext.sources().size(),
+                    executionContext.documentFileIds()
             );
 
             toolCallingExecutor.execute(
@@ -137,6 +138,7 @@ public class ChatOrchestrator {
                     request,
                     executionContext.modelRequest(),
                     executionContext.sources(),
+                    executionContext.documentFileIds(),
                     progressReporter
             );
         } catch (Exception exception) {

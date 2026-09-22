@@ -4,8 +4,9 @@ import com.agent.aiagent.domain.chat.dto.ChatRequest;
 import com.agent.aiagent.domain.chat.service.AgentProgressReporter;
 import com.agent.aiagent.domain.chat.service.ChatStreamingExecutor;
 import com.agent.aiagent.domain.rag.model.ChatSource;
+import com.agent.aiagent.domain.tool.model.ToolExecutionContext;
 import com.agent.aiagent.domain.tool.model.ToolResult;
-import com.agent.aiagent.domain.video.model.VideoSummaryResult;
+import com.agent.aiagent.domain.video.model.VideoResult;
 import com.agent.aiagent.domain.video.service.VideoSummaryFileService;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
 import com.agent.aiagent.provider.chat.ChatModelRequest;
@@ -15,7 +16,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,8 +36,14 @@ public class ToolCallingExecutor {
     private static final String VIDEO_SUMMARY_GENERATE_TOOL_NAME =
             "video_summary_generate";
 
+    private static final String VIDEO_SHORTS_GENERATE_TOOL_NAME =
+            "video_shorts_generate";
+
     private static final long DEFAULT_VIDEO_SUMMARY_DURATION_SECONDS =
             180L;
+
+    private static final long DEFAULT_VIDEO_SHORTS_DURATION_SECONDS =
+            45L;
 
     private final ChatModelProvider chatModelProvider;
     private final ToolCallProcessor toolCallProcessor;
@@ -65,6 +75,7 @@ public class ToolCallingExecutor {
                 request,
                 chatModelRequest,
                 sources,
+                List.of(),
                 null
         );
     }
@@ -80,6 +91,7 @@ public class ToolCallingExecutor {
                 request,
                 chatModelRequest,
                 sources,
+                List.of(),
                 null
         );
     }
@@ -89,6 +101,7 @@ public class ToolCallingExecutor {
             ChatRequest request,
             ChatModelRequest chatModelRequest,
             List<ChatSource> sources,
+            List<String> documentFileIds,
             AgentProgressReporter progressReporter
     ) {
         List<ChatSource> safeSources =
@@ -103,7 +116,7 @@ public class ToolCallingExecutor {
                     emitter,
                     request,
                     chatModelRequest,
-                    null,
+                    List.of(),
                     safeSources
             );
         }
@@ -111,8 +124,8 @@ public class ToolCallingExecutor {
         ChatModelRequest currentRequest =
                 chatModelRequest;
 
-        VideoSummaryResult videoSummaryResult =
-                null;
+        List<VideoResult> videoResults =
+                new ArrayList<>();
 
         for (
                 int round = 1;
@@ -169,8 +182,9 @@ public class ToolCallingExecutor {
 
             if (!response.hasToolCalls()) {
                 log.debug(
-                        "Tool Calling 종료. round={}",
-                        round
+                        "Tool Calling 종료. round={}, videoCount={}",
+                        round,
+                        videoResults.size()
                 );
 
                 return chatStreamingExecutor
@@ -178,7 +192,7 @@ public class ToolCallingExecutor {
                                 emitter,
                                 request,
                                 response.content(),
-                                videoSummaryResult,
+                                videoResults,
                                 safeSources
                         );
             }
@@ -217,9 +231,16 @@ public class ToolCallingExecutor {
                 );
             }
 
+            ToolExecutionContext toolExecutionContext =
+                    new ToolExecutionContext(
+                            request.getRoomId(),
+                            documentFileIds
+                    );
+
             List<ToolResult> toolResults =
                     toolCallProcessor.execute(
-                            response.toolCalls()
+                            response.toolCalls(),
+                            toolExecutionContext
                     );
 
             if (progressReporter != null) {
@@ -244,16 +265,40 @@ public class ToolCallingExecutor {
                                 index
                         );
 
+                if (!toolResult.success()) {
+                    continue;
+                }
+
                 if (
                         VIDEO_SUMMARY_GENERATE_TOOL_NAME.equals(
                                 toolCall.name()
                         )
-                                && toolResult.success()
                 ) {
-                    videoSummaryResult =
+                    VideoResult videoResult =
                             createVideoSummaryResult(
                                     toolCall.arguments()
                             );
+
+                    if (videoResult != null) {
+                        videoResults.add(
+                                videoResult
+                        );
+                    }
+
+                    continue;
+                }
+
+                if (
+                        VIDEO_SHORTS_GENERATE_TOOL_NAME.equals(
+                                toolCall.name()
+                        )
+                ) {
+                    videoResults.addAll(
+                            createVideoShortsResults(
+                                    toolCall.arguments(),
+                                    toolResult
+                            )
+                    );
                 }
             }
 
@@ -297,7 +342,7 @@ public class ToolCallingExecutor {
                         emitter,
                         request,
                         finalRequest,
-                        videoSummaryResult,
+                        videoResults,
                         safeSources
                 );
             }
@@ -319,12 +364,12 @@ public class ToolCallingExecutor {
                 emitter,
                 request,
                 currentRequest,
-                videoSummaryResult,
+                videoResults,
                 safeSources
         );
     }
 
-    private VideoSummaryResult createVideoSummaryResult(
+    private VideoResult createVideoSummaryResult(
             Map<String, Object> arguments
     ) {
         String fileId =
@@ -353,12 +398,125 @@ public class ToolCallingExecutor {
                 streamUrl
                         + "?download=true";
 
-        return new VideoSummaryResult(
+        return new VideoResult(
                 fileId,
                 fileName,
                 durationSeconds,
                 streamUrl,
                 downloadUrl
+        );
+    }
+
+    private List<VideoResult> createVideoShortsResults(
+            Map<String, Object> arguments,
+            ToolResult toolResult
+    ) {
+        if (
+                toolResult == null
+                        || !toolResult.success()
+        ) {
+            return List.of();
+        }
+
+        String fileId =
+                getStringArgument(
+                        arguments,
+                        "fileId"
+                );
+
+        if (fileId == null) {
+            return List.of();
+        }
+
+        long durationSeconds =
+                getLongArgument(
+                        arguments,
+                        "durationSeconds",
+                        DEFAULT_VIDEO_SHORTS_DURATION_SECONDS
+                );
+
+        Map<String, Object> metadata =
+                toolResult.metadata();
+
+        if (
+                metadata == null
+                        || metadata.isEmpty()
+        ) {
+            log.warn(
+                    "쇼츠 영상 결과 metadata가 없습니다. fileId={}",
+                    fileId
+            );
+
+            return List.of();
+        }
+
+        Object generatedFilesValue =
+                metadata.get(
+                        "generatedFiles"
+                );
+
+        if (!(generatedFilesValue instanceof List<?> generatedFiles)) {
+            log.warn(
+                    "쇼츠 생성 파일 목록이 없습니다. fileId={}, metadata={}",
+                    fileId,
+                    metadata
+            );
+
+            return List.of();
+        }
+
+        List<VideoResult> results =
+                new ArrayList<>();
+
+        for (Object generatedFile : generatedFiles) {
+            if (generatedFile == null) {
+                continue;
+            }
+
+            String fileName =
+                    generatedFile
+                            .toString()
+                            .trim();
+
+            if (fileName.isBlank()) {
+                continue;
+            }
+
+            String encodedFileName =
+                    UriUtils.encodePathSegment(
+                            fileName,
+                            StandardCharsets.UTF_8
+                    );
+
+            String streamUrl =
+                    "/api/videos/shorts/"
+                            + fileId
+                            + "/"
+                            + encodedFileName;
+
+            String downloadUrl =
+                    streamUrl
+                            + "?download=true";
+
+            results.add(
+                    new VideoResult(
+                            fileId,
+                            fileName,
+                            durationSeconds,
+                            streamUrl,
+                            downloadUrl
+                    )
+            );
+        }
+
+        log.info(
+                "쇼츠 영상 결과 생성 완료. fileId={}, videoCount={}",
+                fileId,
+                results.size()
+        );
+
+        return List.copyOf(
+                results
         );
     }
 

@@ -1,5 +1,6 @@
 package com.agent.aiagent.domain.tool.service;
 
+import com.agent.aiagent.domain.tool.model.ToolExecutionContext;
 import com.agent.aiagent.domain.tool.model.ToolExecutionRequest;
 import com.agent.aiagent.domain.tool.model.ToolResult;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,11 @@ public class ToolExecutor {
                         ? Map.of()
                         : request.arguments();
 
+        ToolExecutionContext context =
+                request.context() == null
+                        ? ToolExecutionContext.empty()
+                        : request.context();
+
         try {
             log.info(
                     "Tool 실행 시작. toolName={}, arguments={}",
@@ -70,7 +76,8 @@ public class ToolExecutor {
                     optionalTool
                             .get()
                             .execute(
-                                    arguments
+                                    arguments,
+                                    context
                             );
 
             log.info(

@@ -91,7 +91,8 @@ public class ChatModelRequestFactory {
 
         return new ChatExecutionContext(
                 modelRequest,
-                messageContext.sources()
+                messageContext.sources(),
+                attachmentContext.documentFileIds()
         );
     }
 }

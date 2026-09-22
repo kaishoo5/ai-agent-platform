@@ -171,7 +171,7 @@ function ChatMessageList() {
         updateMessageVideoResult(
             activeRoomId,
             assistantMessageId,
-            null,
+            [],
         );
 
         updateMessageSources(

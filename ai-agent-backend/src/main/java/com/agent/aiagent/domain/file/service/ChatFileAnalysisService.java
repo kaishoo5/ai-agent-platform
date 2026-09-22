@@ -54,6 +54,7 @@ public class ChatFileAnalysisService {
     private final ChatFileStatusService chatFileStatusService;
     private final FileAnalysisProgressService fileAnalysisProgressService;
     private final FileAnalysisCancellationManager cancellationManager;
+    private final VideoTranscriptSegmentService videoTranscriptSegmentService;
 
     public void analyze(
             String fileId
@@ -202,6 +203,9 @@ public class ChatFileAnalysisService {
         String fileId =
                 chatFile.getId();
 
+        long startedAt =
+                System.nanoTime();
+
         cancellationManager.checkCancelled(
                 fileId
         );
@@ -216,6 +220,14 @@ public class ChatFileAnalysisService {
 
         analyzeVideoFrames(
                 chatFile
+        );
+
+        log.info(
+                "영상 전체 분석 시간. fileId={}, elapsed={}ms",
+                fileId,
+                elapsedMillis(
+                        startedAt
+                )
         );
     }
 
@@ -239,6 +251,9 @@ public class ChatFileAnalysisService {
                     "영상에서 오디오 추출 중..."
             );
 
+            long audioExtractStartedAt =
+                    System.nanoTime();
+
             audioPath =
                     videoAudioExtractor.extract(
                             fileId,
@@ -246,6 +261,14 @@ public class ChatFileAnalysisService {
                                     chatFile.getStoredPath()
                             )
                     );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=audio_extract, elapsed={}ms",
+                    fileId,
+                    elapsedMillis(
+                            audioExtractStartedAt
+                    )
+            );
 
             cancellationManager.checkCancelled(
                     fileId
@@ -263,11 +286,23 @@ public class ChatFileAnalysisService {
                     "음성을 텍스트로 변환 중..."
             );
 
+            long transcriptionStartedAt =
+                    System.nanoTime();
+
             VideoTranscript transcript =
                     whisperTranscriber.transcribe(
                             fileId,
                             audioPath
                     );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=transcription, elapsed={}ms, segmentCount={}",
+                    fileId,
+                    elapsedMillis(
+                            transcriptionStartedAt
+                    ),
+                    transcript.segments().size()
+            );
 
             cancellationManager.checkCancelled(
                     fileId
@@ -285,9 +320,40 @@ public class ChatFileAnalysisService {
                     "영상 자막 인덱싱 중..."
             );
 
+            long transcriptSegmentSaveStartedAt =
+                    System.nanoTime();
+
+            videoTranscriptSegmentService.save(
+                    chatFile,
+                    transcript
+            );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=transcript_segment_save, elapsed={}ms",
+                    fileId,
+                    elapsedMillis(
+                            transcriptSegmentSaveStartedAt
+                    )
+            );
+
+            cancellationManager.checkCancelled(
+                    fileId
+            );
+
+            long transcriptChunkIndexStartedAt =
+                    System.nanoTime();
+
             chatFileChunkService.saveVideoTranscriptChunks(
                     chatFile,
                     transcript
+            );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=transcript_chunk_index, elapsed={}ms",
+                    fileId,
+                    elapsedMillis(
+                            transcriptChunkIndexStartedAt
+                    )
             );
 
             cancellationManager.checkCancelled(
@@ -306,10 +372,21 @@ public class ChatFileAnalysisService {
                     "영상 내용 요약 중..."
             );
 
+            long videoSummaryStartedAt =
+                    System.nanoTime();
+
             String summary =
                     videoSummaryService.summarize(
                             transcript
                     );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=video_summary, elapsed={}ms",
+                    fileId,
+                    elapsedMillis(
+                            videoSummaryStartedAt
+                    )
+            );
 
             cancellationManager.checkCancelled(
                     fileId
@@ -375,6 +452,9 @@ public class ChatFileAnalysisService {
                     "영상 프레임 추출 중..."
             );
 
+            long frameExtractStartedAt =
+                    System.nanoTime();
+
             frames =
                     videoFrameExtractor.extract(
                             fileId,
@@ -382,6 +462,15 @@ public class ChatFileAnalysisService {
                                     chatFile.getStoredPath()
                             )
                     );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=frame_extract, elapsed={}ms, frameCount={}",
+                    fileId,
+                    elapsedMillis(
+                            frameExtractStartedAt
+                    ),
+                    frames.size()
+            );
 
             cancellationManager.checkCancelled(
                     fileId
@@ -408,10 +497,23 @@ public class ChatFileAnalysisService {
                     "중복 프레임 정리 중..."
             );
 
+            long frameFilterStartedAt =
+                    System.nanoTime();
+
             List<VideoFrame> filteredFrames =
                     videoFrameDeduplicator.filter(
                             frames
                     );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=frame_filter, elapsed={}ms, originalCount={}, filteredCount={}",
+                    fileId,
+                    elapsedMillis(
+                            frameFilterStartedAt
+                    ),
+                    frames.size(),
+                    filteredFrames.size()
+            );
 
             cancellationManager.checkCancelled(
                     fileId
@@ -438,19 +540,43 @@ public class ChatFileAnalysisService {
                     "영상 장면 분석 중..."
             );
 
+            long visionAnalysisStartedAt =
+                    System.nanoTime();
+
             List<VideoFrameAnalysis> frameAnalyses =
                     videoFrameAnalyzer.analyze(
                             fileId,
                             filteredFrames
                     );
 
+            log.info(
+                    "영상 분석 성능. fileId={}, step=vision_analysis, elapsed={}ms, frameCount={}",
+                    fileId,
+                    elapsedMillis(
+                            visionAnalysisStartedAt
+                    ),
+                    frameAnalyses.size()
+            );
+
             cancellationManager.checkCancelled(
                     fileId
             );
 
+            long visionChunkIndexStartedAt =
+                    System.nanoTime();
+
             chatFileChunkService.saveVideoFrameAnalysisChunks(
                     chatFile,
                     frameAnalyses
+            );
+
+            log.info(
+                    "영상 분석 성능. fileId={}, step=vision_chunk_index, elapsed={}ms, analysisCount={}",
+                    fileId,
+                    elapsedMillis(
+                            visionChunkIndexStartedAt
+                    ),
+                    frameAnalyses.size()
             );
 
             cancellationManager.checkCancelled(
@@ -467,6 +593,15 @@ public class ChatFileAnalysisService {
                     frames
             );
         }
+    }
+
+    private long elapsedMillis(
+            long startedAt
+    ) {
+        return (
+                System.nanoTime()
+                        - startedAt
+        ) / 1_000_000L;
     }
 
     private boolean isVideo(

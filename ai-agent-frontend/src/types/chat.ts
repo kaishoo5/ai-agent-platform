@@ -28,7 +28,7 @@ export interface ChatMessage {
     roomId: string;
     role: ChatMessageRole;
     content: string;
-    videoResult: VideoSummaryResult | null;
+    videoResult: VideoSummaryResult[];
     sources: ChatSource[];
     createdAt: string;
 }
