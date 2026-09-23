@@ -5,48 +5,19 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add configurable Ollama model settings">
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/dto/ChatRoomTitleUpdateRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/controller/RuntimeSettingsController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/dto/ModelSettingsUpdateRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/dto/RuntimeSettingsResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/entity/AppSetting.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/repository/AppSettingRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/service/ModelSettingsService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/settings/service/RuntimeSettingsService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/settingsApi.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/agent.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/attachments.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/base.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/chat.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/composer.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/mobile.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/settings.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/sidebar.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/source.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/theme.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/video.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/settings.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/controller/ChatRoomController.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/controller/ChatRoomController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/dto/ChatRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/dto/ChatRequest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/entity/ChatRoom.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/entity/ChatRoom.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/repository/ChatMessageRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/repository/ChatMessageRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatPersistenceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatPersistenceService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatRoomService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatRoomService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaRequestBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaRequestBuilder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/provider/ollama/OllamaChatModelProvider.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/chatApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatInput.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatRoomList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/store/chatStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/global.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/global.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/chat.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/chat.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/sidebar.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/sidebar.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

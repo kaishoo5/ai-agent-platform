@@ -1,9 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
-import com.agent.aiagent.domain.chat.dto.ChatMessageResponse;
-import com.agent.aiagent.domain.chat.dto.ChatRoomCreateRequest;
-import com.agent.aiagent.domain.chat.dto.ChatRoomResponse;
-import com.agent.aiagent.domain.chat.dto.ChatRoomTitleUpdateRequest;
+import com.agent.aiagent.domain.chat.dto.*;
+import com.agent.aiagent.domain.chat.entity.ChatMessage;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
@@ -54,6 +52,114 @@ public class ChatRoomService {
 
         return chatMessageRepository
                 .findAllByRoomIdOrderByCreatedAtAsc(roomId)
+                .stream()
+                .map(ChatMessageResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public List<ChatMessageResponse> editUserMessage(
+            String roomId,
+            String messageId,
+            ChatMessageEditRequest request
+    ) {
+        ChatRoom chatRoom =
+                findRoom(
+                        roomId
+                );
+
+        String content =
+                request == null
+                        ? null
+                        : request.content();
+
+        if (
+                content == null
+                        || content.isBlank()
+        ) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "수정할 메시지 내용이 없습니다."
+            );
+        }
+
+        List<ChatMessage> messages =
+                chatMessageRepository
+                        .findAllByRoomIdOrderByCreatedAtAsc(
+                                roomId
+                        );
+
+        int messageIndex =
+                -1;
+
+        for (
+                int index = 0;
+                index < messages.size();
+                index++
+        ) {
+            if (
+                    messageId.equals(
+                            messages.get(index).getId()
+                    )
+            ) {
+                messageIndex =
+                        index;
+
+                break;
+            }
+        }
+
+        if (messageIndex < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "수정할 메시지를 찾을 수 없습니다."
+            );
+        }
+
+        ChatMessage targetMessage =
+                messages.get(
+                        messageIndex
+                );
+
+        if (
+                !"user".equalsIgnoreCase(
+                        targetMessage.getRole()
+                )
+        ) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "사용자 메시지만 수정할 수 있습니다."
+            );
+        }
+
+        targetMessage.updateContent(
+                content.trim()
+        );
+
+        if (
+                messageIndex + 1
+                        < messages.size()
+        ) {
+            List<ChatMessage> messagesToDelete =
+                    List.copyOf(
+                            messages.subList(
+                                    messageIndex + 1,
+                                    messages.size()
+                            )
+                    );
+
+            chatMessageRepository.deleteAll(
+                    messagesToDelete
+            );
+        }
+
+        chatRoom.clearSummary();
+        chatRoom.touch();
+
+        return chatMessageRepository
+                .findAllByRoomIdOrderByCreatedAtAsc(
+                        roomId
+                )
                 .stream()
                 .map(ChatMessageResponse::from)
                 .toList();

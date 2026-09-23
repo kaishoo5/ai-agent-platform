@@ -186,9 +186,13 @@ public class ChatPersistenceService {
                     );
 
             chatMessageRepository
-                    .findFirstByRoomIdAndRoleOrderByCreatedAtDesc(
-                            roomId,
-                            ASSISTANT_ROLE
+                    .findFirstByRoomIdOrderByCreatedAtDesc(
+                            roomId
+                    )
+                    .filter(message ->
+                            ASSISTANT_ROLE.equalsIgnoreCase(
+                                    message.getRole()
+                            )
                     )
                     .ifPresent(
                             chatMessageRepository::delete

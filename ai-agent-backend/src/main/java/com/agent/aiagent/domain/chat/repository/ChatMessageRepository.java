@@ -21,4 +21,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
             String roomId,
             String role
     );
+
+    Optional<ChatMessage> findFirstByRoomIdOrderByCreatedAtDesc(
+            String roomId
+    );
 }

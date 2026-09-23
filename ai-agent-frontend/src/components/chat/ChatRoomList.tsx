@@ -32,6 +32,13 @@ function ChatRoomList({
         "",
     );
 
+    const [
+        searchQuery,
+        setSearchQuery,
+    ] = useState(
+        "",
+    );
+
     const rooms = useChatStore(
         (state) => state.rooms,
     );
@@ -186,6 +193,20 @@ function ChatRoomList({
         }
     };
 
+    const normalizedSearchQuery =
+        searchQuery.trim().toLowerCase();
+
+    const filteredRooms =
+        normalizedSearchQuery
+            ? rooms.filter((room) =>
+                room.title
+                    .toLowerCase()
+                    .includes(
+                        normalizedSearchQuery,
+                    )
+            )
+            : rooms;
+
     return (
         <section className="chat-room-section">
             <button
@@ -204,12 +225,69 @@ function ChatRoomList({
                 </span>
             </button>
 
+            <div className="chat-room-search">
+                <span
+                    className="chat-room-search-icon"
+                    aria-hidden="true"
+                >
+                    ⌕
+                </span>
+
+                <input
+                    type="search"
+                    value={searchQuery}
+                    placeholder="채팅 검색..."
+                    aria-label="채팅 검색"
+                    onChange={(event) => {
+                        setSearchQuery(
+                            event.target.value,
+                        );
+                    }}
+                    onKeyDown={(event) => {
+                        if (
+                            event.key === "Escape"
+                            && searchQuery
+                        ) {
+                            event.preventDefault();
+
+                            setSearchQuery(
+                                "",
+                            );
+                        }
+                    }}
+                />
+
+                {searchQuery && (
+                    <button
+                        type="button"
+                        className="chat-room-search-clear"
+                        aria-label="검색어 지우기"
+                        title="검색어 지우기"
+                        onClick={() => {
+                            setSearchQuery(
+                                "",
+                            );
+                        }}
+                    >
+                        ×
+                    </button>
+                )}
+            </div>
+
             <div className="chat-room-header">
                 Recent
             </div>
 
             <div className="chat-room-list">
-                {rooms.map((room) => {
+                {normalizedSearchQuery
+                    && filteredRooms.length === 0
+                    && (
+                        <div className="chat-room-search-empty">
+                            검색 결과가 없습니다.
+                        </div>
+                    )}
+
+                {filteredRooms.map((room) => {
                     const isActive =
                         room.id === activeRoomId;
 

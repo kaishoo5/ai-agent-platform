@@ -881,3 +881,131 @@
     font-size: 15px;
     line-height: 1;
 }
+
+.message-item.user .message-actions {
+    justify-content: flex-end;
+}
+
+.message-item.user:hover .message-actions {
+    opacity: 1;
+}
+
+
+/* =========================================================
+   MESSAGE EDIT
+   ========================================================= */
+
+.message-item.user:has(.message-edit) .message-row {
+    width: min(620px, 70%);
+    max-width: 70%;
+}
+
+.message-item.user:has(.message-edit) .message-body {
+    width: 100%;
+}
+
+.message-item.user:has(.message-edit) .message-bubble {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.message-edit {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.message-edit-textarea {
+    display: block;
+    width: 100%;
+    min-height: 92px;
+    max-height: 260px;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: 11px 15px;
+    border: 1px solid #343944;
+    border-radius: 14px;
+    border-bottom-right-radius: 5px;
+    outline: none;
+    color: #dfe2e7;
+    background: #20242c;
+    font: inherit;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.message-edit-textarea:focus {
+    border-color: #454c59;
+    box-shadow: 0 0 0 2px rgba(69, 76, 89, 0.12);
+}
+
+.message-edit-textarea:disabled {
+    opacity: 0.7;
+}
+
+.message-edit-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.message-edit-button {
+    display: inline-flex;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    border: 1px solid #303641;
+    border-radius: 7px;
+    color: #8e959f;
+    background: #15181e;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.message-edit-button.secondary:hover:not(:disabled) {
+    border-color: #3d444f;
+    color: #d4d7dc;
+    background: #1b1e25;
+}
+
+.message-edit-button.primary {
+    border-color: #414957;
+    color: #e8eaed;
+    background: #2a303a;
+}
+
+.message-edit-button.primary:hover:not(:disabled) {
+    border-color: #515b6a;
+    color: #ffffff;
+    background: #343b47;
+}
+
+.message-edit-button:focus-visible {
+    outline: 2px solid #596273;
+    outline-offset: 2px;
+}
+
+.message-edit-button:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+@media (max-width: 640px) {
+    .message-item.user:has(.message-edit) .message-row {
+        width: 82%;
+        max-width: 82%;
+    }
+
+    .message-edit-textarea {
+        min-height: 86px;
+    }
+}
+

@@ -1,9 +1,6 @@
 package com.agent.aiagent.domain.chat.controller;
 
-import com.agent.aiagent.domain.chat.dto.ChatMessageResponse;
-import com.agent.aiagent.domain.chat.dto.ChatRoomCreateRequest;
-import com.agent.aiagent.domain.chat.dto.ChatRoomResponse;
-import com.agent.aiagent.domain.chat.dto.ChatRoomTitleUpdateRequest;
+import com.agent.aiagent.domain.chat.dto.*;
 import com.agent.aiagent.domain.chat.service.ChatRoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -43,6 +40,19 @@ public class ChatRoomController {
             @PathVariable String roomId
     ) {
         return chatRoomService.getMessages(roomId);
+    }
+
+    @PatchMapping("/{roomId}/messages/{messageId}")
+    public List<ChatMessageResponse> editUserMessage(
+            @PathVariable String roomId,
+            @PathVariable String messageId,
+            @RequestBody ChatMessageEditRequest request
+    ) {
+        return chatRoomService.editUserMessage(
+                roomId,
+                messageId,
+                request
+        );
     }
 
     @PatchMapping("/{roomId}/title")

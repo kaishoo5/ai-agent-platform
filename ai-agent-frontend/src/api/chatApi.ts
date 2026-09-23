@@ -158,6 +158,36 @@ export async function getChatRoomMessages(
     }));
 }
 
+
+export async function editChatMessage(
+    roomId: string,
+    messageId: string,
+    content: string,
+): Promise<ChatMessage[]> {
+    const response = await chatApi.patch<ChatMessageResponse[]>(
+        `/rooms/${roomId}/messages/${messageId}`,
+        {
+            content,
+        },
+    );
+
+    return response.data.map((message) => ({
+        id: message.id,
+        roomId: message.roomId,
+        role: convertMessageRole(
+            message.role,
+        ),
+        content: message.content,
+        videoResult: parseVideoResult(
+            message.videoResult,
+        ),
+        sources: parseSources(
+            message.sourceResult,
+        ),
+        createdAt: message.createdAt,
+    }));
+}
+
 export async function deleteChatRoom(
     roomId: string,
 ): Promise<void> {

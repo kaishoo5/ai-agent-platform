@@ -1,7 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 
+import {editChatMessage} from "../../api/chatApi";
 import {streamChat} from "../../services/chatStreamService";
 import {useChatStore} from "../../store/chatStore";
+import type {ChatMessage} from "../../types/chat";
 
 import ChatMessageItem from "./ChatMessageItem";
 
@@ -32,6 +34,10 @@ const PROMPT_SUGGESTIONS = [
     },
 ];
 
+function createMessageId(): string {
+    return crypto.randomUUID();
+}
+
 function ChatMessageList() {
     const rooms = useChatStore(
         (state) => state.rooms,
@@ -59,6 +65,10 @@ function ChatMessageList() {
 
     const updateMessageContent = useChatStore(
         (state) => state.updateMessageContent,
+    );
+
+    const replaceMessages = useChatStore(
+        (state) => state.replaceMessages,
     );
 
     const startGenerating = useChatStore(
@@ -398,10 +408,147 @@ function ChatMessageList() {
                 previousVideoResult,
             );
 
+            updateMessageSources(
+                activeRoomId,
+                assistantMessageId,
+                previousSources,
+            );
+
             console.error(
                 "AI 응답 재생성 중 오류가 발생했습니다.",
                 error,
             );
+        } finally {
+            finishGenerating();
+        }
+    };
+
+    const handleEdit = async (
+        userMessageId: string,
+        content: string,
+    ): Promise<void> => {
+        if (
+            !activeRoomId
+            || isGenerating
+        ) {
+            return;
+        }
+
+        const targetRoomId =
+            activeRoomId;
+
+        try {
+            const editedMessages =
+                await editChatMessage(
+                    targetRoomId,
+                    userMessageId,
+                    content,
+                );
+
+            const editedUserMessage =
+                editedMessages[
+                editedMessages.length - 1
+                    ];
+
+            if (
+                !editedUserMessage
+                || editedUserMessage.role !== "USER"
+            ) {
+                throw new Error(
+                    "수정된 사용자 메시지를 찾을 수 없습니다.",
+                );
+            }
+
+            const assistantMessage: ChatMessage = {
+                id: createMessageId(),
+                roomId: targetRoomId,
+                role: "ASSISTANT",
+                content: "",
+                videoResult: [],
+                sources: [],
+                createdAt: new Date().toISOString(),
+            };
+
+            replaceMessages(
+                targetRoomId,
+                [
+                    ...editedMessages,
+                    assistantMessage,
+                ],
+            );
+
+            const abortController =
+                new AbortController();
+
+            startGenerating(
+                targetRoomId,
+                abortController,
+            );
+
+            await streamChat(
+                targetRoomId,
+                editedMessages,
+                {
+                    onChunk: (chunk) => {
+                        clearMessageExecutionSteps(
+                            assistantMessage.id,
+                        );
+
+                        appendMessageContent(
+                            targetRoomId,
+                            assistantMessage.id,
+                            chunk,
+                        );
+                    },
+
+                    onVideoResult: (videoResult) => {
+                        updateMessageVideoResult(
+                            targetRoomId,
+                            assistantMessage.id,
+                            videoResult,
+                        );
+                    },
+
+                    onSources: (sources) => {
+                        updateMessageSources(
+                            targetRoomId,
+                            assistantMessage.id,
+                            sources,
+                        );
+                    },
+
+                    onAgentStep: (step) => {
+                        updateMessageExecutionStep(
+                            assistantMessage.id,
+                            {
+                                id: `agent:${step.code}`,
+                                code: step.code,
+                                status: step.status,
+                                message: step.message,
+                            },
+                        );
+                    },
+                },
+                abortController.signal,
+                true,
+            );
+
+            await refreshRooms();
+
+            await setActiveRoom(
+                targetRoomId,
+            );
+        } catch (error) {
+            console.error(
+                "사용자 메시지 수정 후 재생성 중 오류가 발생했습니다.",
+                error,
+            );
+
+            await setActiveRoom(
+                targetRoomId,
+            );
+
+            throw error;
         } finally {
             finishGenerating();
         }
@@ -491,6 +638,12 @@ function ChatMessageList() {
                                     message.id,
                                 );
                             }}
+                            onEdit={(content) =>
+                                handleEdit(
+                                    message.id,
+                                    content,
+                                )
+                            }
                         />
                     ))}
 

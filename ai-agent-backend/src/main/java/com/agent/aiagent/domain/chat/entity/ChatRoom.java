@@ -51,6 +51,11 @@ public class ChatRoom {
         this.summaryUpdatedAt = LocalDateTime.now();
     }
 
+    public void clearSummary() {
+        this.summary = null;
+        this.summaryUpdatedAt = null;
+    }
+
     public void updateTitle(
             String title
     ) {

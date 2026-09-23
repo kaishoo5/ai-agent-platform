@@ -402,21 +402,26 @@ public class ConversationSummaryService {
     private void removeLastAssistantMessage(
             List<ChatMessage> messages
     ) {
-        for (
-                int index = messages.size() - 1;
-                index >= 0;
-                index--
-        ) {
-            ChatMessage message =
-                    messages.get(index);
-
-            if (!ASSISTANT_ROLE.equalsIgnoreCase(message.getRole())) {
-                continue;
-            }
-
-            messages.remove(index);
-
+        if (messages.isEmpty()) {
             return;
+        }
+
+        int lastIndex =
+                messages.size() - 1;
+
+        ChatMessage lastMessage =
+                messages.get(
+                        lastIndex
+                );
+
+        if (
+                ASSISTANT_ROLE.equalsIgnoreCase(
+                        lastMessage.getRole()
+                )
+        ) {
+            messages.remove(
+                    lastIndex
+            );
         }
     }
 
