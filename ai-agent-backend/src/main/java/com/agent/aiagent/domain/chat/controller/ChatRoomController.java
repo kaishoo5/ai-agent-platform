@@ -66,6 +66,17 @@ public class ChatRoomController {
         );
     }
 
+    @PatchMapping("/{roomId}/pinned")
+    public ChatRoomResponse updatePinned(
+            @PathVariable String roomId,
+            @RequestBody ChatRoomPinnedUpdateRequest request
+    ) {
+        return chatRoomService.updatePinned(
+                roomId,
+                request
+        );
+    }
+
     @DeleteMapping("/{roomId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteRoom(

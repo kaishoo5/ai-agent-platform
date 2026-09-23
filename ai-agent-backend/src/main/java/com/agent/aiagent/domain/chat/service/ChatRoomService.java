@@ -63,48 +63,24 @@ public class ChatRoomService {
             String messageId,
             ChatMessageEditRequest request
     ) {
-        ChatRoom chatRoom =
-                findRoom(
-                        roomId
-                );
+        ChatRoom chatRoom = findRoom(roomId);
+        String content = request == null ? null : request.content();
 
-        String content =
-                request == null
-                        ? null
-                        : request.content();
-
-        if (
-                content == null
-                        || content.isBlank()
-        ) {
+        if (content == null || content.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "수정할 메시지 내용이 없습니다."
             );
         }
 
-        List<ChatMessage> messages =
-                chatMessageRepository
-                        .findAllByRoomIdOrderByCreatedAtAsc(
-                                roomId
-                        );
+        List<ChatMessage> messages = chatMessageRepository
+                .findAllByRoomIdOrderByCreatedAtAsc(roomId);
 
-        int messageIndex =
-                -1;
+        int messageIndex = -1;
 
-        for (
-                int index = 0;
-                index < messages.size();
-                index++
-        ) {
-            if (
-                    messageId.equals(
-                            messages.get(index).getId()
-                    )
-            ) {
-                messageIndex =
-                        index;
-
+        for (int index = 0; index < messages.size(); index++) {
+            if (messageId.equals(messages.get(index).getId())) {
+                messageIndex = index;
                 break;
             }
         }
@@ -116,50 +92,33 @@ public class ChatRoomService {
             );
         }
 
-        ChatMessage targetMessage =
-                messages.get(
-                        messageIndex
-                );
+        ChatMessage targetMessage = messages.get(messageIndex);
 
-        if (
-                !"user".equalsIgnoreCase(
-                        targetMessage.getRole()
-                )
-        ) {
+        if (!"user".equalsIgnoreCase(targetMessage.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "사용자 메시지만 수정할 수 있습니다."
             );
         }
 
-        targetMessage.updateContent(
-                content.trim()
-        );
+        targetMessage.updateContent(content.trim());
 
-        if (
-                messageIndex + 1
-                        < messages.size()
-        ) {
-            List<ChatMessage> messagesToDelete =
-                    List.copyOf(
-                            messages.subList(
-                                    messageIndex + 1,
-                                    messages.size()
-                            )
-                    );
-
-            chatMessageRepository.deleteAll(
-                    messagesToDelete
+        if (messageIndex + 1 < messages.size()) {
+            List<ChatMessage> messagesToDelete = List.copyOf(
+                    messages.subList(
+                            messageIndex + 1,
+                            messages.size()
+                    )
             );
+
+            chatMessageRepository.deleteAll(messagesToDelete);
         }
 
         chatRoom.clearSummary();
         chatRoom.touch();
 
         return chatMessageRepository
-                .findAllByRoomIdOrderByCreatedAtAsc(
-                        roomId
-                )
+                .findAllByRoomIdOrderByCreatedAtAsc(roomId)
                 .stream()
                 .map(ChatMessageResponse::from)
                 .toList();
@@ -184,9 +143,29 @@ public class ChatRoomService {
     }
 
     @Transactional
-    public void deleteRoom(String roomId) {
+    public ChatRoomResponse updatePinned(
+            String roomId,
+            ChatRoomPinnedUpdateRequest request
+    ) {
         ChatRoom chatRoom = findRoom(roomId);
 
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "고정 상태가 없습니다."
+            );
+        }
+
+        chatRoom.updatePinned(
+                request.pinned()
+        );
+
+        return ChatRoomResponse.from(chatRoom);
+    }
+
+    @Transactional
+    public void deleteRoom(String roomId) {
+        ChatRoom chatRoom = findRoom(roomId);
         chatRoomRepository.delete(chatRoom);
     }
 

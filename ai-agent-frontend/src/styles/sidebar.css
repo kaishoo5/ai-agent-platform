@@ -526,3 +526,140 @@
     font-size: 11px;
     text-align: center;
 }
+
+/* =========================================================
+   CHAT ROOM PIN / MENU
+   ========================================================= */
+
+.chat-room-list > .chat-room-header:first-child {
+    padding-top: 14px;
+}
+
+.chat-room-icon.pinned {
+    color: #aeb5c0;
+    font-size: 9px;
+}
+
+.chat-room-menu-wrap {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    z-index: 25;
+    transform: translateY(-50%);
+}
+
+.chat-room-menu-button {
+    display: flex;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    color: #6f7681;
+    background: #181b21;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+            opacity 0.15s ease,
+            color 0.15s ease,
+            background 0.15s ease;
+}
+
+.chat-room-item:hover {
+    padding-right: 38px;
+}
+
+.chat-room-item:hover .chat-room-menu-button,
+.chat-room-menu-button:focus-visible,
+.chat-room-menu-button[aria-expanded="true"] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.chat-room-menu-button:hover,
+.chat-room-menu-button[aria-expanded="true"] {
+    color: #eef0f3;
+    background: #2a2e37;
+}
+
+.chat-room-menu-button:focus-visible {
+    outline: 1px solid #505866;
+}
+
+.chat-room-menu {
+    position: absolute;
+    z-index: 40;
+    top: 31px;
+    right: 0;
+    width: 150px;
+    padding: 5px;
+    border: 1px solid #343a45;
+    border-radius: 9px;
+    background: #1a1d24;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+    cursor: default;
+}
+
+.chat-room-menu button {
+    display: flex;
+    width: 100%;
+    height: 32px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 9px;
+    border-radius: 6px;
+    color: #b5bac3;
+    background: transparent;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-room-menu button > span:first-child {
+    display: inline-flex;
+    width: 14px;
+    flex: 0 0 14px;
+    align-items: center;
+    justify-content: center;
+    color: #7f8792;
+}
+
+.chat-room-menu button:hover,
+.chat-room-menu button:focus-visible {
+    outline: none;
+    color: #f0f1f3;
+    background: #252932;
+}
+
+.chat-room-menu button.danger {
+    color: #d9959c;
+}
+
+.chat-room-menu button.danger:hover,
+.chat-room-menu button.danger:focus-visible {
+    color: #f2b7bd;
+    background: #342126;
+}
+
+.chat-room-menu-divider {
+    height: 1px;
+    margin: 4px 5px;
+    background: #2d323b;
+}
+
+.chat-room-item:has(.chat-room-menu),
+.chat-room-item:has(.chat-room-delete-confirm) {
+    z-index: 30;
+}
+
+.chat-room-item:has(.chat-room-menu) .chat-room-menu-button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 기존 X 삭제 버튼은 메뉴 방식으로 대체 */
+.chat-room-delete-button {
+    display: none;
+}

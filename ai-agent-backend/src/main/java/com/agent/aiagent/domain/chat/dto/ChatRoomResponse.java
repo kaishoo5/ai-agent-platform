@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record ChatRoomResponse(
         String id,
         String title,
+        boolean pinned,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -15,6 +16,7 @@ public record ChatRoomResponse(
         return new ChatRoomResponse(
                 chatRoom.getId(),
                 chatRoom.getTitle(),
+                chatRoom.isPinned(),
                 chatRoom.getCreatedAt(),
                 chatRoom.getUpdatedAt()
         );

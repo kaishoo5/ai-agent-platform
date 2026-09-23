@@ -41,6 +41,7 @@ export interface ChatMessage {
 export interface ChatRoom {
     id: string;
     title: string;
+    pinned: boolean;
     createdAt: string;
     updatedAt: string;
     messages: ChatMessage[];
@@ -50,6 +51,7 @@ export interface ChatRoom {
 export interface ChatRoomResponse {
     id: string;
     title: string;
+    pinned: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -60,6 +62,10 @@ export interface ChatRoomCreateRequest {
 
 export interface ChatRoomTitleUpdateRequest {
     title: string;
+}
+
+export interface ChatRoomPinnedUpdateRequest {
+    pinned: boolean;
 }
 
 export interface ChatRequest {

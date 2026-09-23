@@ -5,6 +5,7 @@ import type {
     ChatMessage,
     ChatMessageRole,
     ChatRoomCreateRequest,
+    ChatRoomPinnedUpdateRequest,
     ChatRoomResponse,
     ChatRoomTitleUpdateRequest,
     ChatSource,
@@ -128,6 +129,18 @@ export async function updateChatRoomTitle(
 ): Promise<ChatRoomResponse> {
     const response = await chatApi.patch<ChatRoomResponse>(
         `/rooms/${roomId}/title`,
+        request,
+    );
+
+    return response.data;
+}
+
+export async function updateChatRoomPinned(
+    roomId: string,
+    request: ChatRoomPinnedUpdateRequest,
+): Promise<ChatRoomResponse> {
+    const response = await chatApi.patch<ChatRoomResponse>(
+        `/rooms/${roomId}/pinned`,
         request,
     );
 

@@ -21,6 +21,9 @@ public class ChatRoom {
     @Column(name = "TITLE", length = 200, nullable = false)
     private String title;
 
+    @Column(name = "PINNED", nullable = false)
+    private boolean pinned;
+
     @Column(name = "SUMMARY", columnDefinition = "LONGTEXT")
     private String summary;
 
@@ -36,6 +39,7 @@ public class ChatRoom {
     public ChatRoom(String title) {
         this.id = UUID.randomUUID().toString();
         this.title = title;
+        this.pinned = false;
     }
 
     public void changeTitle(
@@ -61,6 +65,12 @@ public class ChatRoom {
     ) {
         this.title = title;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updatePinned(
+            boolean pinned
+    ) {
+        this.pinned = pinned;
     }
 
     public void touch() {

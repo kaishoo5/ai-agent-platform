@@ -7,6 +7,7 @@ import {
     getChatFiles,
     getChatRoomMessages,
     getChatRooms,
+    updateChatRoomPinned,
     updateChatRoomTitle,
 } from "../api/chatApi";
 import type {ChatFile, ChatMessage, ChatRoom, ChatSource, VideoSummaryResult,} from "../types/chat";
@@ -134,6 +135,11 @@ interface ChatStore {
     updateRoomTitle: (
         roomId: string,
         title: string,
+    ) => Promise<void>;
+
+    updateRoomPinned: (
+        roomId: string,
+        pinned: boolean,
     ) => Promise<void>;
 
     refreshRooms: () => Promise<void>;
@@ -731,6 +737,31 @@ export const useChatStore = create<ChatStore>((
                     ? {
                         ...room,
                         title: roomResponse.title,
+                        updatedAt: roomResponse.updatedAt,
+                    }
+                    : room
+            ),
+        }));
+    },
+
+    updateRoomPinned: async (
+        roomId,
+        pinned,
+    ) => {
+        const roomResponse =
+            await updateChatRoomPinned(
+                roomId,
+                {
+                    pinned,
+                },
+            );
+
+        set((state) => ({
+            rooms: state.rooms.map((room) =>
+                room.id === roomId
+                    ? {
+                        ...room,
+                        pinned: roomResponse.pinned,
                         updatedAt: roomResponse.updatedAt,
                     }
                     : room
