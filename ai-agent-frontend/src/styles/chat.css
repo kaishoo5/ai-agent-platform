@@ -775,23 +775,43 @@
 }
 
 /* Markdown Table */
-.markdown-content table {
+.markdown-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    margin: 14px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3f47 transparent;
+}
+
+.markdown-table-scroll table {
     width: max-content;
     min-width: 100%;
+    margin: 0;
     border-collapse: collapse;
 }
 
-.markdown-content th,
-.markdown-content td {
+.markdown-table-scroll th,
+.markdown-table-scroll td {
     white-space: nowrap;
 }
 
-/*
- * table 자체가 메시지 영역을 늘리지 않도록
- * markdown 렌더러의 table wrapper가 없는 경우를 위한 처리
- */
-.markdown-content {
-    overflow-x: auto;
+.markdown-table-scroll::-webkit-scrollbar {
+    height: 7px;
+}
+
+.markdown-table-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.markdown-table-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #3a3f47;
+}
+
+.markdown-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #505660;
 }
 
 /* 이미지 */

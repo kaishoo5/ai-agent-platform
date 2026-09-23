@@ -15,14 +15,111 @@ interface ChatMessageItemProps {
     isGenerating: boolean;
     executionSteps: ExecutionStep[];
     onRegenerate: () => void;
-    onEdit: (
-        content: string,
-    ) => Promise<void>;
 }
 
 interface CodeBlockProps {
     language: string;
     code: string;
+}
+
+
+interface MarkdownNode {
+    type: string;
+    value?: string;
+    children?: MarkdownNode[];
+}
+
+function remarkRepairStrongMarkdown() {
+    return (tree: MarkdownNode): void => {
+        repairStrongMarkdownNodes(
+            tree,
+        );
+    };
+}
+
+function repairStrongMarkdownNodes(
+    node: MarkdownNode,
+): void {
+    if (
+        !node.children
+        || node.type === "code"
+        || node.type === "inlineCode"
+    ) {
+        return;
+    }
+
+    const repairedChildren: MarkdownNode[] = [];
+
+    node.children.forEach((child) => {
+        if (
+            child.type !== "text"
+            || !child.value
+            || !child.value.includes("**")
+        ) {
+            repairStrongMarkdownNodes(
+                child,
+            );
+
+            repairedChildren.push(
+                child,
+            );
+
+            return;
+        }
+
+        const pattern =
+            /\*\*([^*\n]+?)\*\*/g;
+
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while (
+            (match = pattern.exec(child.value)) !== null
+            ) {
+            if (match.index > lastIndex) {
+                repairedChildren.push({
+                    type: "text",
+                    value: child.value.slice(
+                        lastIndex,
+                        match.index,
+                    ),
+                });
+            }
+
+            repairedChildren.push({
+                type: "strong",
+                children: [
+                    {
+                        type: "text",
+                        value: match[1],
+                    },
+                ],
+            });
+
+            lastIndex =
+                match.index + match[0].length;
+        }
+
+        if (lastIndex === 0) {
+            repairedChildren.push(
+                child,
+            );
+
+            return;
+        }
+
+        if (lastIndex < child.value.length) {
+            repairedChildren.push({
+                type: "text",
+                value: child.value.slice(
+                    lastIndex,
+                ),
+            });
+        }
+    });
+
+    node.children =
+        repairedChildren;
 }
 
 function getLanguageLabel(
@@ -133,28 +230,10 @@ function ChatMessageItem({
                              isGenerating,
                              executionSteps,
                              onRegenerate,
-                             onEdit,
                          }: ChatMessageItemProps) {
     const [
         isMessageCopied,
         setIsMessageCopied,
-    ] = useState(false);
-
-    const [
-        isEditing,
-        setIsEditing,
-    ] = useState(false);
-
-    const [
-        editContent,
-        setEditContent,
-    ] = useState(
-        message.content,
-    );
-
-    const [
-        isSavingEdit,
-        setIsSavingEdit,
     ] = useState(false);
 
     const isUser =
@@ -185,68 +264,10 @@ function ChatMessageItem({
                 }, 1500);
             } catch (error) {
                 console.error(
-                    "메시지 복사 중 오류가 발생했습니다.",
+                    isUser
+                        ? "사용자 질문 복사 중 오류가 발생했습니다."
+                        : "AI 답변 복사 중 오류가 발생했습니다.",
                     error,
-                );
-            }
-        };
-
-    const handleEditStart = (): void => {
-        setEditContent(
-            message.content,
-        );
-
-        setIsEditing(
-            true,
-        );
-    };
-
-    const handleEditCancel = (): void => {
-        setEditContent(
-            message.content,
-        );
-
-        setIsEditing(
-            false,
-        );
-    };
-
-    const handleEditSubmit =
-        async (): Promise<void> => {
-            const normalizedContent =
-                editContent.trim();
-
-            if (
-                !normalizedContent
-                || normalizedContent === message.content
-                || isSavingEdit
-            ) {
-                if (
-                    normalizedContent === message.content
-                ) {
-                    setIsEditing(
-                        false,
-                    );
-                }
-
-                return;
-            }
-
-            setIsSavingEdit(
-                true,
-            );
-
-            try {
-                await onEdit(
-                    normalizedContent,
-                );
-
-                setIsEditing(
-                    false,
-                );
-            } finally {
-                setIsSavingEdit(
-                    false,
                 );
             }
         };
@@ -276,210 +297,155 @@ function ChatMessageItem({
                     </div>
 
                     <div className="message-bubble">
-                        {isEditing
+                        {isLoading
                             ? (
-                                <div className="message-edit">
-                                    <textarea
-                                        className="message-edit-textarea"
-                                        value={editContent}
-                                        disabled={isSavingEdit}
-                                        autoFocus
-                                        rows={4}
-                                        onChange={(event) => {
-                                            setEditContent(
-                                                event.target.value,
-                                            );
-                                        }}
-                                        onKeyDown={(event) => {
-                                            if (
-                                                event.key === "Escape"
-                                            ) {
-                                                event.preventDefault();
-
-                                                handleEditCancel();
-                                            }
-
-                                            if (
-                                                event.key === "Enter"
-                                                && (
-                                                    event.ctrlKey
-                                                    || event.metaKey
-                                                )
-                                            ) {
-                                                event.preventDefault();
-
-                                                void handleEditSubmit();
-                                            }
-                                        }}
-                                    />
-
-                                    <div className="message-edit-actions">
-                                        <button
-                                            type="button"
-                                            className="message-edit-button secondary"
-                                            disabled={isSavingEdit}
-                                            onClick={
-                                                handleEditCancel
-                                            }
-                                        >
-                                            취소
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            className="message-edit-button primary"
-                                            disabled={
-                                                isSavingEdit
-                                                || !editContent.trim()
-                                            }
-                                            onClick={() => {
-                                                void handleEditSubmit();
-                                            }}
-                                        >
-                                            {isSavingEdit
-                                                ? "처리 중..."
-                                                : "수정 후 보내기"}
-                                        </button>
-                                    </div>
-                                </div>
-                            )
-                            : isLoading
-                                ? (
-                                    hasExecutionSteps
-                                        ? (
-                                            <div className="agent-execution-steps">
-                                                {executionSteps.map(
-                                                    (step) => (
-                                                        <div
-                                                            key={step.id}
-                                                            className={
-                                                                `agent-execution-step ${step.status}`
-                                                            }
-                                                        >
-                                                            <span className="agent-execution-step-icon">
-                                                                {step.status === "running"
-                                                                    ? (
-                                                                        <span className="agent-execution-spinner" />
-                                                                    )
-                                                                    : step.status === "completed"
-                                                                        ? "✓"
-                                                                        : "!"}
-                                                            </span>
-
-                                                            <span className="agent-execution-step-message">
-                                                                {step.message}
-                                                            </span>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-                                        )
-                                        : (
-                                            <div
-                                                className="message-loading"
-                                                aria-label="AI가 답변을 생성하고 있습니다."
-                                            >
-                                                <span />
-                                                <span />
-                                                <span />
-                                            </div>
-                                        )
-                                )
-                                : isUser
+                                hasExecutionSteps
                                     ? (
-                                        <div className="user-message-text">
-                                            {message.content}
+                                        <div className="agent-execution-steps">
+                                            {executionSteps.map(
+                                                (step) => (
+                                                    <div
+                                                        key={step.id}
+                                                        className={
+                                                            `agent-execution-step ${step.status}`
+                                                        }
+                                                    >
+                                                        <span className="agent-execution-step-icon">
+                                                            {step.status === "running"
+                                                                ? (
+                                                                    <span className="agent-execution-spinner" />
+                                                                )
+                                                                : step.status === "completed"
+                                                                    ? "✓"
+                                                                    : "!"}
+                                                        </span>
+
+                                                        <span className="agent-execution-step-message">
+                                                            {step.message}
+                                                        </span>
+                                                    </div>
+                                                ),
+                                            )}
                                         </div>
                                     )
                                     : (
-                                        <>
-                                            {message.content && (
-                                                <div className="markdown-content">
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[
-                                                            remarkGfm,
-                                                        ]}
-                                                        components={{
-                                                            code({
-                                                                     className,
-                                                                     children,
-                                                                     ...props
-                                                                 }) {
-                                                                const languageMatch =
-                                                                    /language-(\w+)/.exec(
-                                                                        className ?? "",
-                                                                    );
-
-                                                                const language =
-                                                                    languageMatch?.[1];
-
-                                                                if (!language) {
-                                                                    return (
-                                                                        <code
-                                                                            className={
-                                                                                className
-                                                                            }
-                                                                            {...props}
-                                                                        >
-                                                                            {children}
-                                                                        </code>
-                                                                    );
-                                                                }
-
-                                                                const code =
-                                                                    String(
-                                                                        children,
-                                                                    ).replace(
-                                                                        /\n$/,
-                                                                        "",
-                                                                    );
-
-                                                                return (
-                                                                    <CodeBlock
-                                                                        language={
-                                                                            language
-                                                                        }
-                                                                        code={
-                                                                            code
-                                                                        }
-                                                                    />
+                                        <div
+                                            className="message-loading"
+                                            aria-label="AI가 답변을 생성하고 있습니다."
+                                        >
+                                            <span />
+                                            <span />
+                                            <span />
+                                        </div>
+                                    )
+                            )
+                            : isUser
+                                ? (
+                                    <div className="user-message-text">
+                                        {message.content}
+                                    </div>
+                                )
+                                : (
+                                    <>
+                                        {message.content && (
+                                            <div className="markdown-content">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[
+                                                        remarkGfm,
+                                                        remarkRepairStrongMarkdown,
+                                                    ]}
+                                                    components={{
+                                                        table({
+                                                                  children,
+                                                                  ...props
+                                                              }) {
+                                                            return (
+                                                                <div className="markdown-table-scroll">
+                                                                    <table {...props}>
+                                                                        {children}
+                                                                    </table>
+                                                                </div>
+                                                            );
+                                                        },
+                                                        code({
+                                                                 className,
+                                                                 children,
+                                                                 ...props
+                                                             }) {
+                                                            const languageMatch =
+                                                                /language-(\w+)/.exec(
+                                                                    className ?? "",
                                                                 );
-                                                            },
-                                                        }}
-                                                    >
-                                                        {message.content}
-                                                    </ReactMarkdown>
-                                                </div>
-                                            )}
 
-                                            {message.sources.length > 0 && (
-                                                <SourceChips
-                                                    sources={
-                                                        message.sources
+                                                            const language =
+                                                                languageMatch?.[1];
+
+                                                            if (!language) {
+                                                                return (
+                                                                    <code
+                                                                        className={
+                                                                            className
+                                                                        }
+                                                                        {...props}
+                                                                    >
+                                                                        {children}
+                                                                    </code>
+                                                                );
+                                                            }
+
+                                                            const code =
+                                                                String(
+                                                                    children,
+                                                                ).replace(
+                                                                    /\n$/,
+                                                                    "",
+                                                                );
+
+                                                            return (
+                                                                <CodeBlock
+                                                                    language={
+                                                                        language
+                                                                    }
+                                                                    code={
+                                                                        code
+                                                                    }
+                                                                />
+                                                            );
+                                                        },
+                                                    }}
+                                                >
+                                                    {message.content}
+                                                </ReactMarkdown>
+                                            </div>
+                                        )}
+
+                                        {message.sources.length > 0 && (
+                                            <SourceChips
+                                                sources={
+                                                    message.sources
+                                                }
+                                            />
+                                        )}
+
+                                        {message.videoResult?.map(
+                                            (videoResult) => (
+                                                <VideoResultCard
+                                                    key={
+                                                        videoResult.fileId
+                                                        + ":"
+                                                        + videoResult.fileName
+                                                    }
+                                                    videoResult={
+                                                        videoResult
                                                     }
                                                 />
-                                            )}
-
-                                            {message.videoResult?.map(
-                                                (videoResult) => (
-                                                    <VideoResultCard
-                                                        key={
-                                                            videoResult.fileId
-                                                            + ":"
-                                                            + videoResult.fileName
-                                                        }
-                                                        videoResult={
-                                                            videoResult
-                                                        }
-                                                    />
-                                                ),
-                                            )}
-                                        </>
-                                    )}
+                                            ),
+                                        )}
+                                    </>
+                                )}
                     </div>
 
-                    {!isEditing
-                        && !isLoading
+                    {!isLoading
                         && (
                             <div className="message-actions">
                                 <button
@@ -488,6 +454,22 @@ function ChatMessageItem({
                                     onClick={() => {
                                         void handleMessageCopy();
                                     }}
+                                    aria-label={
+                                        isMessageCopied
+                                            ? isUser
+                                                ? "질문 복사됨"
+                                                : "답변 복사됨"
+                                            : isUser
+                                                ? "질문 복사"
+                                                : "답변 복사"
+                                    }
+                                    title={
+                                        isMessageCopied
+                                            ? "복사됨"
+                                            : isUser
+                                                ? "질문 복사"
+                                                : "답변 복사"
+                                    }
                                 >
                                     <span className="message-action-icon">
                                         ⧉
@@ -497,24 +479,6 @@ function ChatMessageItem({
                                         ? "복사됨"
                                         : "복사"}
                                 </button>
-
-                                {isUser
-                                    && !isGenerating
-                                    && (
-                                        <button
-                                            type="button"
-                                            className="message-action-button"
-                                            onClick={
-                                                handleEditStart
-                                            }
-                                        >
-                                            <span className="message-action-icon">
-                                                ✎
-                                            </span>
-
-                                            수정
-                                        </button>
-                                    )}
 
                                 {!isUser
                                     && isLastAssistant
@@ -526,6 +490,8 @@ function ChatMessageItem({
                                             onClick={
                                                 onRegenerate
                                             }
+                                            aria-label="답변 다시 생성"
+                                            title="답변 다시 생성"
                                         >
                                             <span className="message-action-icon">
                                                 ↻

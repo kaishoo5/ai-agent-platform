@@ -1,6 +1,8 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.model.ChatMessageContext;
+import com.agent.aiagent.domain.memory.entity.AgentMemory;
+import com.agent.aiagent.domain.memory.service.AgentMemoryService;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,7 @@ public class ChatMessageContextFactory {
     private static final String USER_ROLE = "user";
 
     private final ConversationSummaryService conversationSummaryService;
+    private final AgentMemoryService agentMemoryService;
 
     public List<ChatModelMessage> create(
             String roomId,
@@ -60,6 +63,11 @@ public class ChatMessageContextFactory {
                         regenerate
                 );
 
+        applyAgentMemory(
+                roomId,
+                messages
+        );
+
         if (
                 documentFileIds.isEmpty()
                         && encodedImages.isEmpty()
@@ -90,6 +98,87 @@ public class ChatMessageContextFactory {
                 messages,
                 List.of()
         );
+    }
+
+    private void applyAgentMemory(
+            String roomId,
+            List<ChatModelMessage> messages
+    ) {
+        String question =
+                findLastUserMessageContent(
+                        messages
+                );
+
+        if (question == null) {
+            return;
+        }
+
+        try {
+            List<AgentMemory> memories =
+                    agentMemoryService.findRelevantMemories(
+                            question,
+                            5
+                    );
+
+            String memoryPrompt =
+                    agentMemoryService.createMemoryPrompt(
+                            memories
+                    );
+
+            if (memoryPrompt == null) {
+                return;
+            }
+
+            int insertIndex =
+                    Math.min(
+                            1,
+                            messages.size()
+                    );
+
+            messages.add(
+                    insertIndex,
+                    new ChatModelMessage(
+                            "system",
+                            memoryPrompt,
+                            null
+                    )
+            );
+
+            log.info(
+                    "Agent Memory 컨텍스트 적용 완료. roomId={}, memoryCount={}",
+                    roomId,
+                    memories.size()
+            );
+        } catch (Exception exception) {
+            log.warn(
+                    "Agent Memory 조회에 실패했습니다. 기존 컨텍스트로 채팅을 진행합니다. roomId={}",
+                    roomId,
+                    exception
+            );
+        }
+    }
+
+    private String findLastUserMessageContent(
+            List<ChatModelMessage> messages
+    ) {
+        for (
+                int index = messages.size() - 1;
+                index >= 0;
+                index--
+        ) {
+            ChatModelMessage message =
+                    messages.get(index);
+
+            if (
+                    USER_ROLE.equalsIgnoreCase(
+                            message.getRole()
+                    )
+            ) {
+                return message.getContent();
+            }
+        }
+
+        return null;
     }
 
     private void applyAttachmentsToLastUserMessage(

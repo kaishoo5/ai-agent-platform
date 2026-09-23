@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.memory.service.AgentMemoryService;
 import com.agent.aiagent.domain.rag.model.ChatSource;
 import com.agent.aiagent.domain.video.model.VideoResult;
 import com.agent.aiagent.provider.chat.ChatModelProvider;
@@ -26,6 +27,7 @@ public class ChatStreamingExecutor {
 
     private final ChatModelProvider chatModelProvider;
     private final ChatPersistenceService chatPersistenceService;
+    private final AgentMemoryService agentMemoryService;
     private final ObjectMapper objectMapper;
 
     public SseEmitter createEmitter() {
@@ -283,6 +285,11 @@ public class ChatStreamingExecutor {
                                                         sourceResultJson
                                                 );
                                     }
+
+                                    refreshAgentMemory(
+                                            request,
+                                            assistantContent.toString()
+                                    );
                                 }
 
                                 emitter.send(
@@ -415,6 +422,11 @@ public class ChatStreamingExecutor {
                                 sourceResultJson
                         );
             }
+
+            refreshAgentMemory(
+                    request,
+                    safeContent
+            );
 
             log.debug(
                     "완료된 AI 응답 저장 완료. roomId={}, contentLength={}, videoCount={}",
@@ -780,4 +792,34 @@ public class ChatStreamingExecutor {
             disposable.dispose();
         }
     }
+    private void refreshAgentMemory(
+            ChatRequest request,
+            String assistantContent
+    ) {
+        String roomId =
+                request.getRoomId();
+
+        String userContent =
+                request.getMessages()
+                        .stream()
+                        .filter(message ->
+                                "user".equalsIgnoreCase(
+                                        message.getRole()
+                                )
+                        )
+                        .reduce((first, second) -> second)
+                        .map(message ->
+                                message.getContent()
+                        )
+                        .orElse(null);
+
+        Thread.startVirtualThread(() ->
+                agentMemoryService.refreshFromConversation(
+                        roomId,
+                        userContent,
+                        assistantContent
+                )
+        );
+    }
+
 }
