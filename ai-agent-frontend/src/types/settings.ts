@@ -13,3 +13,21 @@ export interface ModelSettingsUpdateRequest {
     visionModel: string;
     embeddingModel: string;
 }
+
+
+export interface AgentMemory {
+    id: string;
+    category: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface AgentMemoryUpdateRequest {
+    category: string;
+    content: string;
+}
+
+export interface AgentMemoryEnabledResponse {
+    enabled: boolean;
+}

@@ -9,9 +9,11 @@ import com.agent.aiagent.provider.chat.ChatModelType;
 import com.agent.aiagent.provider.embedding.EmbeddingProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,6 +32,7 @@ public class AgentMemoryService {
     private static final double MIN_MEMORY_SCORE = 0.35;
 
     private final AgentMemoryRepository agentMemoryRepository;
+    private final AgentMemorySettingsService agentMemorySettingsService;
     private final EmbeddingProvider embeddingProvider;
     private final AgentMemoryEmbeddingConverter embeddingConverter;
     private final ChatModelProvider chatModelProvider;
@@ -41,7 +44,8 @@ public class AgentMemoryService {
             int topK
     ) {
         if (
-                !StringUtils.hasText(question)
+                !agentMemorySettingsService.isEnabled()
+                        || !StringUtils.hasText(question)
                         || topK <= 0
         ) {
             return List.of();
@@ -154,7 +158,10 @@ public class AgentMemoryService {
             String userContent,
             String assistantContent
     ) {
-        if (!StringUtils.hasText(userContent)) {
+        if (
+                !agentMemorySettingsService.isEnabled()
+                        || !StringUtils.hasText(userContent)
+        ) {
             return;
         }
 
@@ -183,6 +190,79 @@ public class AgentMemoryService {
                     exception
             );
         }
+    }
+
+    public List<AgentMemory> findAllMemories() {
+        return agentMemoryRepository
+                .findAllByOrderByUpdatedAtDesc();
+    }
+
+    public AgentMemory updateMemory(
+            String memoryId,
+            String category,
+            String content
+    ) {
+        String normalizedCategory =
+                normalizeCategory(
+                        category
+                );
+
+        String normalizedContent =
+                normalizeContent(
+                        content
+                );
+
+        if (!StringUtils.hasText(normalizedContent)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "메모리 내용을 입력해주세요."
+            );
+        }
+
+        AgentMemory memory =
+                agentMemoryRepository
+                        .findById(
+                                memoryId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "메모리를 찾을 수 없습니다."
+                                )
+                        );
+
+        memory.update(
+                normalizedCategory,
+                normalizedContent,
+                embeddingConverter.serialize(
+                        createEmbedding(
+                                normalizedContent
+                        )
+                )
+        );
+
+        return agentMemoryRepository.save(
+                memory
+        );
+    }
+
+    public void deleteMemory(
+            String memoryId
+    ) {
+        if (!agentMemoryRepository.existsById(memoryId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "메모리를 찾을 수 없습니다."
+            );
+        }
+
+        agentMemoryRepository.deleteById(
+                memoryId
+        );
+    }
+
+    public void deleteAllMemories() {
+        agentMemoryRepository.deleteAll();
     }
 
     private String extractMemoryActions(

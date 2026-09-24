@@ -166,23 +166,56 @@ function ChatMessageList() {
         isNearBottom,
     ]);
 
-    const handleScroll = (): void => {
+    const updateScrollPosition = (): void => {
         const messageList =
             messageListRef.current;
 
-        if (!messageList) {
+        const messageEnd =
+            messageEndRef.current;
+
+        if (
+            !messageList
+            || !messageEnd
+        ) {
+            setIsNearBottom(true);
+
             return;
         }
 
-        const distanceFromBottom =
-            messageList.scrollHeight
-            - messageList.scrollTop
-            - messageList.clientHeight;
+        const messageListRect =
+            messageList.getBoundingClientRect();
+
+        const messageEndRect =
+            messageEnd.getBoundingClientRect();
+
+        const distanceFromViewportBottom =
+            messageEndRect.bottom
+            - messageListRect.bottom;
 
         setIsNearBottom(
-            distanceFromBottom <= 120,
+            distanceFromViewportBottom <= 120,
         );
     };
+
+    const handleScroll = (): void => {
+        updateScrollPosition();
+    };
+
+    useEffect(() => {
+        const animationFrameId =
+            window.requestAnimationFrame(
+                updateScrollPosition,
+            );
+
+        return () => {
+            window.cancelAnimationFrame(
+                animationFrameId,
+            );
+        };
+    }, [
+        activeRoomId,
+        messages,
+    ]);
 
     const handleScrollToBottom = (): void => {
         messageEndRef.current?.scrollIntoView({

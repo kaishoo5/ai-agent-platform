@@ -424,3 +424,279 @@
         gap: 8px;
     }
 }
+
+
+/* =========================================================
+   AGENT MEMORY
+   ========================================================= */
+
+.settings-memory-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.settings-memory-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.settings-memory-toggle-track {
+    position: relative;
+    width: 34px;
+    height: 19px;
+    border: 1px solid var(--theme-border);
+    border-radius: 999px;
+    background: var(--theme-bg);
+    transition:
+            border-color 0.15s ease,
+            background 0.15s ease;
+}
+
+.settings-memory-toggle-track > span {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--theme-text-muted);
+    transition:
+            left 0.15s ease,
+            background 0.15s ease;
+}
+
+.settings-memory-toggle input:checked
++ .settings-memory-toggle-track {
+    border-color: rgba(73, 160, 112, 0.42);
+    background: rgba(73, 160, 112, 0.12);
+}
+
+.settings-memory-toggle input:checked
++ .settings-memory-toggle-track > span {
+    left: 18px;
+    background: #65bf8a;
+}
+
+.settings-memory-toggle input:focus-visible
++ .settings-memory-toggle-track {
+    outline: 2px solid #596273;
+    outline-offset: 2px;
+}
+
+.settings-memory-toggle strong {
+    min-width: 24px;
+    color: var(--theme-text-secondary);
+    font-size: 10px;
+}
+
+.settings-memory-toolbar {
+    display: flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.settings-memory-toolbar > span {
+    color: var(--theme-text-muted);
+    font-size: 10px;
+}
+
+.settings-memory-delete-all,
+.settings-memory-item-actions button,
+.settings-memory-edit-actions button {
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--theme-border);
+    border-radius: 7px;
+    color: var(--theme-text-secondary);
+    background: var(--theme-bg);
+    font-size: 10px;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.settings-memory-delete-all:hover:not(:disabled),
+.settings-memory-item-actions button:hover:not(:disabled),
+.settings-memory-edit-actions button:hover:not(:disabled) {
+    border-color: #444b57;
+    color: var(--theme-text-strong);
+    background: var(--theme-surface-hover);
+}
+
+.settings-memory-delete-all.confirming,
+.settings-memory-item-actions .danger.confirming {
+    border-color: rgba(190, 76, 87, 0.48);
+    color: #e3949d;
+    background: rgba(190, 76, 87, 0.08);
+}
+
+.settings-memory-delete-all:disabled,
+.settings-memory-item-actions button:disabled,
+.settings-memory-edit-actions button:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+.settings-memory-disabled-notice {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(190, 151, 76, 0.24);
+    border-radius: 8px;
+    color: #c7aa72;
+    background: rgba(190, 151, 76, 0.06);
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.settings-memory-list {
+    overflow: hidden;
+    border: 1px solid var(--theme-border-soft);
+    border-radius: 10px;
+}
+
+.settings-memory-item {
+    display: flex;
+    min-width: 0;
+    min-height: 78px;
+    padding: 13px 14px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--theme-bg);
+}
+
+.settings-memory-item + .settings-memory-item {
+    border-top: 1px solid var(--theme-border-soft);
+}
+
+.settings-memory-item-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.settings-memory-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+}
+
+.settings-memory-item-meta > span {
+    display: inline-flex;
+    min-height: 21px;
+    padding: 3px 7px;
+    align-items: center;
+    border: 1px solid var(--theme-border);
+    border-radius: 6px;
+    color: #9ca4b0;
+    background: var(--theme-surface);
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.settings-memory-item-meta time {
+    color: var(--theme-text-muted);
+    font-size: 9px;
+}
+
+.settings-memory-item-content p {
+    margin: 0;
+    color: var(--theme-text);
+    font-size: 11px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.settings-memory-item-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 5px;
+}
+
+.settings-memory-item-actions .danger:hover:not(:disabled) {
+    border-color: rgba(190, 76, 87, 0.4);
+    color: #e3949d;
+    background: rgba(190, 76, 87, 0.07);
+}
+
+.settings-memory-empty {
+    padding: 28px 16px;
+    border: 1px solid var(--theme-border-soft);
+    border-radius: 10px;
+    color: var(--theme-text-muted);
+    background: var(--theme-bg);
+    font-size: 11px;
+    text-align: center;
+}
+
+.settings-memory-edit {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-memory-edit input,
+.settings-memory-edit textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #343a45;
+    border-radius: 7px;
+    outline: none;
+    color: #edf0f4;
+    background: #15181e;
+    font: inherit;
+}
+
+.settings-memory-edit input {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.settings-memory-edit textarea {
+    min-height: 76px;
+    max-height: 220px;
+    padding: 9px 10px;
+    resize: vertical;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.settings-memory-edit input:focus,
+.settings-memory-edit textarea:focus {
+    border-color: #566171;
+    box-shadow: 0 0 0 2px rgba(86, 97, 113, 0.14);
+}
+
+.settings-memory-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.settings-memory-edit-actions .primary {
+    border-color: #414957;
+    color: #e8eaed;
+    background: #2a303a;
+}
+
+@media (max-width: 720px) {
+    .settings-memory-item {
+        flex-direction: column;
+    }
+
+    .settings-memory-item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

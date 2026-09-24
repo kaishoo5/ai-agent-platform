@@ -4,12 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add pinned chat rooms and room actions menu">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add agent memory and improve markdown table scrolling">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatMessageContextFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ChatStreamingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/repository/AgentMemoryRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/repository/AgentMemoryRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/service/AgentMemoryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/service/AgentMemoryService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/api/settingsApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/settingsApi.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/chat.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/settings.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/settings.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/settings.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/settings.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -344,7 +348,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: implement tool calling loop with current time tool" />
     <MESSAGE value="feat: add calculator tool" />
     <MESSAGE value="feat: add websearch tool" />
     <MESSAGE value="feat: add listfile tool" />
@@ -369,7 +372,8 @@
     <MESSAGE value="feat: add configurable Ollama model settings" />
     <MESSAGE value="feat: add message edit and resend" />
     <MESSAGE value="feat: add pinned chat rooms and room actions menu" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add pinned chat rooms and room actions menu" />
+    <MESSAGE value="feat: add agent memory and improve markdown table scrolling" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add agent memory and improve markdown table scrolling" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

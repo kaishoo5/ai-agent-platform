@@ -15,6 +15,9 @@ interface ChatMessageItemProps {
     isGenerating: boolean;
     executionSteps: ExecutionStep[];
     onRegenerate: () => void;
+    onEdit: (
+        content: string,
+    ) => Promise<void>;
 }
 
 interface CodeBlockProps {
@@ -230,10 +233,28 @@ function ChatMessageItem({
                              isGenerating,
                              executionSteps,
                              onRegenerate,
+                             onEdit,
                          }: ChatMessageItemProps) {
     const [
         isMessageCopied,
         setIsMessageCopied,
+    ] = useState(false);
+
+    const [
+        isEditing,
+        setIsEditing,
+    ] = useState(false);
+
+    const [
+        editContent,
+        setEditContent,
+    ] = useState(
+        message.content,
+    );
+
+    const [
+        isEditSaving,
+        setIsEditSaving,
     ] = useState(false);
 
     const isUser =
@@ -271,6 +292,52 @@ function ChatMessageItem({
                 );
             }
         };
+
+    const handleEditStart = (): void => {
+        setEditContent(
+            message.content,
+        );
+
+        setIsEditing(true);
+    };
+
+    const handleEditCancel = (): void => {
+        setEditContent(
+            message.content,
+        );
+
+        setIsEditing(false);
+    };
+
+    const handleEditSubmit = async (): Promise<void> => {
+        const normalizedContent =
+            editContent.trim();
+
+        if (
+            !normalizedContent
+            || normalizedContent === message.content
+            || isEditSaving
+        ) {
+            return;
+        }
+
+        setIsEditSaving(true);
+
+        try {
+            await onEdit(
+                normalizedContent,
+            );
+
+            setIsEditing(false);
+        } catch (error) {
+            console.error(
+                "사용자 질문 수정 중 오류가 발생했습니다.",
+                error,
+            );
+        } finally {
+            setIsEditSaving(false);
+        }
+    };
 
     return (
         <article
@@ -340,11 +407,70 @@ function ChatMessageItem({
                                     )
                             )
                             : isUser
-                                ? (
-                                    <div className="user-message-text">
-                                        {message.content}
-                                    </div>
-                                )
+                                ? isEditing
+                                    ? (
+                                        <div className="user-message-edit">
+                                            <textarea
+                                                value={editContent}
+                                                disabled={isEditSaving}
+                                                autoFocus
+                                                onChange={(event) => {
+                                                    setEditContent(
+                                                        event.target.value,
+                                                    );
+                                                }}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Escape") {
+                                                        event.preventDefault();
+                                                        handleEditCancel();
+
+                                                        return;
+                                                    }
+
+                                                    if (
+                                                        event.key === "Enter"
+                                                        && (event.ctrlKey || event.metaKey)
+                                                    ) {
+                                                        event.preventDefault();
+
+                                                        void handleEditSubmit();
+                                                    }
+                                                }}
+                                            />
+
+                                            <div className="user-message-edit-actions">
+                                                <button
+                                                    type="button"
+                                                    disabled={isEditSaving}
+                                                    onClick={handleEditCancel}
+                                                >
+                                                    취소
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="primary"
+                                                    disabled={
+                                                        isEditSaving
+                                                        || !editContent.trim()
+                                                        || editContent.trim() === message.content
+                                                    }
+                                                    onClick={() => {
+                                                        void handleEditSubmit();
+                                                    }}
+                                                >
+                                                    {isEditSaving
+                                                        ? "수정 중..."
+                                                        : "수정 후 보내기"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                    : (
+                                        <div className="user-message-text">
+                                            {message.content}
+                                        </div>
+                                    )
                                 : (
                                     <>
                                         {message.content && (
@@ -479,6 +605,25 @@ function ChatMessageItem({
                                         ? "복사됨"
                                         : "복사"}
                                 </button>
+
+                                {isUser
+                                    && !isGenerating
+                                    && !isEditing
+                                    && (
+                                        <button
+                                            type="button"
+                                            className="message-action-button"
+                                            onClick={handleEditStart}
+                                            aria-label="질문 수정"
+                                            title="질문 수정"
+                                        >
+                                            <span className="message-action-icon">
+                                                ✎
+                                            </span>
+
+                                            수정
+                                        </button>
+                                    )}
 
                                 {!isUser
                                     && isLastAssistant
