@@ -25,12 +25,13 @@ public class TavilyClient {
 
     public TavilySearchResponse search(
             String query,
+            String searchDepth,
             int maxResults
     ) {
         TavilySearchRequest request =
                 new TavilySearchRequest(
                         query,
-                        "basic",
+                        searchDepth,
                         maxResults
                 );
 

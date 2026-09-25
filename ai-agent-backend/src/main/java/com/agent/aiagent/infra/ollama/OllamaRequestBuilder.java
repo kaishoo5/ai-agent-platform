@@ -11,7 +11,7 @@ import java.util.List;
 @UtilityClass
 public class OllamaRequestBuilder {
 
-    private static final int TEXT_CONTEXT_SIZE = 8_192;
+    private static final int TEXT_CONTEXT_SIZE = 16_384;
     private static final int VISION_CONTEXT_SIZE = 16_384;
 
     public OllamaChatRequest build(

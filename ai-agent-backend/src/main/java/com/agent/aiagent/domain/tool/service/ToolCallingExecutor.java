@@ -19,9 +19,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -127,6 +125,9 @@ public class ToolCallingExecutor {
         List<VideoResult> videoResults =
                 new ArrayList<>();
 
+        Set<String> executedToolCalls =
+                new HashSet<>();
+
         for (
                 int round = 1;
                 round <= MAX_TOOL_CALL_ROUNDS;
@@ -195,10 +196,8 @@ public class ToolCallingExecutor {
                     );
 
                     ChatModelRequest finalRequest =
-                            new ChatModelRequest(
-                                    currentRequest.modelType(),
-                                    currentRequest.messages(),
-                                    List.of()
+                            createFinalRequest(
+                                    currentRequest
                             );
 
                     if (progressReporter != null) {
@@ -271,6 +270,86 @@ public class ToolCallingExecutor {
                     new ToolExecutionContext(
                             request.getRoomId(),
                             documentFileIds
+                    );
+
+            /*
+             * 동일한 Tool + 동일한 arguments가 이미 실행된 경우
+             * 같은 Tool을 다시 실행하지 않고 Tool Calling을 종료한다.
+             *
+             * 예:
+             * web_search(
+             *     query="September 25 2026 AI news",
+             *     searchDepth="basic",
+             *     maxResults=10
+             * )
+             *
+             * 위 호출이 이미 실행된 상태에서 동일한 호출이 다시 나오면
+             * Tavily API를 다시 호출하지 않고 기존 Tool 결과를 이용해
+             * 최종 답변을 생성한다.
+             */
+            boolean duplicateToolCall =
+                    response.toolCalls()
+                            .stream()
+                            .anyMatch(toolCall -> {
+                                String toolCallKey =
+                                        createToolCallKey(
+                                                toolCall.name(),
+                                                toolCall.arguments()
+                                        );
+
+                                return executedToolCalls.contains(
+                                        toolCallKey
+                                );
+                            });
+
+            if (duplicateToolCall) {
+                log.warn(
+                        "동일 Tool Call 반복 감지. "
+                                + "Tool Calling을 종료하고 최종 답변을 생성합니다. "
+                                + "round={}, tools={}",
+                        round,
+                        response.toolCalls()
+                                .stream()
+                                .map(toolCall ->
+                                        toolCall.name()
+                                )
+                                .toList()
+                );
+
+                ChatModelRequest finalRequest =
+                        createFinalRequest(
+                                currentRequest
+                        );
+
+                if (progressReporter != null) {
+                    progressReporter.completed(
+                            "tool_execution",
+                            "중복 도구 실행 생략"
+                    );
+
+                    progressReporter.running(
+                            "answer_generation",
+                            "답변 생성 중..."
+                    );
+                }
+
+                return chatStreamingExecutor.execute(
+                        emitter,
+                        request,
+                        finalRequest,
+                        videoResults,
+                        safeSources
+                );
+            }
+
+            response.toolCalls()
+                    .forEach(toolCall ->
+                            executedToolCalls.add(
+                                    createToolCallKey(
+                                            toolCall.name(),
+                                            toolCall.arguments()
+                                    )
+                            )
                     );
 
             List<ToolResult> toolResults =
@@ -361,10 +440,8 @@ public class ToolCallingExecutor {
                 );
 
                 ChatModelRequest finalRequest =
-                        new ChatModelRequest(
-                                currentRequest.modelType(),
-                                currentRequest.messages(),
-                                List.of()
+                        createFinalRequest(
+                                currentRequest
                         );
 
                 if (progressReporter != null) {
@@ -384,10 +461,26 @@ public class ToolCallingExecutor {
             }
         }
 
+        /*
+         * 최대 Tool Calling 횟수에 도달한 경우
+         * 더 이상 Tool을 제공하지 않는다.
+         *
+         * currentRequest에는 지금까지 실행한 모든 Tool 결과가
+         * 포함되어 있으므로 tools만 제거한 뒤 최종 답변을 생성한다.
+         *
+         * tools를 그대로 넘기면 모델이 다시 Tool Call을 시도할 수 있고,
+         * 최종 답변 대신 비정상적인 응답이 생성될 수 있다.
+         */
         log.warn(
-                "Tool Calling 최대 반복 횟수에 도달했습니다. maxRounds={}",
+                "Tool Calling 최대 반복 횟수에 도달했습니다. "
+                        + "Tool을 비활성화하고 최종 답변을 생성합니다. maxRounds={}",
                 MAX_TOOL_CALL_ROUNDS
         );
+
+        ChatModelRequest finalRequest =
+                createFinalRequest(
+                        currentRequest
+                );
 
         if (progressReporter != null) {
             progressReporter.running(
@@ -399,9 +492,25 @@ public class ToolCallingExecutor {
         return chatStreamingExecutor.execute(
                 emitter,
                 request,
-                currentRequest,
+                finalRequest,
                 videoResults,
                 safeSources
+        );
+    }
+
+    /**
+     * Tool Calling을 종료하고 최종 답변만 생성하기 위한 요청을 만든다.
+     *
+     * 기존 messages에는 지금까지 실행된 Tool Call과 Tool Result가
+     * 모두 포함되어 있으므로 그대로 유지하고 tools만 제거한다.
+     */
+    private ChatModelRequest createFinalRequest(
+            ChatModelRequest currentRequest
+    ) {
+        return new ChatModelRequest(
+                currentRequest.modelType(),
+                currentRequest.messages(),
+                List.of()
         );
     }
 
@@ -577,6 +686,41 @@ public class ToolCallingExecutor {
         return value.isBlank()
                 ? null
                 : value;
+    }
+
+    private String createToolCallKey(
+            String toolName,
+            Map<String, Object> arguments
+    ) {
+        if (
+                arguments == null
+                        || arguments.isEmpty()
+        ) {
+            return toolName + ":{}";
+        }
+
+        String normalizedArguments =
+                arguments.entrySet()
+                        .stream()
+                        .sorted(
+                                Map.Entry.comparingByKey()
+                        )
+                        .map(entry ->
+                                entry.getKey()
+                                        + "="
+                                        + String.valueOf(
+                                        entry.getValue()
+                                )
+                        )
+                        .reduce(
+                                (left, right) ->
+                                        left + "&" + right
+                        )
+                        .orElse("");
+
+        return toolName
+                + ":"
+                + normalizedArguments;
     }
 
     private long getLongArgument(

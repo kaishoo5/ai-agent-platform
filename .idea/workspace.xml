@@ -4,16 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add agent memory and improve markdown table scrolling">
+    <list default="true" id="15418b5d-9225-414d-9cb3-333b7c2d89d7" name="변경" comment="feat: add agent memory management settings">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/repository/AgentMemoryRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/repository/AgentMemoryRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/service/AgentMemoryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/memory/service/AgentMemoryService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/api/settingsApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/api/settingsApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageItem.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/components/chat/ChatMessageList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/pages/Settings/SettingsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/styles/settings.css" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/styles/settings.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-agent-frontend/src/types/settings.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-frontend/src/types/settings.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/chat/service/ConversationSummaryService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/ToolCallingExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/WebSearchTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/domain/tool/service/WebSearchTool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaRequestBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/ollama/OllamaRequestBuilder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-agent-backend/src/main/java/com/agent/aiagent/infra/tavily/TavilyClient.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,7 +112,7 @@
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/AI/ai-agent-dev/ai-agent-frontend/src/styles",
+    "last_opened_file_path": "C:/AI/ai-agent-dev",
     "list.type.of.created.stylesheet": "CSS",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.jshint": "true",
@@ -132,6 +130,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\AI\ai-agent-dev" />
       <recent name="C:\AI\ai-agent-dev\ai-agent-frontend\src\styles" />
     </key>
   </component>
@@ -348,7 +347,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add calculator tool" />
     <MESSAGE value="feat: add websearch tool" />
     <MESSAGE value="feat: add listfile tool" />
     <MESSAGE value="feat: add readfile tool" />
@@ -373,7 +371,8 @@
     <MESSAGE value="feat: add message edit and resend" />
     <MESSAGE value="feat: add pinned chat rooms and room actions menu" />
     <MESSAGE value="feat: add agent memory and improve markdown table scrolling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add agent memory and improve markdown table scrolling" />
+    <MESSAGE value="feat: add agent memory management settings" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add agent memory management settings" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
