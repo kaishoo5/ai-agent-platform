@@ -112,6 +112,7 @@ public class WebSearchTool implements AgentTool {
             );
 
     private final TavilyClient tavilyClient;
+    private final WebSearchResultFilter webSearchResultFilter;
 
     @Override
     public ToolSpecification getSpecification() {
@@ -152,7 +153,10 @@ public class WebSearchTool implements AgentTool {
                     );
 
             List<TavilySearchResult> results =
-                    response.results();
+                    webSearchResultFilter.filter(
+                            query,
+                            response.results()
+                    );
 
             if (results.isEmpty()) {
                 return ToolResult.failure(
@@ -291,13 +295,27 @@ public class WebSearchTool implements AgentTool {
         StringBuilder content =
                 new StringBuilder();
 
-        content.append("웹 검색어: ")
+        content.append("WEB_SEARCH_RESULT\n");
+        content.append("QUERY: ")
                 .append(query)
                 .append("\n");
 
-        content.append("검색 깊이: ")
+        content.append("SEARCH_DEPTH: ")
                 .append(searchDepth)
+                .append("\n");
+
+        content.append("SOURCE_COUNT: ")
+                .append(results.size())
                 .append("\n\n");
+
+        content.append("""
+            아래 SOURCE들은 서로 독립된 검색 결과입니다.
+            각 SOURCE의 TITLE, URL, CONTENT는 반드시 같은 출처의 정보로 취급하세요.
+            서로 다른 SOURCE의 내용을 하나의 출처가 제공한 것처럼 합치지 마세요.
+            최종 답변에서 사실, 숫자, 날짜, 금액, 국가, 제품명 등을 사용할 때는
+            해당 SOURCE의 CONTENT에서 확인할 수 있는 정보만 사용하세요.
+
+            """);
 
         IntStream.range(
                         0,
@@ -307,11 +325,14 @@ public class WebSearchTool implements AgentTool {
                     TavilySearchResult result =
                             results.get(index);
 
-                    content.append("[검색 결과 ")
-                            .append(index + 1)
-                            .append("]\n");
+                    int sourceNumber =
+                            index + 1;
 
-                    content.append("제목: ")
+                    content.append("===== SOURCE_")
+                            .append(sourceNumber)
+                            .append(" =====\n");
+
+                    content.append("TITLE: ")
                             .append(result.title())
                             .append("\n");
 
@@ -319,13 +340,17 @@ public class WebSearchTool implements AgentTool {
                             .append(result.url())
                             .append("\n");
 
-                    content.append("내용: ")
+                    content.append("CONTENT:\n")
                             .append(result.content())
                             .append("\n");
 
-                    content.append("관련도: ")
+                    content.append("RELEVANCE_SCORE: ")
                             .append(result.score())
-                            .append("\n\n");
+                            .append("\n");
+
+                    content.append("===== END_SOURCE_")
+                            .append(sourceNumber)
+                            .append(" =====\n\n");
                 });
 
         return content.toString()
