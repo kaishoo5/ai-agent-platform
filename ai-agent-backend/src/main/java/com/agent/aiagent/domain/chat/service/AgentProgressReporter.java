@@ -60,25 +60,30 @@ public class AgentProgressReporter {
                             )
             );
         } catch (
-                AsyncRequestNotUsableException exception
+                AsyncRequestNotUsableException
+                | IllegalStateException exception
         ) {
-            terminated.set(true);
+            terminated.set(
+                    true
+            );
 
             log.info(
-                    "Agent 진행 상태 전송 전에 클라이언트 연결이 종료되었습니다. code={}",
+                    "Agent 진행 상태 전송 전에 SSE 연결이 이미 종료되었습니다. code={}",
                     step.code()
             );
-        } catch (
-                IOException exception
-        ) {
-            terminated.set(true);
+        } catch (IOException exception) {
+            terminated.set(
+                    true
+            );
 
             log.info(
                     "Agent 진행 상태 SSE 전송 중 연결이 종료되었습니다. code={}",
                     step.code()
             );
         } catch (Exception exception) {
-            terminated.set(true);
+            terminated.set(
+                    true
+            );
 
             log.error(
                     "Agent 진행 상태 SSE 전송 중 오류가 발생했습니다. code={}",
@@ -86,9 +91,13 @@ public class AgentProgressReporter {
                     exception
             );
 
-            emitter.completeWithError(
-                    exception
-            );
+            try {
+                emitter.completeWithError(
+                        exception
+                );
+            } catch (IllegalStateException ignored) {
+                // 이미 완료된 emitter
+            }
         }
     }
 }

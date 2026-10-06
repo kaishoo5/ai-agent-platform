@@ -1,6 +1,8 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.dto.ChatRequest;
+import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.memory.service.AgentMemoryService;
 import com.agent.aiagent.domain.rag.model.ChatSource;
 import com.agent.aiagent.domain.video.model.VideoResult;
@@ -28,6 +30,7 @@ public class ChatStreamingExecutor {
     private final ChatModelProvider chatModelProvider;
     private final ChatPersistenceService chatPersistenceService;
     private final AgentMemoryService agentMemoryService;
+    private final ChatFileRepository chatFileRepository;
     private final ObjectMapper objectMapper;
 
     public SseEmitter createEmitter() {
@@ -145,7 +148,8 @@ public class ChatStreamingExecutor {
                                                 )
                                 );
                             } catch (
-                                    AsyncRequestNotUsableException exception
+                                    AsyncRequestNotUsableException
+                                    | IllegalStateException exception
                             ) {
                                 if (
                                         terminated.compareAndSet(
@@ -162,7 +166,7 @@ public class ChatStreamingExecutor {
                                 }
 
                                 log.info(
-                                        "클라이언트가 SSE 연결을 종료했습니다. roomId={}",
+                                        "클라이언트 SSE 연결이 이미 종료되었습니다. roomId={}",
                                         roomId
                                 );
                             } catch (IOException exception) {
@@ -300,14 +304,15 @@ public class ChatStreamingExecutor {
 
                                 emitter.complete();
                             } catch (
-                                    AsyncRequestNotUsableException exception
+                                    AsyncRequestNotUsableException
+                                    | IllegalStateException exception
                             ) {
                                 terminated.set(
                                         true
                                 );
 
                                 log.info(
-                                        "완료 응답 전송 전에 클라이언트 연결이 종료되었습니다. roomId={}",
+                                        "완료 응답 전송 전에 SSE 연결이 이미 종료되었습니다. roomId={}",
                                         roomId
                                 );
                             } catch (IOException exception) {
@@ -500,14 +505,15 @@ public class ChatStreamingExecutor {
                     safeVideoResults.size()
             );
         } catch (
-                AsyncRequestNotUsableException exception
+                AsyncRequestNotUsableException
+                | IllegalStateException exception
         ) {
             terminated.set(
                     true
             );
 
             log.info(
-                    "완료된 AI 응답은 저장되었지만 클라이언트 연결이 이미 종료되었습니다. roomId={}",
+                    "완료된 AI 응답은 저장되었지만 SSE 연결이 이미 종료되었습니다. roomId={}",
                     roomId
             );
         } catch (IOException exception) {
@@ -542,6 +548,7 @@ public class ChatStreamingExecutor {
         if (
                 sources == null
                         || sources.isEmpty()
+                        || terminated.get()
         ) {
             return;
         }
@@ -562,14 +569,15 @@ public class ChatStreamingExecutor {
                     sources.size()
             );
         } catch (
-                AsyncRequestNotUsableException exception
+                AsyncRequestNotUsableException
+                | IllegalStateException exception
         ) {
             terminated.set(
                     true
             );
 
             log.info(
-                    "RAG 출처 전송 전에 클라이언트 연결이 종료되었습니다."
+                    "RAG 출처 전송 전에 SSE 연결이 이미 종료되었습니다."
             );
         } catch (IOException exception) {
             terminated.set(
@@ -589,9 +597,13 @@ public class ChatStreamingExecutor {
                     exception
             );
 
-            emitter.completeWithError(
-                    exception
-            );
+            try {
+                emitter.completeWithError(
+                        exception
+                );
+            } catch (IllegalStateException ignored) {
+                // 이미 완료된 emitter
+            }
         }
     }
 
@@ -792,12 +804,21 @@ public class ChatStreamingExecutor {
             disposable.dispose();
         }
     }
+
     private void refreshAgentMemory(
             ChatRequest request,
             String assistantContent
     ) {
         String roomId =
                 request.getRoomId();
+
+        if (hasZipAttachment(request)) {
+            log.info(
+                    "ZIP 프로젝트 분석 요청이므로 Agent Memory 갱신을 생략합니다. roomId={}",
+                    roomId
+            );
+            return;
+        }
 
         String userContent =
                 request.getMessages()
@@ -821,5 +842,62 @@ public class ChatStreamingExecutor {
                 )
         );
     }
+    private boolean hasZipAttachment(
+            ChatRequest request
+    ) {
+        if (request == null) {
+            return false;
+        }
 
+        List<String> fileIds =
+                request.getFileIds();
+
+        if (
+                fileIds != null
+                        && !fileIds.isEmpty()
+        ) {
+            List<ChatFile> requestFiles =
+                    chatFileRepository.findAllById(
+                            fileIds
+                    );
+
+            boolean requestHasZip =
+                    requestFiles.stream()
+                            .anyMatch(file ->
+                                    "zip".equalsIgnoreCase(
+                                            file.getExtension()
+                                    )
+                            );
+
+            if (requestHasZip) {
+                return true;
+            }
+        }
+
+        String roomId =
+                request.getRoomId();
+
+        if (
+                roomId == null
+                        || roomId.isBlank()
+        ) {
+            return false;
+        }
+
+        /*
+         * Tool Calling 단계에서는 documentFileIds가 별도로 전달되므로
+         * 최종 응답 저장 시점의 ChatRequest.fileIds가 비어 있을 수 있다.
+         * 이 경우 현재 room에 연결된 파일까지 확인해 ZIP 프로젝트 분석인지 판별한다.
+         */
+        return chatFileRepository
+                .findAllByRoomIdOrderByCreatedAtAsc(
+                        roomId
+                )
+                .stream()
+                .anyMatch(file ->
+                        "zip".equalsIgnoreCase(
+                                file.getExtension()
+                        )
+                );
+    }
 }

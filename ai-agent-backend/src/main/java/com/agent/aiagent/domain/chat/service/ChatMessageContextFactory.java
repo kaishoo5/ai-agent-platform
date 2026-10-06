@@ -1,6 +1,8 @@
 package com.agent.aiagent.domain.chat.service;
 
 import com.agent.aiagent.domain.chat.model.ChatMessageContext;
+import com.agent.aiagent.domain.file.entity.ChatFile;
+import com.agent.aiagent.domain.file.repository.ChatFileRepository;
 import com.agent.aiagent.domain.memory.entity.AgentMemory;
 import com.agent.aiagent.domain.memory.service.AgentMemoryService;
 import com.agent.aiagent.provider.chat.ChatModelMessage;
@@ -20,6 +22,7 @@ public class ChatMessageContextFactory {
 
     private final ConversationSummaryService conversationSummaryService;
     private final AgentMemoryService agentMemoryService;
+    private final ChatFileRepository chatFileRepository;
 
     public List<ChatModelMessage> create(
             String roomId,
@@ -63,10 +66,17 @@ public class ChatMessageContextFactory {
                         regenerate
                 );
 
-        applyAgentMemory(
-                roomId,
-                messages
-        );
+        if (hasZipAttachment(documentFileIds)) {
+            log.info(
+                    "ZIP 프로젝트 분석 요청이므로 Agent Memory 컨텍스트 적용을 생략합니다. roomId={}",
+                    roomId
+            );
+        } else {
+            applyAgentMemory(
+                    roomId,
+                    messages
+            );
+        }
 
         if (
                 documentFileIds.isEmpty()
@@ -254,4 +264,27 @@ public class ChatMessageContextFactory {
                 roomId
         );
     }
+    private boolean hasZipAttachment(
+            List<String> documentFileIds
+    ) {
+        if (
+                documentFileIds == null
+                        || documentFileIds.isEmpty()
+        ) {
+            return false;
+        }
+
+        List<ChatFile> files =
+                chatFileRepository.findAllById(
+                        documentFileIds
+                );
+
+        return files.stream()
+                .anyMatch(file ->
+                        "zip".equalsIgnoreCase(
+                                file.getExtension()
+                        )
+                );
+    }
+
 }

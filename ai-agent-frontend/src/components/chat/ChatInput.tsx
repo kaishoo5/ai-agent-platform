@@ -16,7 +16,7 @@ import type {ChatMessage} from "../../types/chat";
 const MAX_FILE_COUNT = 5;
 
 const MAX_FILE_SIZE =
-    10 * 1024 * 1024;
+    500 * 1024 * 1024;
 
 const MAX_VIDEO_FILE_SIZE =
     4 * 1024 * 1024 * 1024;
@@ -55,6 +55,7 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
     "gif",
     "webp",
     "mp4",
+    "zip",
 ]);
 
 function getFileExtension(
@@ -425,7 +426,7 @@ function ChatInput() {
                 errorMessage =
                     VIDEO_EXTENSIONS.has(extension)
                         ? `영상 파일 크기는 4GB를 초과할 수 없습니다: ${file.name}`
-                        : `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`;
+                        : `파일 크기는 500MB를 초과할 수 없습니다: ${file.name}`;
                 continue;
             }
 

@@ -25,12 +25,14 @@ public class ChatFileChunkService {
 
     private static final int VIDEO_EMBEDDING_BATCH_SIZE = 20;
     private static final long VIDEO_CHUNK_MAX_DURATION_MILLIS = 30_000L;
+    private static final int CODE_EMBEDDING_BATCH_SIZE = 20;
 
     private final FileChunkService fileChunkService;
     private final FileContentExtractorManager fileContentExtractorManager;
     private final EmbeddingProvider embeddingProvider;
     private final ChatFileChunkRepository chatFileChunkRepository;
     private final EmbeddingJsonConverter embeddingJsonConverter;
+    private final CodeFileChunkService codeFileChunkService;
 
     @Transactional
     public void saveChunks(
@@ -41,8 +43,17 @@ public class ChatFileChunkService {
                         chatFile
                 );
 
+        boolean codeArchive =
+                "zip".equalsIgnoreCase(
+                        chatFile.getExtension()
+                );
+
         List<String> chunks =
-                fileChunkService.split(
+                codeArchive
+                        ? codeFileChunkService.split(
+                        fileContent
+                )
+                        : fileChunkService.split(
                         fileContent
                 );
 
@@ -57,7 +68,11 @@ public class ChatFileChunkService {
         }
 
         List<List<Double>> embeddings =
-                embeddingProvider.embed(
+                codeArchive
+                        ? embedCodeChunks(
+                        chunks
+                )
+                        : embeddingProvider.embed(
                         chunks
                 );
 
@@ -120,12 +135,65 @@ public class ChatFileChunkService {
         );
 
         log.info(
-                "파일 chunk 저장 완료. roomId={}, fileId={}, fileName={}, chunkCount={}",
+                "파일 chunk 저장 완료. roomId={}, fileId={}, fileName={}, extension={}, chunkCount={}",
                 chatFile.getRoomId(),
                 chatFile.getId(),
                 chatFile.getOriginalName(),
+                chatFile.getExtension(),
                 entities.size()
         );
+    }
+
+    private List<List<Double>> embedCodeChunks(
+            List<String> chunks
+    ) {
+        List<List<Double>> embeddings =
+                new ArrayList<>();
+
+        for (
+                int startIndex = 0;
+                startIndex < chunks.size();
+                startIndex += CODE_EMBEDDING_BATCH_SIZE
+        ) {
+            int endIndex =
+                    Math.min(
+                            startIndex + CODE_EMBEDDING_BATCH_SIZE,
+                            chunks.size()
+                    );
+
+            List<String> batch =
+                    chunks.subList(
+                            startIndex,
+                            endIndex
+                    );
+
+            log.debug(
+                    "코드 chunk embedding 처리. startIndex={}, endIndex={}, totalCount={}",
+                    startIndex,
+                    endIndex,
+                    chunks.size()
+            );
+
+            List<List<Double>> batchEmbeddings =
+                    embeddingProvider.embed(
+                            batch
+                    );
+
+            if (
+                    batchEmbeddings.size()
+                            != batch.size()
+            ) {
+                throw new IllegalStateException(
+                        "코드 chunk batch 개수와 embedding 개수가 일치하지 않습니다."
+                );
+            }
+
+            embeddings.addAll(
+                    batchEmbeddings
+            );
+        }
+
+        return embeddings;
     }
 
     @Transactional

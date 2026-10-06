@@ -30,7 +30,7 @@ import java.util.UUID;
 public class ChatFileService {
 
     private static final long MAX_FILE_SIZE =
-            10L * 1024L * 1024L;
+            500L * 1024L * 1024L;
 
     private static final long MAX_VIDEO_FILE_SIZE =
             4L * 1024L * 1024L * 1024L;
@@ -55,6 +55,7 @@ public class ChatFileService {
                     "pdf",
                     "docx",
                     "xlsx",
+                    "zip",
                     "png",
                     "jpg",
                     "jpeg",
@@ -220,7 +221,7 @@ public class ChatFileService {
             }
 
             throw new IllegalArgumentException(
-                    "파일 크기는 10MB를 초과할 수 없습니다."
+                    "파일 크기는 500MB를 초과할 수 없습니다."
             );
         }
     }

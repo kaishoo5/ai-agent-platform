@@ -81,15 +81,32 @@ public class EmbeddingFileChunkSearchService {
                                         questionEmbedding
                                 )
                         )
+                        /*
+                         * 코드/설정 검색에서는 식별자, 파일명, SOURCE_PATH 같은
+                         * literal match를 embedding 유사도보다 먼저 본다.
+                         * 특정 언어/확장자에는 가중치를 주지 않는다.
+                         */
                         .sorted(
-                                Comparator.comparingDouble(
-                                        RetrievedChunk::finalScore
-                                ).reversed()
+                                Comparator
+                                        .comparingInt(
+                                                (RetrievedChunk result) ->
+                                                        calculateLiteralMatchPriority(
+                                                                question,
+                                                                result.chunk()
+                                                                        .getContent()
+                                                        )
+                                        )
+                                        .reversed()
+                                        .thenComparing(
+                                                Comparator.comparingDouble(
+                                                        RetrievedChunk::finalScore
+                                                ).reversed()
+                                        )
                         )
                         .toList();
 
         scoredChunks.forEach(result ->
-                log.info(
+                log.trace(
                         "계산 chunk. fileId={}, chunkIndex={}, embeddingScore={}, keywordScore={}, finalScore={}",
                         result.chunk().getFileId(),
                         result.chunk().getChunkIndex(),
@@ -118,7 +135,7 @@ public class EmbeddingFileChunkSearchService {
         );
 
         retrievedChunks.forEach(result ->
-                log.info(
+                log.debug(
                         "선택 chunk. fileId={}, chunkIndex={}, embeddingScore={}, keywordScore={}, finalScore={}",
                         result.chunk().getFileId(),
                         result.chunk().getChunkIndex(),
@@ -168,6 +185,224 @@ public class EmbeddingFileChunkSearchService {
                 embeddingScore,
                 keywordScore,
                 finalScore
+        );
+    }
+
+    /**
+     * literal 근거를 hybrid score보다 먼저 비교한다.
+     *
+     * 4: SOURCE_PATH 또는 파일명 직접 일치
+     * 3: 원문에 검색어 그대로 포함
+     * 2: 구두점을 제거한 검색어 포함
+     * 1: 검색 keyword가 모두 포함
+     * 0: literal 근거 없음
+     */
+    private int calculateLiteralMatchPriority(
+            String question,
+            String content
+    ) {
+        if (
+                !StringUtils.hasText(question)
+                        || !StringUtils.hasText(content)
+        ) {
+            return 0;
+        }
+
+        String normalizedQuestion =
+                normalizePathLikeText(
+                        question
+                );
+
+        String sourcePath =
+                extractSourcePath(
+                        content
+                );
+
+        if (StringUtils.hasText(sourcePath)) {
+            String normalizedSourcePath =
+                    normalizePathLikeText(
+                            sourcePath
+                    );
+
+            String sourceFileName =
+                    getFileName(
+                            normalizedSourcePath
+                    );
+
+            String queryFileName =
+                    getFileName(
+                            normalizedQuestion
+                    );
+
+            if (
+                    normalizedSourcePath.equals(
+                            normalizedQuestion
+                    )
+                            || normalizedSourcePath.endsWith(
+                            "/" + normalizedQuestion
+                    )
+                            || (
+                            StringUtils.hasText(queryFileName)
+                                    && sourceFileName.equals(
+                                    queryFileName
+                            )
+                    )
+            ) {
+                return 4;
+            }
+        }
+
+        String lowerQuestion =
+                question.trim()
+                        .toLowerCase(
+                                Locale.ROOT
+                        );
+
+        String lowerContent =
+                content.toLowerCase(
+                        Locale.ROOT
+                );
+
+        if (
+                StringUtils.hasText(lowerQuestion)
+                        && lowerContent.contains(
+                        lowerQuestion
+                )
+        ) {
+            return 3;
+        }
+
+        String compactQuestion =
+                normalizeIdentifierText(
+                        question
+                );
+
+        String compactContent =
+                normalizeIdentifierText(
+                        content
+                );
+
+        if (
+                compactQuestion.length() >= 2
+                        && compactContent.contains(
+                        compactQuestion
+                )
+        ) {
+            return 2;
+        }
+
+        Set<String> keywords =
+                extractKeywords(
+                        question
+                );
+
+        String normalizedContent =
+                normalizeText(
+                        content
+                );
+
+        if (
+                !keywords.isEmpty()
+                        && keywords.stream()
+                        .allMatch(
+                                normalizedContent::contains
+                        )
+        ) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private String extractSourcePath(
+            String content
+    ) {
+        if (!StringUtils.hasText(content)) {
+            return null;
+        }
+
+        for (
+                String line :
+                content.split(
+                        "\\R"
+                )
+        ) {
+            String trimmed =
+                    line.trim();
+
+            if (!trimmed.startsWith("SOURCE_PATH:")) {
+                continue;
+            }
+
+            String sourcePath =
+                    trimmed.substring(
+                                    "SOURCE_PATH:".length()
+                            )
+                            .trim();
+
+            return sourcePath.isBlank()
+                    ? null
+                    : sourcePath;
+        }
+
+        return null;
+    }
+
+    private String normalizePathLikeText(
+            String value
+    ) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+
+        return value.trim()
+                .replace(
+                        '\\',
+                        '/'
+                )
+                .toLowerCase(
+                        Locale.ROOT
+                );
+    }
+
+    private String normalizeIdentifierText(
+            String value
+    ) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+
+        return value.toLowerCase(
+                        Locale.ROOT
+                )
+                .replaceAll(
+                        "[^0-9a-z가-힣_$]+",
+                        ""
+                );
+    }
+
+    private String getFileName(
+            String path
+    ) {
+        if (!StringUtils.hasText(path)) {
+            return "";
+        }
+
+        String normalized =
+                path.replace(
+                        '\\',
+                        '/'
+                );
+
+        int separatorIndex =
+                normalized.lastIndexOf(
+                        '/'
+                );
+
+        return separatorIndex < 0
+                ? normalized
+                : normalized.substring(
+                separatorIndex + 1
         );
     }
 

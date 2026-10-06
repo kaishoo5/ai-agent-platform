@@ -40,7 +40,8 @@ public class ChatFileAnalysisService {
                     "properties",
                     "pdf",
                     "docx",
-                    "xlsx"
+                    "xlsx",
+                    "zip"
             );
 
     private final ChatFileRepository chatFileRepository;
