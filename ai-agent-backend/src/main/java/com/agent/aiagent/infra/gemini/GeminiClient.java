@@ -79,6 +79,30 @@ public class GeminiClient {
         return executeGenerateContent(createRequestBody(messages, tools));
     }
 
+    /** Gemini Files API에서 받은 URI를 사용하여 MP4 내용을 분석한다. */
+    public JsonNode analyzeVideo(String fileUri, String mimeType, String prompt) {
+        if (fileUri == null || !fileUri.startsWith("https://generativelanguage.googleapis.com/")) {
+            throw new IllegalArgumentException("올바른 Gemini Files URI가 아닙니다.");
+        }
+        if (!"video/mp4".equalsIgnoreCase(mimeType)) {
+            throw new IllegalArgumentException("현재는 video/mp4만 지원합니다.");
+        }
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("영상 분석 질문이 비어 있습니다.");
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("contents", List.of(Map.of(
+                "role", "user",
+                "parts", List.of(
+                        Map.of("fileData", Map.of("mimeType", mimeType, "fileUri", fileUri)),
+                        Map.of("text", prompt)
+                )
+        )));
+        body.put("generationConfig", Map.of("maxOutputTokens", 4096));
+        return executeGenerateContent(body);
+    }
+
     public Flux<JsonNode> streamGenerateContent(
             List<ChatModelMessage> messages
     ) {

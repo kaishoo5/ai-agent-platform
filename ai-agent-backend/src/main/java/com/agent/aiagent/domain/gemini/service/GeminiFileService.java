@@ -1,5 +1,6 @@
 package com.agent.aiagent.domain.gemini.service;
 
+import com.agent.aiagent.infra.gemini.GeminiClient;
 import com.agent.aiagent.infra.gemini.GeminiFileClient;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,13 +11,16 @@ import tools.jackson.databind.ObjectMapper;
 public class GeminiFileService {
 
     private final GeminiFileClient geminiFileClient;
+    private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
 
     public GeminiFileService(
             GeminiFileClient geminiFileClient,
+            GeminiClient geminiClient,
             ObjectMapper objectMapper
     ) {
         this.geminiFileClient = geminiFileClient;
+        this.geminiClient = geminiClient;
         this.objectMapper = objectMapper;
     }
 
@@ -50,6 +54,34 @@ public class GeminiFileService {
                 fileNode.path("sizeBytes").asText(""),
                 fileNode.path("state").asText("")
         );
+    }
+
+    /** 업로드가 ACTIVE인 MP4의 fileUri로 Gemini 영상 분석을 수행한다. */
+    public VideoAnalysisResponse analyze(String fileUri, String prompt) {
+        JsonNode response = geminiClient.analyzeVideo(fileUri, "video/mp4", prompt);
+        JsonNode candidates = response.path("candidates");
+        StringBuilder answer = new StringBuilder();
+        if (candidates.isArray() && !candidates.isEmpty()) {
+            JsonNode parts = candidates.get(0).path("content").path("parts");
+            if (parts.isArray()) {
+                for (JsonNode part : parts) {
+                    JsonNode text = part.path("text");
+                    if (text.isTextual()) {
+                        answer.append(text.asText());
+                    }
+                }
+            }
+        }
+        if (answer.isEmpty()) {
+            throw new IllegalStateException("Gemini 영상 분석 결과에 텍스트가 없습니다: " + response);
+        }
+        return new VideoAnalysisResponse(fileUri, answer.toString());
+    }
+
+    public record VideoAnalysisRequest(String fileUri, String prompt) {
+    }
+
+    public record VideoAnalysisResponse(String fileUri, String content) {
     }
 
     public record GeminiFileUploadResponse(

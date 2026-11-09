@@ -312,6 +312,38 @@ public class ChatFileChunkService {
         );
     }
 
+    @Transactional
+    public void saveGeminiVideoAnalysisChunks(ChatFile chatFile, String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("Gemini 영상 분석 결과가 비어 있습니다.");
+        }
+        List<String> chunks = fileChunkService.split(content);
+        if (chunks.isEmpty()) {
+            throw new IllegalStateException("Gemini 영상 분석 결과에서 청크를 생성하지 못했습니다.");
+        }
+        List<List<Double>> embeddings = embedVideoContents(chunks);
+        if (embeddings.size() != chunks.size()) {
+            throw new IllegalStateException("Gemini 영상 분석 청크와 임베딩 개수가 일치하지 않습니다.");
+        }
+        LocalDateTime createdAt = LocalDateTime.now();
+        List<ChatFileChunk> entities = new ArrayList<>();
+        for (int index = 0; index < chunks.size(); index++) {
+            entities.add(ChatFileChunk.builder()
+                    .id(UUID.randomUUID().toString())
+                    .fileId(chatFile.getId())
+                    .roomId(chatFile.getRoomId())
+                    .chunkIndex(index)
+                    .content(chunks.get(index))
+                    .embedding(embeddingJsonConverter.serialize(embeddings.get(index)))
+                    .createdAt(createdAt)
+                    .build());
+        }
+        chatFileChunkRepository.deleteAllByFileId(chatFile.getId());
+        chatFileChunkRepository.saveAll(entities);
+        log.info("Gemini 영상 분석 chunk 저장 완료. fileId={}, chunkCount={}",
+                chatFile.getId(), entities.size());
+    }
+
     private List<VideoTranscriptSegment> mergeVideoTranscriptSegments(
             List<VideoTranscriptSegment> segments
     ) {

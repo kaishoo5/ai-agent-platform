@@ -2,11 +2,10 @@ package com.agent.aiagent.domain.gemini.controller;
 
 import com.agent.aiagent.domain.gemini.service.GeminiFileService;
 import com.agent.aiagent.domain.gemini.service.GeminiFileService.GeminiFileUploadResponse;
+import com.agent.aiagent.domain.gemini.service.GeminiFileService.VideoAnalysisRequest;
+import com.agent.aiagent.domain.gemini.service.GeminiFileService.VideoAnalysisResponse;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -27,5 +26,9 @@ public class GeminiFileController {
             @RequestParam("file") MultipartFile file
     ) {
         return geminiFileService.upload(file);
+    }
+    @PostMapping("/analyze")
+    public VideoAnalysisResponse analyze(@RequestBody VideoAnalysisRequest request) {
+        return geminiFileService.analyze(request.fileUri(), request.prompt());
     }
 }

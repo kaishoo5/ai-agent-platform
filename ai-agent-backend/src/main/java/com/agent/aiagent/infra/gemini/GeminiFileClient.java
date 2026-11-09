@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +15,8 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 @Component
@@ -64,6 +67,53 @@ public class GeminiFileClient {
         log.info("Gemini 파일 업로드 완료. filename={}", filename);
 
         return result;
+    }
+
+    /** 기존 채팅 파일 저장 경로의 MP4를 Gemini에 직접 업로드한다. */
+    public String upload(Path path) {
+        if (path == null || !Files.isRegularFile(path)) {
+            throw new IllegalArgumentException("영상 파일을 찾을 수 없습니다.");
+        }
+        String filename = path.getFileName().toString();
+        if (!filename.toLowerCase(java.util.Locale.ROOT).endsWith(".mp4")) {
+            throw new IllegalArgumentException("Gemini 업로드는 현재 MP4만 지원합니다.");
+        }
+        try {
+            long size = Files.size(path);
+            if (size == 0 || size > 2L * 1024 * 1024 * 1024) {
+                throw new IllegalArgumentException("Gemini 업로드는 1바이트 이상 2GB 이하 MP4만 지원합니다.");
+            }
+            String url = startUpload(filename, size);
+            String response = webClient.post()
+                    .uri(URI.create(url))
+                    .header("X-Goog-Upload-Offset", "0")
+                    .header("X-Goog-Upload-Command", "upload, finalize")
+                    .contentType(MediaType.parseMediaType("video/mp4"))
+                    .contentLength(size)
+                    .body(BodyInserters.fromResource(new FileSystemResource(path)))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (response == null || response.isBlank()) {
+                throw new IllegalStateException("Gemini 파일 업로드 응답이 비어 있습니다.");
+            }
+            return response;
+        } catch (IOException exception) {
+            throw new IllegalStateException("영상 파일을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    /** Gemini Files API에서 파일 처리 상태를 조회한다. */
+    public String getFile(String fileName) {
+        if (fileName == null || !fileName.matches("files/[A-Za-z0-9_-]+")) {
+            throw new IllegalArgumentException("올바르지 않은 Gemini 파일 이름입니다.");
+        }
+        return webClient.get()
+                .uri(baseUrl + "/v1beta/" + fileName)
+                .header("x-goog-api-key", apiKey)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
     }
 
     private String startUpload(String filename, long fileSize) {

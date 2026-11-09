@@ -2,13 +2,19 @@ package com.agent.aiagent.domain.file.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFile;
 import com.agent.aiagent.domain.file.repository.ChatFileRepository;
+import com.agent.aiagent.domain.gemini.service.GeminiFileService;
 import com.agent.aiagent.domain.video.model.VideoFrame;
 import com.agent.aiagent.domain.video.model.VideoFrameAnalysis;
 import com.agent.aiagent.domain.video.model.VideoTranscript;
 import com.agent.aiagent.domain.video.service.*;
+import com.agent.aiagent.infra.gemini.GeminiFileClient;
+import com.agent.aiagent.provider.chat.ModelProviderType;
+import com.agent.aiagent.settings.service.ModelSettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,6 +65,10 @@ public class ChatFileAnalysisService {
     private final FileAnalysisProgressService fileAnalysisProgressService;
     private final FileAnalysisCancellationManager cancellationManager;
     private final VideoTranscriptSegmentService videoTranscriptSegmentService;
+    private final ModelSettingsService modelSettingsService;
+    private final GeminiFileClient geminiFileClient;
+    private final GeminiFileService geminiFileService;
+    private final ObjectMapper objectMapper;
 
     public void analyze(
             String fileId
@@ -214,6 +224,17 @@ public class ChatFileAnalysisService {
                 fileId
         );
 
+        String visionModel = modelSettingsService.getVisionModel();
+        boolean useGemini = "mp4".equalsIgnoreCase(chatFile.getExtension())
+                && ModelProviderType.fromModelId(visionModel) == ModelProviderType.GEMINI;
+
+        if (useGemini) {
+            analyzeVideoWithGemini(chatFile);
+            log.info("Gemini 영상 전체 분석 시간. fileId={}, elapsed={}ms",
+                    fileId, elapsedMillis(startedAt));
+            return;
+        }
+
         analyzeVideoAudio(
                 chatFile
         );
@@ -233,6 +254,59 @@ public class ChatFileAnalysisService {
                         startedAt
                 )
         );
+    }
+
+    private void analyzeVideoWithGemini(ChatFile chatFile) {
+        String fileId = chatFile.getId();
+        cancellationManager.checkCancelled(fileId);
+        fileAnalysisProgressService.running(fileId, "gemini_upload", "Gemini 영상 업로드 중...");
+
+        JsonNode uploaded = objectMapper.readTree(
+                geminiFileClient.upload(Path.of(chatFile.getStoredPath()))
+        ).path("file");
+        String fileName = uploaded.path("name").asText("");
+        String fileUri = uploaded.path("uri").asText("");
+        if (fileName.isBlank() || fileUri.isBlank()) {
+            throw new IllegalStateException("Gemini 파일 업로드 응답에 name 또는 uri가 없습니다.");
+        }
+
+        fileAnalysisProgressService.running(fileId, "gemini_processing", "Gemini 영상 처리 대기 중...");
+        boolean active = false;
+        for (int attempt = 0; attempt < 60; attempt++) {
+            cancellationManager.checkCancelled(fileId);
+            JsonNode state = objectMapper.readTree(geminiFileClient.getFile(fileName));
+            String status = state.path("state").asText("");
+            if (status.isBlank()) {
+                status = state.path("file").path("state").asText("");
+            }
+            if ("ACTIVE".equalsIgnoreCase(status)) {
+                active = true;
+                break;
+            }
+            if ("FAILED".equalsIgnoreCase(status)) {
+                throw new IllegalStateException("Gemini 영상 처리 실패: " + state);
+            }
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Gemini 영상 처리 대기가 중단되었습니다.", exception);
+            }
+        }
+        if (!active) {
+            throw new IllegalStateException("Gemini 영상 처리 대기 시간이 초과되었습니다.");
+        }
+
+        cancellationManager.checkCancelled(fileId);
+        fileAnalysisProgressService.running(fileId, "gemini_analysis", "Gemini 영상 분석 중...");
+        String prompt = "이 영상을 처음부터 끝까지 분석하고, 주요 장면과 대화 및 음성 내용을 "
+                + "시간대별 타임스탬프와 함께 한국어로 상세하게 정리해줘. "
+                + "영상에 없는 내용은 추측하지 마.";
+        String content = geminiFileService.analyze(fileUri, prompt).content();
+        cancellationManager.checkCancelled(fileId);
+        chatFileChunkService.saveGeminiVideoAnalysisChunks(chatFile, content);
+        fileAnalysisProgressService.completed(fileId, "gemini_analysis", "Gemini 영상 분석 완료");
+        log.info("Gemini 영상 분석 및 청크 저장 완료. fileId={}, contentLength={}", fileId, content.length());
     }
 
     private void analyzeVideoAudio(

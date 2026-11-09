@@ -1,4 +1,3 @@
-
 package com.agent.aiagent.domain.tool.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
@@ -29,12 +28,9 @@ public class VideoFullTextSummaryService {
                 .findAllByRoomIdAndFileIdInOrderByFileIdAscChunkIndexAsc(
                         context.roomId(), context.fileIds())
                 .stream()
-                .filter(chunk -> chunk.getStartMillis() != null
-                        && chunk.getEndMillis() != null
-                        && chunk.getContent() != null
+                .filter(chunk -> chunk.getContent() != null
                         && !chunk.getContent().isBlank())
                 .sorted(Comparator.comparing(ChatFileChunk::getFileId)
-                        .thenComparing(ChatFileChunk::getStartMillis)
                         .thenComparingInt(ChatFileChunk::getChunkIndex))
                 .toList();
 
@@ -54,13 +50,15 @@ public class VideoFullTextSummaryService {
             for (int i = from; i < to; i++) {
                 ChatFileChunk chunk = chunks.get(i);
 
-                transcript.append("[")
-                        .append(formatTime(chunk.getStartMillis()))
-                        .append(" ~ ")
-                        .append(formatTime(chunk.getEndMillis()))
-                        .append("] ")
-                        .append(chunk.getContent())
-                        .append("\n");
+                if (chunk.getStartMillis() != null && chunk.getEndMillis() != null) {
+                    transcript.append("[")
+                            .append(formatTime(chunk.getStartMillis()))
+                            .append(" ~ ")
+                            .append(formatTime(chunk.getEndMillis()))
+                            .append("] ");
+                }
+                // Gemini 분석 청크는 DB 시간 컬럼 대신 본문에 타임스탬프가 들어 있다.
+                transcript.append(chunk.getContent()).append("\n");
             }
 
             String prompt = """
@@ -78,6 +76,7 @@ public class VideoFullTextSummaryService {
                     8. 사건의 순서를 유지하되, 시간 표시는 꼭 필요한 사건에만 원문 타임스탬프 그대로 붙이세요.
                     9. 사건의 인과관계가 불확실하면 '때문에', '결국' 등 확정적인 연결 표현을 사용하지 마세요.
                     10. 자료가 부족하면 부족한 범위에서만 간결하게 요약하세요.
+                    11. 입력 본문에 이미 타임스탬프가 있다면 그대로 사용하고, 없는 시간은 만들지 마세요.
 
                     영상 구간 자료:
                     """ + transcript;
@@ -93,10 +92,11 @@ public class VideoFullTextSummaryService {
             ChatFileChunk first = chunks.get(from);
             ChatFileChunk last = chunks.get(to - 1);
 
-            partialSummaries.add(
-                    "[" + formatTime(first.getStartMillis()) + " ~ "
-                            + formatTime(last.getEndMillis()) + "]\n" + summary
-            );
+            String batchRange = first.getStartMillis() != null && last.getEndMillis() != null
+                    ? "[" + formatTime(first.getStartMillis()) + " ~ "
+                    + formatTime(last.getEndMillis()) + "]\n"
+                    : "[분석 청크 " + (from + 1) + " ~ " + to + "]\n";
+            partialSummaries.add(batchRange + summary);
 
             log.info(
                     "영상 전체 요약 구간 완료. roomId={}, batch={}/{}, chunks={}",
@@ -120,7 +120,8 @@ public class VideoFullTextSummaryService {
                 7. STT 오류로 보이는 이름·문구를 억지로 교정하거나 서로 다른 이름을 같은 인물로 단정하지 마세요.
                    이름이 불확실하면 역할이나 상황을 중심으로 표현하고, 정말 필요한 경우에만 불확실성을 짧게 밝히세요.
                 8. 의미가 불명확한 대사, 반복되는 가사, 크레딧을 줄거리의 주요 사건처럼 해석하지 마세요.
-                9. 타임스탬프는 입력 자료에 있는 HH:mm:ss 값을 그대로 사용하세요. 새 시간을 추측하거나 변환하지 마세요.
+                9. 타임스탬프는 입력 자료에 있는 값을 그대로 사용하세요(HH:mm:ss 또는 mm:ss). 새 시간을 추측하거나 변환하지 마세요.
+                   '[분석 청크 N ~ M]'은 시간 정보가 아니라 청크 순서이므로 시간으로 해석하지 마세요.
                 10. 마지막에는 '전체 줄거리 요약'이라는 제목으로 핵심 흐름을 3~5문장으로 정리하세요.
                 11. 구간별 요약 자체가 부정확하거나 사건 연결이 불명확한 경우, 추측으로 메우지 말고 확인되는 내용만 서술하세요.
 
