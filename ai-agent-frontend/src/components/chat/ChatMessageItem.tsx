@@ -8,6 +8,7 @@ import type {ChatMessage} from "../../types/chat";
 import type {ExecutionStep} from "../../store/chatStore";
 import SourceChips from "./SourceChips";
 import VideoResultCard from "./VideoResultCard";
+import GeneratedFileCard from "./GeneratedFileCard.tsx";
 
 interface ChatMessageItemProps {
     message: ChatMessage;
@@ -542,6 +543,19 @@ function ChatMessageItem({
                                                 >
                                                     {message.content}
                                                 </ReactMarkdown>
+                                            </div>
+                                        )}
+
+                                        {message.generatedFiles.length > 0 && (
+                                            <div className="generated-file-list">
+                                                {message.generatedFiles.map(
+                                                    (file) => (
+                                                        <GeneratedFileCard
+                                                            key={file.id}
+                                                            file={file}
+                                                        />
+                                                    ),
+                                                )}
                                             </div>
                                         )}
 

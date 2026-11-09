@@ -21,8 +21,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ChatFileAnalysisService {
 
-    private static final String VIDEO_EXTENSION =
-            "mp4";
+    private static final Set<String> VIDEO_EXTENSIONS =
+            Set.of(
+                    "mp4",
+                    "mkv"
+            );
 
     private static final Set<String> EXTRACTABLE_DOCUMENT_EXTENSIONS =
             Set.of(
@@ -608,7 +611,7 @@ public class ChatFileAnalysisService {
     private boolean isVideo(
             String extension
     ) {
-        return VIDEO_EXTENSION.equals(
+        return VIDEO_EXTENSIONS.contains(
                 extension
         );
     }

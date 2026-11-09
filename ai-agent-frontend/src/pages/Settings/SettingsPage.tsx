@@ -474,6 +474,30 @@ function SettingsPage() {
     const installedModels =
         settings?.installedModels ?? [];
 
+    const geminiModels =
+        settings?.geminiModels ?? [];
+
+    const renderModelOptions = (includeGemini: boolean) => (
+        <>
+            <optgroup label="Ollama">
+                {installedModels.map((model) => (
+                    <option key={model} value={model}>
+                        {model}
+                    </option>
+                ))}
+            </optgroup>
+            {includeGemini && geminiModels.length > 0 && (
+                <optgroup label="Gemini">
+                    {geminiModels.map((model) => (
+                        <option key={model} value={model}>
+                            {model.replace(/^gemini:/, "")}
+                        </option>
+                    ))}
+                </optgroup>
+            )}
+        </>
+    );
+
     return (
         <section className="settings-page">
             <header className="settings-header">
@@ -597,7 +621,7 @@ function SettingsPage() {
                                 </h3>
 
                                 <p>
-                                    이후 요청부터 사용할 Ollama 모델을 선택합니다.
+                                    이후 요청부터 사용할 Ollama 또는 Gemini 모델을 선택합니다.
                                 </p>
                             </div>
 
@@ -607,7 +631,6 @@ function SettingsPage() {
                                 disabled={
                                     !hasChanges
                                     || isSaving
-                                    || settings.ollamaStatus !== "UP"
                                 }
                                 onClick={() => {
                                     void handleSave();
@@ -629,7 +652,6 @@ function SettingsPage() {
                                     value={textModel}
                                     disabled={
                                         isSaving
-                                        || settings.ollamaStatus !== "UP"
                                     }
                                     onChange={(event) => {
                                         setTextModel(
@@ -638,14 +660,7 @@ function SettingsPage() {
                                         setSavedMessage(null);
                                     }}
                                 >
-                                    {installedModels.map((model) => (
-                                        <option
-                                            key={model}
-                                            value={model}
-                                        >
-                                            {model}
-                                        </option>
-                                    ))}
+                                    {renderModelOptions(true)}
                                 </select>
                             </label>
 
@@ -658,7 +673,6 @@ function SettingsPage() {
                                     value={visionModel}
                                     disabled={
                                         isSaving
-                                        || settings.ollamaStatus !== "UP"
                                     }
                                     onChange={(event) => {
                                         setVisionModel(
@@ -667,14 +681,7 @@ function SettingsPage() {
                                         setSavedMessage(null);
                                     }}
                                 >
-                                    {installedModels.map((model) => (
-                                        <option
-                                            key={model}
-                                            value={model}
-                                        >
-                                            {model}
-                                        </option>
-                                    ))}
+                                    {renderModelOptions(true)}
                                 </select>
                             </label>
 

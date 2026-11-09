@@ -22,9 +22,10 @@ public class VideoSummaryGenerateTool implements AgentTool {
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
                     "video_summary_generate",
-                    "첨부된 영상의 자막과 화면 분석 결과를 바탕으로 "
-                            + "중요한 장면을 선정하고 실제 MP4 요약 영상을 생성합니다. "
-                            + "사용자가 영상 요약본, 하이라이트 영상, 짧은 편집본 생성을 요청할 때 사용합니다.",
+                    "첨부된 영상에서 중요한 장면을 선정하여 실제 MP4 요약 영상 파일을 생성합니다. "
+                            + "사용자가 요약 영상 파일 제작, 하이라이트 영상 편집 등 "
+                            + "새로운 동영상 파일 생성을 명시적으로 요청한 경우에만 사용합니다. "
+                            + "영상 내용을 글로 요약하거나 설명해 달라는 요청에는 절대 사용하지 않습니다.",
                     Map.of(
                             "fileId",
                             new ToolParameter(

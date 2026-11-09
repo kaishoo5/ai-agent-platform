@@ -70,7 +70,9 @@ public class WhisperTranscriber {
                         "-f",
                         normalizedAudioPath.toString(),
                         "-l",
-                        "auto",
+                        "ko",
+                        "-mc",
+                        "0",
                         "-oj",
                         "-of",
                         outputBasePath.toString()
@@ -174,9 +176,9 @@ public class WhisperTranscriber {
                 );
             }
 
-            deleteIfExists(
-                    jsonPath
-            );
+//            deleteIfExists(
+//                    jsonPath
+//            );
         }
     }
 

@@ -107,6 +107,10 @@ function ChatMessageList() {
         (state) => state.clearMessageExecutionSteps,
     );
 
+    const refreshMessages = useChatStore(
+        (state) => state.refreshMessages,
+    );
+
     const activeRoom = rooms.find(
         (room) => room.id === activeRoomId,
     );
@@ -390,6 +394,10 @@ function ChatMessageList() {
                 true,
             );
 
+            await refreshMessages(
+                activeRoomId,
+            );
+
             await refreshRooms();
 
             await setActiveRoom(
@@ -499,6 +507,7 @@ function ChatMessageList() {
                 content: "",
                 videoResult: [],
                 sources: [],
+                generatedFiles: [],
                 createdAt: new Date().toISOString(),
             };
 

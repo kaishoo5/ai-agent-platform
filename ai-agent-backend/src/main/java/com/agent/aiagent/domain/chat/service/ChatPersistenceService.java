@@ -5,6 +5,7 @@ import com.agent.aiagent.domain.chat.entity.ChatMessage;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
+import com.agent.aiagent.domain.file.service.GeneratedFileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ public class ChatPersistenceService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final TransactionTemplate transactionTemplate;
+    private final GeneratedFileService generatedFileService;
 
     public void saveUserMessage(
             String roomId,
@@ -132,6 +134,11 @@ public class ChatPersistenceService {
                     chatMessage
             );
 
+            generatedFileService.attachPendingFilesToMessage(
+                    roomId,
+                    chatMessage.getId()
+            );
+
             chatRoom.touch();
         });
     }
@@ -209,6 +216,11 @@ public class ChatPersistenceService {
 
             chatMessageRepository.save(
                     newAssistantMessage
+            );
+
+            generatedFileService.attachPendingFilesToMessage(
+                    roomId,
+                    newAssistantMessage.getId()
             );
 
             chatRoom.touch();

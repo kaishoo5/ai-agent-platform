@@ -9,6 +9,7 @@ import com.agent.aiagent.domain.tool.model.ToolResult;
 import com.agent.aiagent.domain.video.model.VideoResult;
 import com.agent.aiagent.domain.video.service.VideoSummaryFileService;
 import com.agent.aiagent.provider.chat.*;
+import com.agent.aiagent.settings.service.ModelSettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,9 @@ public class ToolCallingExecutor {
     private static final String VIDEO_SUMMARY_GENERATE_TOOL_NAME =
             "video_summary_generate";
 
+    private static final String DRAMA_SUMMARY_GENERATE_TOOL_NAME =
+            "drama_summary_generate";
+
     private static final String VIDEO_SHORTS_GENERATE_TOOL_NAME =
             "video_shorts_generate";
 
@@ -46,6 +50,9 @@ public class ToolCallingExecutor {
     private static final String ATTACHMENT_READ_SOURCE_TOOL_NAME =
             "attachment_read_source";
 
+    private static final String CREATE_EXCEL_TOOL_NAME =
+            "create_excel";
+
     private static final long DEFAULT_VIDEO_SUMMARY_DURATION_SECONDS =
             180L;
 
@@ -57,6 +64,7 @@ public class ToolCallingExecutor {
     private final ChatModelRequestBuilder chatModelRequestBuilder;
     private final ChatStreamingExecutor chatStreamingExecutor;
     private final VideoSummaryFileService videoSummaryFileService;
+    private final ModelSettingsService modelSettingsService;
 
     public SseEmitter execute(
             ChatRequest request,
@@ -212,8 +220,45 @@ public class ToolCallingExecutor {
             }
 
             if (!response.hasToolCalls()) {
+                // 명확한 드라마 영상 생성 요청에서 모델이 도구 호출을 생략한 경우,
+                // 사용자가 첨부한 실제 fileId로 도구를 직접 실행한다.
+                if (round == 1
+                        && originalTools.size() == 1
+                        && DRAMA_SUMMARY_GENERATE_TOOL_NAME.equals(originalTools.getFirst().name())
+                        && documentFileIds != null
+                        && !documentFileIds.isEmpty()) {
+                    return executeDirectDramaGeneration(
+                            emitter, request, documentFileIds, progressReporter, safeSources
+                    );
+                }
+
                 String content =
                         response.content();
+
+                // 영상 생성이 이미 완료되었다면 ZIP 소스 grounding 검증보다
+                // 실제 생성된 영상 결과를 우선한다.
+                if (!videoResults.isEmpty()) {
+                    log.info(
+                            "영상 생성 완료 결과를 반환합니다. round={}, videoCount={}",
+                            round,
+                            videoResults.size()
+                    );
+
+                    if (progressReporter != null) {
+                        progressReporter.completed(
+                                "answer_generation",
+                                "답변 생성 완료"
+                        );
+                    }
+
+                    return chatStreamingExecutor.executeCompletedResponse(
+                            emitter,
+                            request,
+                            createVideoCompletionMessage(videoResults),
+                            videoResults,
+                            safeSources
+                    );
+                }
 
                 /*
                  * 실제 attachment_read_source grounding을 하나라도 확보한 뒤
@@ -370,6 +415,27 @@ public class ToolCallingExecutor {
                         round,
                         videoResults.size()
                 );
+
+                if (isGeminiSelected(currentRequest)) {
+                    log.info(
+                            "Gemini 일반 최종 답변을 SSE 스트리밍으로 재생성합니다. round={}",
+                            round
+                    );
+
+                    ChatModelRequest streamingRequest =
+                            createFinalRequest(
+                                    currentRequest,
+                                    attachmentSourceGroundings
+                            );
+
+                    return chatStreamingExecutor.execute(
+                            emitter,
+                            request,
+                            streamingRequest,
+                            videoResults,
+                            safeSources
+                    );
+                }
 
                 return chatStreamingExecutor
                         .executeCompletedResponse(
@@ -590,6 +656,54 @@ public class ToolCallingExecutor {
                 );
             }
 
+            /*
+             * 영상 전체 텍스트 요약은 VideoFullTextSummaryService에서
+             * 구간별 요약과 최종 통합까지 이미 완료된 결과다.
+             * 이 경우에만 결과를 그대로 전달해 불필요한 LLM 재호출을 방지한다.
+             * 일반 attachment_search, 실패한 요약, 복수 Tool Call에는 적용하지 않는다.
+             */
+            if (
+                    response.toolCalls().size() == 1
+                            && toolResults.size() == 1
+                            && ATTACHMENT_SEARCH_TOOL_NAME.equals(
+                            response.toolCalls().getFirst().name()
+                    )
+            ) {
+                ToolResult completedSummary = toolResults.getFirst();
+                if (
+                        completedSummary != null
+                                && completedSummary.success()
+                                && completedSummary.metadata() != null
+                                && Boolean.TRUE.equals(
+                                completedSummary.metadata().get("fullVideoSummary")
+                        )
+                                && completedSummary.content() != null
+                                && !completedSummary.content().isBlank()
+                ) {
+                    log.info(
+                            "영상 전체 텍스트 요약 완료 결과를 재생성 없이 반환합니다. "
+                                    + "round={}, contentLength={}",
+                            round,
+                            completedSummary.content().length()
+                    );
+
+                    if (progressReporter != null) {
+                        progressReporter.completed(
+                                "answer_generation",
+                                "답변 생성 완료"
+                        );
+                    }
+
+                    return chatStreamingExecutor.executeCompletedResponse(
+                            emitter,
+                            request,
+                            completedSummary.content(),
+                            videoResults,
+                            safeSources
+                    );
+                }
+            }
+
             for (
                     int index = 0;
                     index < response.toolCalls().size();
@@ -629,6 +743,21 @@ public class ToolCallingExecutor {
                 }
 
                 if (
+                        DRAMA_SUMMARY_GENERATE_TOOL_NAME.equals(
+                                toolCall.name()
+                        )
+                ) {
+                    VideoResult videoResult =
+                            createDramaSummaryResult(
+                                    toolResult
+                            );
+                    if (videoResult != null) {
+                        videoResults.add(videoResult);
+                    }
+                    continue;
+                }
+
+                if (
                         VIDEO_SHORTS_GENERATE_TOOL_NAME.equals(
                                 toolCall.name()
                         )
@@ -640,6 +769,41 @@ public class ToolCallingExecutor {
                             )
                     );
                 }
+            }
+
+            /*
+             * 영상 생성 도구가 실제 성공하고 VideoResult가 생성됐다면
+             * 불필요한 다음 LLM round / ZIP SOURCE grounding 검증을 건너뛴다.
+             * 실패한 도구나 VideoResult를 만들지 못한 경우는 기존 흐름을 유지한다.
+             */
+            boolean successfulVideoGeneration = false;
+            for (int index = 0; index < response.toolCalls().size(); index++) {
+                ChatModelToolCall toolCall = response.toolCalls().get(index);
+                ToolResult toolResult = toolResults.get(index);
+                if (toolResult.success() && isVideoGenerationTool(toolCall.name())) {
+                    successfulVideoGeneration = true;
+                    break;
+                }
+            }
+
+            if (successfulVideoGeneration && !videoResults.isEmpty()) {
+                log.info(
+                        "영상 생성 Tool 성공. 추가 Tool Calling 없이 종료합니다. round={}, videoCount={}",
+                        round,
+                        videoResults.size()
+                );
+
+                if (progressReporter != null) {
+                    progressReporter.completed("answer_generation", "답변 생성 완료");
+                }
+
+                return chatStreamingExecutor.executeCompletedResponse(
+                        emitter,
+                        request,
+                        createVideoCompletionMessage(videoResults),
+                        videoResults,
+                        safeSources
+                );
             }
 
             /*
@@ -1182,6 +1346,18 @@ public class ToolCallingExecutor {
             List<VideoResult> videoResults,
             List<ChatSource> safeSources
     ) {
+        if (isGeminiSelected(finalRequest)) {
+            log.info("Gemini Tool Calling 최종 답변 SSE 스트리밍 시작.");
+
+            return chatStreamingExecutor.execute(
+                    emitter,
+                    request,
+                    finalRequest,
+                    videoResults,
+                    safeSources
+            );
+        }
+
         final int maxAttempts = 3;
 
         ChatModelRequest attemptRequest =
@@ -1300,6 +1476,24 @@ public class ToolCallingExecutor {
         );
     }
 
+    /**
+     * 현재 설정된 모델이 Gemini인 경우에만 새 스트리밍 경로를 사용한다.
+     * Ollama의 기존 최종 응답/재시도 흐름은 변경하지 않는다.
+     */
+    private boolean isGeminiSelected(ChatModelRequest modelRequest) {
+        if (modelRequest == null || modelRequest.modelType() == null) {
+            return false;
+        }
+
+        String selectedModel = switch (modelRequest.modelType()) {
+            case TEXT -> modelSettingsService.getTextModel();
+            case VISION -> modelSettingsService.getVisionModel();
+        };
+
+        return selectedModel != null
+                && selectedModel.startsWith("gemini:");
+    }
+
     private ChatModelRequest createFinalRetryRequest(
             ChatModelRequest finalRequest,
             String previousContent
@@ -1359,12 +1553,7 @@ public class ToolCallingExecutor {
         );
     }
 
-    /**
-     * Tool 실행 뒤 모델이 실제 답변을 만들지 못하고
-     * 제목/Markdown 시작 부분만 반환한 경우를 최종 답변으로 확정하지 않는다.
-     *
-     * 특정 언어, 프레임워크, 파일 확장자에는 의존하지 않는다.
-     */
+
     private boolean isIncompleteFinalContent(
             String content,
             Set<String> executedToolCalls
@@ -1373,33 +1562,45 @@ public class ToolCallingExecutor {
             return true;
         }
 
-        if (
-                executedToolCalls == null
-                        || executedToolCalls.isEmpty()
-        ) {
-            return false;
-        }
-
         String normalized =
                 content
                         .replace("\r\n", "\n")
                         .trim();
 
-        // Tool을 실제로 사용한 뒤 수십 자만 생성하고 끝난 응답은
-        // 정상적인 근거 기반 최종 답변으로 보기 어렵다.
-        if (normalized.length() < 80) {
+        /*
+         * 답변 길이만으로 완결성을 판단하지 않는다.
+         *
+         * calculator, current_time, create_excel 등은
+         * 짧은 답변도 정상적인 최종 결과일 수 있다.
+         *
+         * 반대로 긴 답변이라고 반드시 완결된 것도 아니다.
+         */
+
+        // 닫히지 않은 Markdown 코드 블록 검사
+        int codeFenceCount = 0;
+
+        for (String line : normalized.split("\n")) {
+            if (line.trim().startsWith("```")) {
+                codeFenceCount++;
+            }
+        }
+
+        if (codeFenceCount % 2 != 0) {
             return true;
         }
 
-        // Markdown 표를 시작만 하고 끊긴 대표적인 형태를 잡는다.
+        // Markdown 표 작성 도중 중단된 흔적 검사
         String[] lines =
                 normalized.split("\n");
 
         String lastLine =
                 lines[lines.length - 1].trim();
 
-        return "|".equals(lastLine)
-                || "```".equals(lastLine);
+        if ("|".equals(lastLine)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1408,6 +1609,108 @@ public class ToolCallingExecutor {
      *
      * 특정 언어, 프레임워크, frontend/backend, 확장자에는 의존하지 않는다.
      */
+
+    /**
+     * LLM이 명시적인 드라마 생성 요청에 대해 toolCalls=null을 반환한 경우의 실행 경로.
+     * 도구의 실제 실행 결과로만 성공 여부를 판단한다.
+     */
+    private SseEmitter executeDirectDramaGeneration(
+            SseEmitter emitter,
+            ChatRequest request,
+            List<String> documentFileIds,
+            AgentProgressReporter progressReporter,
+            List<ChatSource> safeSources
+    ) {
+        String question = request.getMessages().stream()
+                .filter(message -> message != null && "user".equalsIgnoreCase(message.getRole()))
+                .reduce((first, second) -> second)
+                .map(message -> message.getContent())
+                .orElse("");
+
+        String normalized = question == null ? "" : question.toUpperCase(Locale.ROOT);
+        String mode = normalized.contains("NARRATION") || normalized.contains("나레이션")
+                || normalized.contains("내레이션") ? "NARRATION" : "STORY";
+        if (normalized.contains("STORY") || normalized.contains("스토리 모드")) {
+            mode = "STORY";
+        }
+
+        long durationSeconds = 1200L;
+        java.util.regex.Matcher minutes = java.util.regex.Pattern
+                .compile("(\\d+)\\s*분")
+                .matcher(question == null ? "" : question);
+        java.util.regex.Matcher seconds = java.util.regex.Pattern
+                .compile("(\\d+)\\s*초")
+                .matcher(question == null ? "" : question);
+        if (minutes.find()) {
+            durationSeconds = Long.parseLong(minutes.group(1)) * 60L;
+        } else if (seconds.find()) {
+            durationSeconds = Long.parseLong(seconds.group(1));
+        }
+        if (durationSeconds < 30L || durationSeconds > 7200L) {
+            return chatStreamingExecutor.executeCompletedResponse(
+                    emitter, request, "영상 길이는 30초부터 120분까지 지정할 수 있습니다.",
+                    List.of(), safeSources
+            );
+        }
+
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("episodeFileIds", List.copyOf(documentFileIds));
+        arguments.put("mode", mode);
+        arguments.put("durationSeconds", durationSeconds);
+
+        log.info("LLM 도구 호출 생략 감지. 드라마 생성 직접 실행. episodes={}, mode={}, durationSeconds={}",
+                documentFileIds.size(), mode, durationSeconds);
+        if (progressReporter != null) {
+            progressReporter.running("tool_execution", "드라마 요약 영상 생성 중...");
+        }
+
+        List<ToolResult> results = toolCallProcessor.execute(
+                List.of(new ChatModelToolCall(DRAMA_SUMMARY_GENERATE_TOOL_NAME, arguments)),
+                new ToolExecutionContext(request.getRoomId(), documentFileIds)
+        );
+        ToolResult result = results == null || results.isEmpty() ? null : results.getFirst();
+        VideoResult video = result != null && result.success()
+                ? createDramaSummaryResult(result) : null;
+
+        if (progressReporter != null) {
+            progressReporter.completed("tool_execution",
+                    video != null ? "드라마 요약 영상 생성 완료" : "드라마 요약 영상 생성 실패");
+        }
+        if (video == null) {
+            String failure = result == null ? "도구 실행 결과가 없습니다."
+                    : result.success() ? "영상 결과 메타데이터를 확인할 수 없습니다."
+                    : String.valueOf(result.content());
+            log.warn("드라마 생성 직접 실행 실패. reason={}", failure);
+            return chatStreamingExecutor.executeCompletedResponse(
+                    emitter, request, "드라마 요약 영상 생성에 실패했습니다. " + failure,
+                    List.of(), safeSources
+            );
+        }
+        return chatStreamingExecutor.executeCompletedResponse(
+                emitter, request, createVideoCompletionMessage(List.of(video)),
+                List.of(video), safeSources
+        );
+    }
+
+    private boolean isVideoGenerationTool(String toolName) {
+        return VIDEO_SUMMARY_GENERATE_TOOL_NAME.equals(toolName)
+                || DRAMA_SUMMARY_GENERATE_TOOL_NAME.equals(toolName)
+                || VIDEO_SHORTS_GENERATE_TOOL_NAME.equals(toolName);
+    }
+
+    private String createVideoCompletionMessage(List<VideoResult> videoResults) {
+        if (videoResults == null || videoResults.isEmpty()) {
+            return "영상 생성 결과를 확인하지 못했습니다.";
+        }
+
+        if (videoResults.size() == 1) {
+            return "영상 생성이 완료되었습니다. 생성된 영상을 확인해 주세요.";
+        }
+
+        return "영상 " + videoResults.size()
+                + "개 생성이 완료되었습니다. 생성된 영상들을 확인해 주세요.";
+    }
+
     private boolean shouldContinueAttachmentSourceGrounding(
             Set<String> executedToolCalls,
             List<String> attachmentSourceGroundings
@@ -1431,16 +1734,11 @@ public class ToolCallingExecutor {
                         ATTACHMENT_CODEBASE_OVERVIEW_TOOL_NAME
                 );
 
-        boolean attachmentSearchExecuted =
-                wasToolCallExecuted(
-                        executedToolCalls,
-                        ATTACHMENT_SEARCH_TOOL_NAME
-                );
-
+        // attachment_search는 영상 자막과 일반 문서에도 사용된다.
+        // 검색 실행만으로 ZIP 프로젝트 분석이 시작됐다고 판단하지 않는다.
         boolean attachmentProjectAnalysisStarted =
                 projectStructureExecuted
-                        || codebaseOverviewExecuted
-                        || attachmentSearchExecuted;
+                        || codebaseOverviewExecuted;
 
         if (!attachmentProjectAnalysisStarted) {
             return false;
@@ -2435,6 +2733,70 @@ public class ToolCallingExecutor {
                         messages
                 ),
                 currentRequest.tools()
+        );
+    }
+
+
+    private VideoResult createDramaSummaryResult(ToolResult toolResult) {
+        if (toolResult == null || !toolResult.success() || toolResult.metadata() == null) {
+            return null;
+        }
+
+        Map<String, Object> metadata = toolResult.metadata();
+
+        Object source = metadata.get("sourceFileId");
+        Object generated = metadata.get("generatedFile");
+
+        if (source == null || generated == null) {
+            log.warn("드라마 요약 결과 metadata 누락: {}", metadata);
+            return null;
+        }
+
+        String fileId = source.toString();
+        String fileName = generated.toString();
+
+        if (fileId.isBlank() || fileName.isBlank()) {
+            return null;
+        }
+
+        String encoded = UriUtils.encodePathSegment(
+                fileName,
+                StandardCharsets.UTF_8
+        );
+
+        String streamUrl = "/api/videos/drama/" + fileId + "/" + encoded;
+
+        long durationSeconds = 0L;
+
+        Object duration = metadata.get("plannedDurationMillis");
+
+        if (duration instanceof Number number) {
+            durationSeconds = number.longValue() / 1000L;
+        }
+
+        String mode = String.valueOf(
+                metadata.getOrDefault("mode", "STORY")
+        ).trim().toUpperCase();
+
+        String videoType = "NARRATION".equals(mode)
+                ? "DRAMA_NARRATION"
+                : "DRAMA_STORY";
+
+        log.info(
+                "드라마 요약 영상 결과 생성 완료. fileId={}, fileName={}, mode={}, videoType={}",
+                fileId,
+                fileName,
+                mode,
+                videoType
+        );
+
+        return new VideoResult(
+                fileId,
+                fileName,
+                durationSeconds,
+                streamUrl,
+                streamUrl + "?download=true",
+                videoType
         );
     }
 

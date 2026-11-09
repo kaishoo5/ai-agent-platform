@@ -65,6 +65,13 @@ public class ChatOrchestrator {
         SseEmitter emitter =
                 chatStreamingExecutor.createEmitter();
 
+        SseHeartbeat heartbeat =
+                SseHeartbeat.start(emitter, request.getRoomId());
+
+        emitter.onCompletion(heartbeat::stop);
+        emitter.onTimeout(heartbeat::stop);
+        emitter.onError(error -> heartbeat.stop());
+
         chatExecutor.execute(() ->
                 execute(
                         emitter,

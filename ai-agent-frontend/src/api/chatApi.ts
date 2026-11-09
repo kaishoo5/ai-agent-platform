@@ -9,6 +9,7 @@ import type {
     ChatRoomResponse,
     ChatRoomTitleUpdateRequest,
     ChatSource,
+    GeneratedFile,
     VideoSummaryResult
 } from "../types/chat";
 
@@ -19,6 +20,7 @@ interface ChatMessageResponse {
     content: string;
     videoResult: string | null;
     sourceResult: string | null;
+    generatedFiles: GeneratedFile[];
     createdAt: string;
 }
 
@@ -167,6 +169,7 @@ export async function getChatRoomMessages(
         sources: parseSources(
             message.sourceResult,
         ),
+        generatedFiles: message.generatedFiles ?? [],
         createdAt: message.createdAt,
     }));
 }
@@ -197,6 +200,7 @@ export async function editChatMessage(
         sources: parseSources(
             message.sourceResult,
         ),
+        generatedFiles: message.generatedFiles ?? [],
         createdAt: message.createdAt,
     }));
 }

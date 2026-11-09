@@ -6,6 +6,7 @@ export interface RuntimeSettings {
     visionModel: string;
     embeddingModel: string;
     installedModels: string[];
+    geminiModels: string[];
 }
 
 export interface ModelSettingsUpdateRequest {

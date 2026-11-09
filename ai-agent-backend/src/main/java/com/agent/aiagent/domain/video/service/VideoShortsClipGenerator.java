@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.video.service;
 
 import com.agent.aiagent.domain.video.model.VideoHighlightSegment;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +16,10 @@ import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class VideoShortsClipGenerator {
+
+    private final VideoShortsTitleRenderer videoShortsTitleRenderer;
 
     public Path generate(
             Path videoPath,
@@ -23,138 +27,102 @@ public class VideoShortsClipGenerator {
             Path subtitlePath,
             String originalFileName
     ) {
-        validate(
+        return generate(
                 videoPath,
-                segment
-        );
-
-        Path normalizedVideoPath =
-                videoPath
-                        .toAbsolutePath()
-                        .normalize();
-
-        Path normalizedSubtitlePath =
-                normalizeSubtitlePath(
-                        subtitlePath
-                );
-
-        Path outputPath =
-                createOutputPath(
-                        normalizedVideoPath,
-                        originalFileName
-                );
-
-        double startSeconds =
-                segment.startMillis()
-                        / 1000.0;
-
-        double durationSeconds =
-                (
-                        segment.endMillis()
-                                - segment.startMillis()
-                ) / 1000.0;
-
-        List<String> command =
-                new ArrayList<>();
-
-        command.add(
-                "ffmpeg"
-        );
-
-        command.add(
-                "-y"
-        );
-
-        command.add(
-                "-ss"
-        );
-
-        command.add(
-                String.valueOf(
-                        startSeconds
-                )
-        );
-
-        command.add(
-                "-i"
-        );
-
-        command.add(
-                normalizedVideoPath.toString()
-        );
-
-        command.add(
-                "-t"
-        );
-
-        command.add(
-                String.valueOf(
-                        durationSeconds
-                )
-        );
-
-        command.add(
-                "-vf"
-        );
-
-        command.add(
-                createVideoFilter(
-                        normalizedSubtitlePath
-                )
-        );
-
-        command.add(
-                "-c:v"
-        );
-
-        command.add(
-                "libx264"
-        );
-
-        command.add(
-                "-preset"
-        );
-
-        command.add(
-                "veryfast"
-        );
-
-        command.add(
-                "-c:a"
-        );
-
-        command.add(
-                "aac"
-        );
-
-        command.add(
-                "-movflags"
-        );
-
-        command.add(
-                "+faststart"
-        );
-
-        command.add(
-                outputPath.toString()
-        );
-
-        log.info(
-                "쇼츠 영상 생성 시작. videoPath={}, originalFileName={}, startMillis={}, endMillis={}, durationMillis={}, subtitlePath={}, outputPath={}",
-                normalizedVideoPath,
+                segment,
+                subtitlePath,
                 originalFileName,
-                segment.startMillis(),
-                segment.endMillis(),
-                segment.endMillis()
-                        - segment.startMillis(),
-                normalizedSubtitlePath,
-                outputPath
+                null
         );
+    }
+
+    public Path generate(
+            Path videoPath,
+            VideoHighlightSegment segment,
+            Path subtitlePath,
+            String originalFileName,
+            String title
+    ) {
+        validate(videoPath, segment);
+
+        Path normalizedVideoPath = videoPath.toAbsolutePath().normalize();
+        Path normalizedSubtitlePath = normalizeSubtitlePath(subtitlePath);
+        Path outputPath = createOutputPath(normalizedVideoPath, originalFileName);
+
+        double startSeconds = segment.startMillis() / 1000.0;
+        double durationSeconds =
+                (segment.endMillis() - segment.startMillis()) / 1000.0;
+
+        Path titleImagePath = null;
 
         try {
-            executeCommand(
-                    command
+            if (title != null && !title.isBlank()) {
+                titleImagePath = videoShortsTitleRenderer.render(
+                        title,
+                        normalizedVideoPath.getParent()
+                );
+            }
+
+            List<String> command = new ArrayList<>();
+            command.add("ffmpeg");
+            command.add("-y");
+            command.add("-ss");
+            command.add(String.valueOf(startSeconds));
+            command.add("-i");
+            command.add(normalizedVideoPath.toString());
+
+            if (titleImagePath == null) {
+                command.add("-vf");
+                command.add(createVideoFilter(normalizedSubtitlePath));
+            } else {
+                // PNG를 영상 끝까지 반복해 제목이 중간에 사라지지 않게 한다.
+                command.add("-loop");
+                command.add("1");
+                command.add("-i");
+                command.add(titleImagePath.toString());
+
+                command.add("-filter_complex");
+                command.add(
+                        "[0:v]"
+                                + createVideoFilter(normalizedSubtitlePath)
+                                + "[base];"
+                                + "[base][1:v]overlay=(W-w)/2:80:shortest=1[v]"
+                );
+                command.add("-map");
+                command.add("[v]");
+                command.add("-map");
+                command.add("0:a?");
+            }
+
+            // 입력 파일이 모두 지정된 뒤 출력 구간 길이를 제한한다.
+            command.add("-t");
+            command.add(String.valueOf(durationSeconds));
+            command.add("-c:v");
+            command.add("libx264");
+            command.add("-preset");
+            command.add("veryfast");
+            command.add("-c:a");
+            command.add("aac");
+            command.add("-movflags");
+            command.add("+faststart");
+            command.add(outputPath.toString());
+
+            log.info(
+                    "쇼츠 영상 생성 시작. videoPath={}, originalFileName={}, "
+                            + "startMillis={}, endMillis={}, durationMillis={}, "
+                            + "subtitlePath={}, title={}, titleImagePath={}, outputPath={}",
+                    normalizedVideoPath,
+                    originalFileName,
+                    segment.startMillis(),
+                    segment.endMillis(),
+                    segment.endMillis() - segment.startMillis(),
+                    normalizedSubtitlePath,
+                    title,
+                    titleImagePath,
+                    outputPath
             );
+
+            executeCommand(command);
 
             if (!Files.exists(outputPath)) {
                 throw new IllegalStateException(
@@ -163,30 +131,25 @@ public class VideoShortsClipGenerator {
             }
 
             log.info(
-                    "쇼츠 영상 생성 완료. outputPath={}, size={}, subtitles={}",
+                    "쇼츠 영상 생성 완료. outputPath={}, size={}, subtitles={}, titleOverlay={}",
                     outputPath,
-                    Files.size(
-                            outputPath
-                    ),
-                    normalizedSubtitlePath != null
+                    Files.size(outputPath),
+                    normalizedSubtitlePath != null,
+                    titleImagePath != null
             );
 
             return outputPath;
         } catch (IOException exception) {
-            deleteIfExists(
-                    outputPath
-            );
-
+            deleteIfExists(outputPath);
             throw new IllegalStateException(
                     "쇼츠 영상 생성 중 파일 처리 오류가 발생했습니다.",
                     exception
             );
         } catch (RuntimeException exception) {
-            deleteIfExists(
-                    outputPath
-            );
-
+            deleteIfExists(outputPath);
             throw exception;
+        } finally {
+            deleteIfExists(titleImagePath);
         }
     }
 
@@ -213,25 +176,10 @@ public class VideoShortsClipGenerator {
                 )
         );
 
-        filter.append(
-                "':force_style='"
-        );
+        filter.append("'");
 
-        filter.append(
-                "FontSize=16,"
-                        + "PrimaryColour=&H00FFFFFF,"
-                        + "OutlineColour=&H00000000,"
-                        + "BorderStyle=1,"
-                        + "Outline=2,"
-                        + "Shadow=1,"
-                        + "Alignment=2,"
-                        + "MarginV=30"
-        );
-
-        filter.append(
-                "'"
-        );
-
+        // ASS 파일 내부의 Shorts 스타일과 강조 색상을 그대로 사용한다.
+        // SRT 등 외부 자막을 사용할 때는 FFmpeg 기본 스타일이 적용된다.
         return filter.toString();
     }
 

@@ -30,7 +30,7 @@ public class VideoHighlightSelector {
             10 * 60 * 1000L;
 
     private static final int MAX_CHUNK_CONTENT_LENGTH =
-            1_500;
+            700;
 
     private static final long MIN_CANDIDATE_DURATION_MILLIS =
             15_000L;
@@ -502,76 +502,39 @@ public class VideoHighlightSelector {
             long windowStart,
             long windowEnd
     ) {
+        // 모델에는 window 기준 상대 밀리초를 전달한다.
+        // 절대 timestamp를 생성하면서 자릿수나 범위를 잘못 해석하는 문제를 줄인다.
         String context =
-                buildContext(
-                        chunks
+                buildWindowContext(
+                        chunks,
+                        windowStart,
+                        windowEnd
                 );
+
+        long windowDurationMillis = windowEnd - windowStart;
 
         String userPrompt =
                 """
-                다음은 하나의 영상에서 특정 영상 구간의 자막과 화면 분석 결과입니다.
+                다음은 긴 영상의 한 구간에서 추출한 자막과 화면 분석입니다.
+                줄거리 전개에 중요한 사건, 갈등, 결정, 폭로, 핵심 대화만 선택하세요.
+                단순 이동, 배경 변화, 반복 설명, 추측성 장면은 제외하세요.
 
-                이 구간에서 전체 영상의 줄거리와 핵심 사건을 요약하는 데
-                반드시 볼 가치가 있는 장면만 선정하세요.
+                시간 규칙 (매우 중요):
+                - 아래 [startMillis,endMillis]는 이 구간의 시작을 0으로 둔 상대 밀리초입니다.
+                - 출력도 반드시 상대 밀리초를 사용하세요. 원본 영상의 절대 시간을 출력하지 마세요.
+                - 모든 startMillis/endMillis는 0 이상 %d 이하여야 합니다.
+                - endMillis는 startMillis보다 커야 합니다.
+                - 각 장면은 15,000~60,000ms 길이로 선택하세요.
+                - 가능한 경우 2~4개만 선택하고, 중요한 장면이 없으면 []을 반환하세요.
+                - 입력에 없는 사건이나 시간을 만들어내지 마세요.
 
-                단순히 화면이 바뀌거나 사람이 등장한다는 이유만으로 선정하면 안 됩니다.
+                JSON 배열만 반환하세요. 예시:
+                [{"startMillis":15000,"endMillis":45000,"reason":"핵심 사건을 설명하는 대화"}]
 
-                선정 우선순위:
-                1. 이야기의 방향이 바뀌는 사건
-                2. 중요한 갈등, 결정, 폭로, 위기, 해결
-                3. 인물 관계나 상황을 이해하는 데 필요한 핵심 대화
-                4. 이후 사건의 원인이나 결과가 되는 행동
-                5. 강한 감정 변화가 실제 자막이나 상황으로 확인되는 장면
-                6. 전체 줄거리를 이해하는 데 반드시 필요한 장면
-
-                선정하지 말아야 할 장면:
-                - 단순 이동
-                - 평범한 일상 대화
-                - 단순 인물 등장
-                - 배경이나 장소만 바뀌는 장면
-                - 화면에 로고나 사물이 보인다는 이유만으로 중요한 장면
-                - 자막이나 문맥으로 확인되지 않는 추측성 장면
-                - 엔딩 크레딧
-                - 제작진 정보
-                - 반복 장면
-
-                시간 규칙:
-                - 반드시 아래 분석 데이터에 표시된 실제 timestamp를 사용하세요.
-                - 현재 분석 범위 밖의 시간을 만들지 마세요.
-                - 각 후보는 가능하면 15초 이상 60초 이하로 선정하세요.
-                - 중요한 사건 하나를 이해하는 데 필요한 연속 구간을 선정하세요.
-
-                현재 분석 범위:
-                %d ~ %d 밀리초
-                (%s ~ %s)
-
-                출력 규칙:
-                - JSON 배열만 반환하세요.
-                - 설명 문장을 JSON 앞뒤에 추가하지 마세요.
-                - startMillis와 endMillis는 반드시 위 분석 범위 안의 절대 밀리초 값이어야 합니다.
-                - 중요한 장면이 없으면 []을 반환하세요.
-                - 억지로 후보 개수를 채우지 마세요.
-
-                형식:
-                [
-                  {
-                    "startMillis": 120000,
-                    "endMillis": 150000,
-                    "reason": "이 장면이 전체 줄거리에서 중요한 이유"
-                  }
-                ]
-
-                영상 분석 데이터:
+                영상 분석 데이터 (각 줄의 숫자는 상대 밀리초):
                 %s
                 """.formatted(
-                        windowStart,
-                        windowEnd,
-                        formatTime(
-                                windowStart
-                        ),
-                        formatTime(
-                                windowEnd
-                        ),
+                        windowDurationMillis,
                         context
                 );
 
@@ -612,9 +575,97 @@ public class VideoHighlightSelector {
             return List.of();
         }
 
-        return parseSegments(
-                response.content()
-        );
+        List<VideoHighlightSegment> relativeCandidates =
+                parseSegments(response.content());
+
+        List<VideoHighlightSegment> absoluteCandidates =
+                new ArrayList<>();
+
+        for (VideoHighlightSegment candidate : relativeCandidates) {
+            if (candidate == null) {
+                continue;
+            }
+
+            long relativeStart = candidate.startMillis();
+            long relativeEnd = candidate.endMillis();
+
+            if (relativeStart < 0
+                    || relativeEnd <= relativeStart
+                    || relativeEnd > windowDurationMillis) {
+                log.warn(
+                        "영상 하이라이트 상대 시간 범위 오류. start={}, end={}, windowStart={}, windowEnd={}",
+                        relativeStart,
+                        relativeEnd,
+                        windowStart,
+                        windowEnd
+                );
+                continue;
+            }
+
+            long absoluteStart = windowStart + relativeStart;
+            long absoluteEnd = windowStart + relativeEnd;
+
+            if (!isValidCandidateDuration(absoluteStart, absoluteEnd)) {
+                log.warn(
+                        "영상 하이라이트 후보 길이 오류. relativeStart={}, relativeEnd={}, absoluteStart={}, absoluteEnd={}, windowStart={}, windowEnd={}",
+                        relativeStart,
+                        relativeEnd,
+                        absoluteStart,
+                        absoluteEnd,
+                        windowStart,
+                        windowEnd
+                );
+                continue;
+            }
+
+            log.debug(
+                    "영상 하이라이트 시간 변환. windowStart={}, windowEnd={}, relativeStart={}, relativeEnd={}, absoluteStart={}, absoluteEnd={}",
+                    windowStart,
+                    windowEnd,
+                    relativeStart,
+                    relativeEnd,
+                    absoluteStart,
+                    absoluteEnd
+            );
+
+            absoluteCandidates.add(
+                    new VideoHighlightSegment(
+                            absoluteStart,
+                            absoluteEnd,
+                            candidate.reason()
+                    )
+            );
+        }
+
+        return absoluteCandidates;
+    }
+
+    private String buildWindowContext(
+            List<ChatFileChunk> chunks,
+            long windowStart,
+            long windowEnd
+    ) {
+        StringBuilder context = new StringBuilder();
+
+        for (ChatFileChunk chunk : chunks) {
+            long start = Math.max(windowStart, chunk.getStartMillis()) - windowStart;
+            long end = Math.min(windowEnd, chunk.getEndMillis()) - windowStart;
+
+            if (end <= start) {
+                continue;
+            }
+
+            context.append('[')
+                    .append(start)
+                    .append(',')
+                    .append(end)
+                    .append("] ")
+                    .append(isVisionChunk(chunk) ? "[VISION] " : "[TRANSCRIPT] ")
+                    .append(limitText(normalizeContent(chunk.getContent())))
+                    .append('\n');
+        }
+
+        return context.toString();
     }
 
     private List<VideoHighlightSegment> adjustWindowCandidates(

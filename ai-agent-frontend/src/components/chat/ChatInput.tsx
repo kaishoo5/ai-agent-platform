@@ -22,7 +22,7 @@ const MAX_VIDEO_FILE_SIZE =
     4 * 1024 * 1024 * 1024;
 
 const VIDEO_EXTENSIONS = new Set([
-    "mp4",
+    "mp4", "mkv",
 ]);
 
 const IMAGE_EXTENSIONS = new Set([
@@ -55,6 +55,7 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
     "gif",
     "webp",
     "mp4",
+    "mkv",
     "zip",
 ]);
 
@@ -208,6 +209,10 @@ function ChatInput() {
 
     const refreshRooms = useChatStore(
         (state) => state.refreshRooms,
+    );
+
+    const refreshMessages = useChatStore(
+        (state) => state.refreshMessages,
     );
 
     const activeRoomId = useChatStore(
@@ -728,6 +733,7 @@ function ChatInput() {
             content: trimmedInput,
             videoResult: [],
             sources: [],
+            generatedFiles: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -738,6 +744,7 @@ function ChatInput() {
             content: "",
             videoResult: [],
             sources: [],
+            generatedFiles: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -871,6 +878,10 @@ function ChatInput() {
                 fileIds,
             );
 
+            await refreshMessages(
+                targetRoomId,
+            );
+
             setSelectedFiles([]);
             setFileError(null);
 
@@ -990,7 +1001,7 @@ function ChatInput() {
                 type="file"
                 className="file-input-hidden"
                 multiple
-                accept=".txt,.md,.java,.js,.ts,.tsx,.json,.sql,.xml,.yaml,.yml,.properties,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4"
+                accept=".txt,.md,.java,.js,.ts,.tsx,.json,.sql,.xml,.yaml,.yml,.properties,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mkv"
                 disabled={isGenerating}
                 onChange={handleFileChange}
             />
@@ -1195,7 +1206,7 @@ function ChatInput() {
                         </button>
 
                         <span className="composer-file-hint">
-                            TXT · PDF · DOCX · XLSX · Image · MP4
+                            TXT · PDF · DOCX · XLSX · Image · MP4 · mkv
                         </span>
                     </div>
 

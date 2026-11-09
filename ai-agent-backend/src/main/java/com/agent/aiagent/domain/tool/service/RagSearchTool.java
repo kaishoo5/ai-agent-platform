@@ -1,6 +1,7 @@
 package com.agent.aiagent.domain.tool.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFileChunk;
+import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
 import com.agent.aiagent.domain.file.service.EmbeddingFileChunkSearchService;
 import com.agent.aiagent.domain.rag.model.RetrievedChunk;
 import com.agent.aiagent.domain.tool.model.ToolExecutionContext;
@@ -19,6 +20,7 @@ import java.util.*;
 public class RagSearchTool implements AgentTool {
 
     private static final int TOP_K = 8;
+    private static final int MAX_TIME_RANGE_CHUNKS = 40;
 
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
@@ -26,6 +28,17 @@ public class RagSearchTool implements AgentTool {
                     """
                     현재 대화에 첨부된 파일에서 관련 내용을 검색하고,
                     필요한 파일의 SOURCE_PATH를 찾기 위한 탐색 도구입니다.
+
+                    영상 전체 내용을 시간 순서대로 글로 요약해 달라는 질문에는
+                    fullVideo=true로 한 번만 호출하세요.
+                    Java 서비스가 전체 자막을 구간별로 요약한 후 통합 결과를 반환합니다.
+                    page를 반복 호출하지 마세요.
+                    이것은 텍스트 요약이며 video_summary_generate를 호출하지 마세요.
+
+                    영상 특정 시간대에 무슨 일이 있었는지 묻는 질문에는
+                    startSeconds와 endSeconds를 지정하여 해당 구간 자막을 검색하세요.
+                    시간 범위는 영상 시작 기준 초 단위이며, 예를 들어 30~40분은 1800~2400입니다.
+                    영상 내용을 글로 설명하거나 요약하는 질문에는 영상 생성 도구를 사용하지 마세요.
 
                     일반 문서, 소스 코드, 영상 자막이나 분석된 장면 등에서
                     사용자의 질문과 관련된 내용을 찾을 때 사용합니다.
@@ -75,11 +88,27 @@ public class RagSearchTool implements AgentTool {
                                     기능명 등 SOURCE_PATH를 찾는 데 필요한 핵심 검색어를 사용하세요.
                                     """.trim(),
                                     true
-                            )
+                            ),
+                            "startSeconds",
+                            new ToolParameter(
+                                    "number",
+                                    "영상 구간 검색의 시작 시각(초). 예: 30분은 1800. 시간 범위 검색 시 endSeconds와 함께 지정합니다.",
+                                    false
+                            ),
+                            "endSeconds",
+                            new ToolParameter(
+                                    "number",
+                                    "영상 구간 검색의 종료 시각(초). 예: 40분은 2400. 시간 범위 검색 시 startSeconds와 함께 지정합니다.",
+                                    false
+                            ),
+                            "fullVideo",
+                            new ToolParameter("boolean", "영상 전체의 시간순 텍스트 요약을 Java에서 일괄 처리할 때 true. 한 번만 호출합니다.", false)
                     )
             );
 
     private final EmbeddingFileChunkSearchService embeddingFileChunkSearchService;
+    private final ChatFileChunkRepository chatFileChunkRepository;
+    private final VideoFullTextSummaryService videoFullTextSummaryService;
 
     @Override
     public ToolSpecification getSpecification() {
@@ -117,12 +146,6 @@ public class RagSearchTool implements AgentTool {
                         arguments
                 );
 
-        if (query == null) {
-            return ToolResult.failure(
-                    "첨부파일 검색 질문이 없습니다."
-            );
-        }
-
         if (
                 context == null
                         || context.roomId() == null
@@ -143,6 +166,59 @@ public class RagSearchTool implements AgentTool {
         }
 
         try {
+            if (Boolean.TRUE.equals(arguments == null ? null : arguments.get("fullVideo"))) {
+                return videoFullTextSummaryService.summarize(context);
+            }
+            if (query == null) {
+                return ToolResult.failure("첨부파일 검색 질문이 없습니다.");
+            }
+            Object startValue = arguments == null ? null : arguments.get("startSeconds");
+            Object endValue = arguments == null ? null : arguments.get("endSeconds");
+            if (startValue != null || endValue != null) {
+                if (startValue == null || endValue == null) {
+                    return ToolResult.failure("시간 범위 검색에는 startSeconds와 endSeconds가 모두 필요합니다.");
+                }
+                double startSeconds = parseSeconds(startValue);
+                double endSeconds = parseSeconds(endValue);
+                if (!Double.isFinite(startSeconds) || !Double.isFinite(endSeconds)
+                        || startSeconds < 0 || endSeconds <= startSeconds
+                        || endSeconds > Long.MAX_VALUE / 1000.0) {
+                    return ToolResult.failure("영상 검색 시간 범위가 올바르지 않습니다.");
+                }
+                long startMillis = (long) (startSeconds * 1000);
+                long endMillis = (long) (endSeconds * 1000);
+                List<ChatFileChunk> chunks = chatFileChunkRepository.findVideoChunksInTimeRange(
+                        context.roomId(), context.fileIds(), startMillis, endMillis
+                );
+                if (chunks.isEmpty()) {
+                    return ToolResult.failure("해당 영상 시간대에 저장된 자막 청크가 없습니다.");
+                }
+                boolean truncated = chunks.size() > MAX_TIME_RANGE_CHUNKS;
+                List<ChatFileChunk> selected = chunks.stream().limit(MAX_TIME_RANGE_CHUNKS).toList();
+                StringBuilder result = new StringBuilder()
+                        .append("영상 시간 범위 자막 검색 결과 (초): ")
+                        .append(startSeconds).append(" ~ ").append(endSeconds).append("\n")
+                        .append("시간순으로 정렬된 실제 저장 자막입니다. 자막에 없는 내용을 추측하지 마세요.\n\n");
+                for (ChatFileChunk chunk : selected) {
+                    result.append("[구간 ")
+                            .append(chunk.getStartMillis() / 1000.0).append(" ~ ")
+                            .append(chunk.getEndMillis() / 1000.0).append("초]\n")
+                            .append(chunk.getContent()).append("\n\n");
+                }
+                if (truncated) {
+                    result.append("[주의] 해당 구간의 청크 ").append(chunks.size())
+                            .append("개 중 앞의 ").append(selected.size())
+                            .append("개만 반환했습니다. 나머지 내용을 확인하려면 시간을 나눠 검색하세요.");
+                }
+                log.info("Attachment 영상 구간 검색 완료. roomId={}, startSeconds={}, endSeconds={}, totalChunks={}, returnedChunks={}",
+                        context.roomId(), startSeconds, endSeconds, chunks.size(), selected.size());
+                return ToolResult.success(result.toString(), Map.of(
+                        "timeRangeSearch", true,
+                        "totalChunks", chunks.size(),
+                        "truncated", truncated
+                ));
+            }
+
             List<RetrievedChunk> retrievedChunks =
                     embeddingFileChunkSearchService.search(
                             context.roomId(),
@@ -232,6 +308,13 @@ public class RagSearchTool implements AgentTool {
                     "첨부파일 검색 중 오류가 발생했습니다."
             );
         }
+    }
+
+    private double parseSeconds(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return Double.parseDouble(value.toString().trim());
     }
 
     private String selectUniqueExactContentSourcePath(

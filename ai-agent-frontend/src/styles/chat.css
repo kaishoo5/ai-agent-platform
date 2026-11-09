@@ -1029,3 +1029,105 @@
     }
 }
 
+/* =========================================================
+   GENERATED FILE
+   ========================================================= */
+
+.generated-file-list {
+    display: flex;
+    width: 100%;
+    max-width: 520px;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.generated-file-card {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--theme-border);
+    border-radius: 11px;
+    background: var(--theme-surface);
+    transition:
+            border-color 0.15s ease,
+            background 0.15s ease;
+}
+
+.generated-file-card:hover {
+    border-color: var(--theme-border);
+    background: var(--theme-surface-hover);
+}
+
+.generated-file-icon {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--theme-border);
+    border-radius: 9px;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface-strong);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.generated-file-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.generated-file-name {
+    overflow: hidden;
+    color: var(--theme-text);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.generated-file-meta {
+    margin-top: 2px;
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    line-height: 16px;
+}
+
+.generated-file-download {
+    display: inline-flex;
+    height: 30px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 7px;
+    color: var(--theme-text-secondary);
+    background: var(--theme-surface-strong);
+    font-size: 10px;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+            border-color 0.15s ease,
+            color 0.15s ease,
+            background 0.15s ease;
+}
+
+.generated-file-download:hover {
+    border-color: var(--theme-border);
+    color: var(--theme-text-strong);
+    background: var(--theme-surface-hover);
+    text-decoration: none;
+}
+
+.generated-file-download:focus-visible {
+    outline: 2px solid var(--theme-border);
+    outline-offset: 2px;
+}
+

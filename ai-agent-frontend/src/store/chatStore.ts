@@ -142,6 +142,10 @@ interface ChatStore {
         pinned: boolean,
     ) => Promise<void>;
 
+    refreshMessages: (
+        roomId: string,
+    ) => Promise<void>;
+
     refreshRooms: () => Promise<void>;
 }
 
@@ -818,5 +822,19 @@ export const useChatStore = create<ChatStore>((
                 error,
             );
         }
+    },
+
+    refreshMessages: async (
+        roomId,
+    ) => {
+        const messages =
+            await getChatRoomMessages(
+                roomId,
+            );
+
+        get().replaceMessages(
+            roomId,
+            messages,
+        );
     },
 }));

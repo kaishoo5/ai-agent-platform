@@ -9,6 +9,7 @@ public record RuntimeSettingsResponse(
         String textModel,
         String visionModel,
         String embeddingModel,
-        List<String> installedModels
+        List<String> installedModels,
+        List<String> geminiModels
 ) {
 }

@@ -5,6 +5,8 @@ import com.agent.aiagent.domain.chat.entity.ChatMessage;
 import com.agent.aiagent.domain.chat.entity.ChatRoom;
 import com.agent.aiagent.domain.chat.repository.ChatMessageRepository;
 import com.agent.aiagent.domain.chat.repository.ChatRoomRepository;
+import com.agent.aiagent.domain.file.entity.GeneratedFile;
+import com.agent.aiagent.domain.file.repository.GeneratedFileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +24,7 @@ public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final GeneratedFileRepository generatedFileRepository;
 
     @Transactional
     public ChatRoomResponse createRoom(ChatRoomCreateRequest request) {
@@ -47,14 +52,16 @@ public class ChatRoomService {
         return ChatRoomResponse.from(chatRoom);
     }
 
-    public List<ChatMessageResponse> getMessages(String roomId) {
-        findRoom(roomId);
+    public List<ChatMessageResponse> getMessages(
+            String roomId
+    ) {
+        findRoom(
+                roomId
+        );
 
-        return chatMessageRepository
-                .findAllByRoomIdOrderByCreatedAtAsc(roomId)
-                .stream()
-                .map(ChatMessageResponse::from)
-                .toList();
+        return getMessageResponses(
+                roomId
+        );
     }
 
     @Transactional
@@ -117,10 +124,46 @@ public class ChatRoomService {
         chatRoom.clearSummary();
         chatRoom.touch();
 
-        return chatMessageRepository
-                .findAllByRoomIdOrderByCreatedAtAsc(roomId)
+        return getMessageResponses(
+                roomId
+        );
+    }
+
+    private List<ChatMessageResponse> getMessageResponses(
+            String roomId
+    ) {
+        List<ChatMessage> messages =
+                chatMessageRepository
+                        .findAllByRoomIdOrderByCreatedAtAsc(
+                                roomId
+                        );
+
+        Map<String, List<GeneratedFile>> generatedFilesByMessageId =
+                generatedFileRepository
+                        .findAllByRoomIdOrderByCreatedAtAsc(
+                                roomId
+                        )
+                        .stream()
+                        .filter(generatedFile ->
+                                generatedFile.getMessageId() != null
+                        )
+                        .collect(
+                                Collectors.groupingBy(
+                                        GeneratedFile::getMessageId
+                                )
+                        );
+
+        return messages
                 .stream()
-                .map(ChatMessageResponse::from)
+                .map(message ->
+                        ChatMessageResponse.from(
+                                message,
+                                generatedFilesByMessageId.getOrDefault(
+                                        message.getId(),
+                                        List.of()
+                                )
+                        )
+                )
                 .toList();
     }
 

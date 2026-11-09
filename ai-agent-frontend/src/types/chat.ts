@@ -28,6 +28,15 @@ export interface ChatSource {
     endMillis: number | null;
 }
 
+export interface GeneratedFile {
+    id: string;
+    originalName: string;
+    contentType: string | null;
+    extension: string;
+    size: number;
+    createdAt: string;
+}
+
 export interface ChatMessage {
     id: string;
     roomId: string;
@@ -35,6 +44,7 @@ export interface ChatMessage {
     content: string;
     videoResult: VideoSummaryResult[];
     sources: ChatSource[];
+    generatedFiles: GeneratedFile[];
     createdAt: string;
 }
 

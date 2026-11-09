@@ -1,5 +1,7 @@
 package com.agent.aiagent.domain.video.service;
 
+import com.agent.aiagent.domain.file.entity.ChatFileChunk;
+import com.agent.aiagent.domain.file.repository.ChatFileChunkRepository;
 import com.agent.aiagent.domain.video.model.VideoHighlightSegment;
 import com.agent.aiagent.provider.chat.*;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class VideoShortsHighlightSelector {
 
     private final VideoHighlightSelector videoHighlightSelector;
+    private final ChatFileChunkRepository chatFileChunkRepository;
     private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
 
@@ -91,6 +94,17 @@ public class VideoShortsHighlightSelector {
             );
         }
 
+        long videoEndMillis = chatFileChunkRepository.findAllByFileId(fileId)
+                .stream()
+                .mapToLong(ChatFileChunk::getEndMillis)
+                .max()
+                .orElseThrow(() -> new IllegalStateException("영상 길이 정보를 찾을 수 없습니다. fileId=" + fileId));
+
+        if (videoEndMillis < targetDurationMillis) {
+            throw new IllegalArgumentException("원본 영상이 요청한 쇼츠 길이보다 짧습니다. videoEndMillis="
+                    + videoEndMillis + ", targetDurationMillis=" + targetDurationMillis);
+        }
+
         List<VideoHighlightSegment> availableCandidates =
                 candidates;
 
@@ -106,7 +120,7 @@ public class VideoShortsHighlightSelector {
                                                     .noneMatch(
                                                             excluded ->
                                                                     isOverlapping(
-                                                                            candidate,
+                                                                            fitDuration(candidate, targetDurationMillis, videoEndMillis),
                                                                             excluded
                                                                     )
                                                     )
@@ -291,7 +305,8 @@ public class VideoShortsHighlightSelector {
         VideoHighlightSegment fitted =
                 fitDuration(
                         selected,
-                        targetDurationMillis
+                        targetDurationMillis,
+                        videoEndMillis
                 );
 
         log.info(
@@ -401,20 +416,39 @@ public class VideoShortsHighlightSelector {
 
     private VideoHighlightSegment fitDuration(
             VideoHighlightSegment segment,
-            long targetDurationMillis
+            long targetDurationMillis,
+            long videoEndMillis
     ) {
-        long durationMillis =
-                segment.endMillis()
-                        - segment.startMillis();
+        long start = segment.startMillis();
+        long end = segment.endMillis();
+        long duration = end - start;
 
-        if (durationMillis <= targetDurationMillis) {
-            return segment;
+        if (duration <= 0) {
+            throw new IllegalArgumentException("하이라이트 후보 구간이 올바르지 않습니다.");
+        }
+
+        if (duration >= targetDurationMillis) {
+            return new VideoHighlightSegment(
+                    start,
+                    start + targetDurationMillis,
+                    segment.reason()
+            );
+        }
+
+        // 핵심 구간을 중앙에 두고 부족한 시간을 앞뒤로 확장한다.
+        long missing = targetDurationMillis - duration;
+        long fittedStart = Math.max(0L, start - missing / 2);
+        long fittedEnd = fittedStart + targetDurationMillis;
+
+        // 영상 끝에 가까운 후보라면 시작 지점을 앞으로 이동한다.
+        if (fittedEnd > videoEndMillis) {
+            fittedEnd = videoEndMillis;
+            fittedStart = fittedEnd - targetDurationMillis;
         }
 
         return new VideoHighlightSegment(
-                segment.startMillis(),
-                segment.startMillis()
-                        + targetDurationMillis,
+                fittedStart,
+                fittedEnd,
                 segment.reason()
         );
     }

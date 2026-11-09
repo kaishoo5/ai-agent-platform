@@ -43,6 +43,20 @@ public class VideoShortsGenerator {
             long targetDurationMillis,
             int count
     ) {
+        return generate(
+                fileId,
+                targetDurationMillis,
+                count,
+                null
+        );
+    }
+
+    public List<Path> generate(
+            String fileId,
+            long targetDurationMillis,
+            int count,
+            String title
+    ) {
         if (!StringUtils.hasText(fileId)) {
             throw new IllegalArgumentException(
                     "fileId가 없습니다."
@@ -174,7 +188,8 @@ public class VideoShortsGenerator {
                                 videoPath,
                                 segment,
                                 subtitlePath,
-                                chatFile.getOriginalName()
+                                chatFile.getOriginalName(),
+                                title
                         );
 
                 outputPaths.add(

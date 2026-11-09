@@ -35,8 +35,11 @@ public class ChatFileService {
     private static final long MAX_VIDEO_FILE_SIZE =
             4L * 1024L * 1024L * 1024L;
 
-    private static final String VIDEO_EXTENSION =
-            "mp4";
+    private static final Set<String> VIDEO_EXTENSIONS =
+            Set.of(
+                    "mp4",
+                    "mkv"
+            );
 
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of(
@@ -61,7 +64,8 @@ public class ChatFileService {
                     "jpeg",
                     "gif",
                     "webp",
-                    VIDEO_EXTENSION
+                    "mp4",
+                    "mkv"
             );
 
     private final ChatFileRepository chatFileRepository;
@@ -229,7 +233,7 @@ public class ChatFileService {
     private boolean isVideo(
             String extension
     ) {
-        return VIDEO_EXTENSION.equals(
+        return VIDEO_EXTENSIONS.contains(
                 extension
         );
     }

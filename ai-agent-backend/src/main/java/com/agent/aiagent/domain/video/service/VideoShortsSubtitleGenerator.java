@@ -78,7 +78,7 @@ public class VideoShortsSubtitleGenerator {
             }
 
             String srt =
-                    createSrt(
+                    createAss(
                             transcript.segments()
                     );
 
@@ -98,7 +98,7 @@ public class VideoShortsSubtitleGenerator {
             );
 
             log.info(
-                    "쇼츠 SRT 자동 생성 완료. fileId={}, language={}, subtitlePath={}, subtitleCount={}",
+                    "쇼츠 ASS 자동 생성 완료. fileId={}, language={}, subtitlePath={}, subtitleCount={}",
                     fileId,
                     transcript.language(),
                     subtitlePath,
@@ -295,276 +295,124 @@ public class VideoShortsSubtitleGenerator {
         }
     }
 
-    private String createSrt(
-            List<VideoTranscriptSegment> segments
-    ) {
-        StringBuilder srt =
-                new StringBuilder();
+    /**
+     * 쇼츠 전용 ASS 자막. 한 화면에 최대 두 줄을 보여주며,
+     * 마지막 어절만 포인트 컬러로 강조한다.
+     * 강조 대상은 의미 분석 결과가 아니라 시각적 리듬을 위한 규칙이다.
+     */
+    private String createAss(List<VideoTranscriptSegment> segments) {
+        StringBuilder ass = new StringBuilder("""
+                [Script Info]
+                ScriptType: v4.00+
+                PlayResX: 1080
+                PlayResY: 1920
+                WrapStyle: 2
+                ScaledBorderAndShadow: yes
 
-        int subtitleIndex =
-                1;
+                [V4+ Styles]
+                Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+                Style: Shorts,Malgun Gothic,94,&H00FFFFFF,&H00FFFFFF,&H9A101010,&H00000000,-1,0,0,0,100,100,0,0,1,2.5,0,2,85,85,440,1
+
+                [Events]
+                Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+                """);
 
         for (VideoTranscriptSegment segment : segments) {
             if (segment == null) {
                 continue;
             }
-
-            String text =
-                    normalizeText(
-                            segment.text()
-                    );
-
-            if (text.isBlank()) {
+            String text = normalizeText(segment.text());
+            long start = Math.max(0L, segment.startMillis());
+            long end = Math.max(start, segment.endMillis());
+            if (text.isBlank() || end <= start) {
                 continue;
             }
-
-            long startMillis =
-                    Math.max(
-                            0L,
-                            segment.startMillis()
-                    );
-
-            long endMillis =
-                    Math.max(
-                            startMillis,
-                            segment.endMillis()
-                    );
-
-            if (endMillis <= startMillis) {
+            List<String> captions = splitSubtitleText(text);
+            if (captions.isEmpty()) {
                 continue;
             }
-
-            List<String> subtitleTexts =
-                    splitSubtitleText(
-                            text
-                    );
-
-            if (subtitleTexts.isEmpty()) {
-                continue;
-            }
-
-            long durationMillis =
-                    endMillis
-                            - startMillis;
-
-            long totalTextLength =
-                    subtitleTexts.stream()
-                            .mapToLong(String::length)
-                            .sum();
-
-            long currentStartMillis =
-                    startMillis;
-
-            for (
-                    int index = 0;
-                    index < subtitleTexts.size();
-                    index++
-            ) {
-                String subtitleText =
-                        subtitleTexts.get(
-                                index
-                        );
-
-                long currentEndMillis;
-
-                if (
-                        index
-                                == subtitleTexts.size() - 1
-                ) {
-                    currentEndMillis =
-                            endMillis;
-                } else {
-                    long subtitleDurationMillis =
-                            Math.round(
-                                    durationMillis
-                                            * (
-                                            subtitleText.length()
-                                                    / (double) totalTextLength
-                                    )
-                            );
-
-                    currentEndMillis =
-                            Math.min(
-                                    endMillis,
-                                    currentStartMillis
-                                            + subtitleDurationMillis
-                            );
-                }
-
-                if (
-                        currentEndMillis
-                                <= currentStartMillis
-                ) {
+            long duration = end - start;
+            long totalLength = captions.stream().mapToLong(String::length).sum();
+            long current = start;
+            for (int i = 0; i < captions.size(); i++) {
+                String caption = captions.get(i);
+                long next = i == captions.size() - 1 ? end :
+                        Math.min(end, current + Math.round(duration * caption.length() / (double) totalLength));
+                if (next <= current) {
                     continue;
                 }
-
-                srt.append(
-                        subtitleIndex++
-                );
-                srt.append(
-                        System.lineSeparator()
-                );
-                srt.append(
-                        formatTimestamp(
-                                currentStartMillis
-                        )
-                );
-                srt.append(
-                        " --> "
-                );
-                srt.append(
-                        formatTimestamp(
-                                currentEndMillis
-                        )
-                );
-                srt.append(
-                        System.lineSeparator()
-                );
-                srt.append(
-                        subtitleText
-                );
-                srt.append(
-                        System.lineSeparator()
-                );
-                srt.append(
-                        System.lineSeparator()
-                );
-
-                currentStartMillis =
-                        currentEndMillis;
+                ass.append("Dialogue: 0,")
+                        .append(formatAssTimestamp(current)).append(',')
+                        .append(formatAssTimestamp(next))
+                        .append(",Shorts,,0,0,0,,")
+                        .append(styleCaption(caption))
+                        .append('\n');
+                current = next;
             }
         }
-
-        return srt.toString();
+        return ass.toString();
     }
 
-    private List<String> splitSubtitleText(
-            String text
-    ) {
-        final int maxLength =
-                20;
+    private String formatAssTimestamp(long millis) {
+        long centiseconds = millis / 10;
+        long hours = centiseconds / 360000;
+        long minutes = (centiseconds / 6000) % 60;
+        long seconds = (centiseconds / 100) % 60;
+        long cs = centiseconds % 100;
+        return "%d:%02d:%02d.%02d".formatted(hours, minutes, seconds, cs);
+    }
 
-        List<String> result =
-                new ArrayList<>();
+    private String styleCaption(String caption) {
+        // ASS 제어 문자는 음성 인식 결과에서 이스케이프한다.
+        String clean = caption.replace("{", "(").replace("}", ")").replace("\\", "");
+        String[] words = clean.split("\\s+");
+        if (words.length == 0) {
+            return clean;
+        }
+        int split = -1;
+        int length = 0;
+        for (int i = 0; i < words.length; i++) {
+            if (length + words[i].length() + (i > 0 ? 1 : 0) > 9 && i > 0) {
+                split = i;
+                break;
+            }
+            length += words[i].length() + (i > 0 ? 1 : 0);
+        }
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            if (i > 0) {
+                result.append(i == split ? "\\N" : " ");
+            }
+            if (i == words.length - 1 && words[i].length() >= 2) {
+                result.append("{\\c&H00D8FF&}").append(words[i]).append("{\\c&HFFFFFF&}");
+            } else {
+                result.append(words[i]);
+            }
+        }
+        return result.toString();
+    }
 
-        String[] words =
-                text.split(
-                        "\\s+"
-                );
-
-        StringBuilder current =
-                new StringBuilder();
-
-        for (String word : words) {
+    private List<String> splitSubtitleText(String text) {
+        final int maxLength = 18;
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String word : text.split("\\s+")) {
             if (word.isBlank()) {
                 continue;
             }
-
-            if (
-                    current.isEmpty()
-            ) {
-                if (
-                        word.length()
-                                <= maxLength
-                ) {
-                    current.append(
-                            word
-                    );
-                } else {
-                    splitLongWord(
-                            word,
-                            maxLength,
-                            result
-                    );
-                }
-
-                continue;
+            if (!current.isEmpty() && current.length() + word.length() + 1 > maxLength) {
+                result.add(current.toString());
+                current.setLength(0);
             }
-
-            int nextLength =
-                    current.length()
-                            + 1
-                            + word.length();
-
-            if (
-                    nextLength
-                            <= maxLength
-            ) {
-                current
-                        .append(
-                                " "
-                        )
-                        .append(
-                                word
-                        );
-
-                continue;
+            if (!current.isEmpty()) {
+                current.append(' ');
             }
-
-            result.add(
-                    current.toString()
-            );
-
-            current.setLength(
-                    0
-            );
-
-            if (
-                    word.length()
-                            <= maxLength
-            ) {
-                current.append(
-                        word
-                );
-            } else {
-                splitLongWord(
-                        word,
-                        maxLength,
-                        result
-                );
-            }
+            current.append(word);
         }
-
-        if (
-                !current.isEmpty()
-        ) {
-            result.add(
-                    current.toString()
-            );
+        if (!current.isEmpty()) {
+            result.add(current.toString());
         }
-
         return result;
-    }
-
-    private void splitLongWord(
-            String word,
-            int maxLength,
-            List<String> result
-    ) {
-        int start =
-                0;
-
-        while (
-                start
-                        < word.length()
-        ) {
-            int end =
-                    Math.min(
-                            start
-                                    + maxLength,
-                            word.length()
-                    );
-
-            result.add(
-                    word.substring(
-                            start,
-                            end
-                    )
-            );
-
-            start =
-                    end;
-        }
     }
 
     private Path createAudioPath(
@@ -594,7 +442,7 @@ public class VideoShortsSubtitleGenerator {
         return videoPath
                 .getParent()
                 .resolve(
-                        baseName + "_shorts.srt"
+                        baseName + "_shorts.ass"
                 )
                 .normalize();
     }

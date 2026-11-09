@@ -30,8 +30,10 @@ public class VideoShortsGenerateTool implements AgentTool {
     private static final ToolSpecification SPECIFICATION =
             new ToolSpecification(
                     "video_shorts_generate",
-                    "첨부된 영상의 자막과 화면 분석 결과를 바탕으로 "
-                            + "짧은 세로형 하이라이트 영상을 하나 이상 생성합니다. "
+                    "첨부된 영상에서 짧은 세로형 쇼츠 MP4 파일을 생성합니다. "
+                            + "사용자가 쇼츠 영상 제작 또는 세로형 짧은 동영상 파일 생성을 "
+                            + "명시적으로 요청한 경우에만 사용합니다. "
+                            + "영상의 특정 시간대 내용을 설명하거나 분석해 달라는 요청에는 사용하지 않습니다. "
                             + "사용자가 여러 개의 쇼츠를 요청한 경우 반드시 count에 요청한 개수를 지정하고 "
                             + "이 도구를 한 번만 호출합니다.",
                     Map.of(
@@ -56,6 +58,15 @@ public class VideoShortsGenerateTool implements AgentTool {
                                             + "사용자가 개수를 지정하지 않으면 1개를 생성합니다. "
                                             + "여러 개를 요청한 경우 도구를 반복 호출하지 말고 "
                                             + "이 값에 요청한 개수를 지정합니다.",
+                                    false
+                            ),
+                            "title",
+                            new ToolParameter(
+                                    "string",
+                                    "쇼츠 영상 상단에 표시할 제목입니다. "
+                                            + "사용자가 상단 제목이나 문구를 요청한 경우 "
+                                            + "한글과 이모지를 포함하여 원문 그대로 전달합니다. "
+                                            + "사용자가 제목을 요청하지 않았다면 생략합니다.",
                                     false
                             )
                     )
@@ -115,6 +126,12 @@ public class VideoShortsGenerateTool implements AgentTool {
             );
         }
 
+        String title =
+                getStringArgument(
+                        arguments,
+                        "title"
+                );
+
         try {
             long targetDurationMillis =
                     Math.multiplyExact(
@@ -128,17 +145,19 @@ public class VideoShortsGenerateTool implements AgentTool {
                     );
 
             log.info(
-                    "Video Shorts Generate Tool 실행 시작. fileId={}, durationSeconds={}, count={}",
+                    "Video Shorts Generate Tool 실행 시작. fileId={}, durationSeconds={}, count={}, title={}",
                     fileId,
                     durationSeconds,
-                    targetCount
+                    targetCount,
+                    title
             );
 
             List<Path> outputPaths =
                     videoShortsGenerator.generate(
                             fileId,
                             targetDurationMillis,
-                            targetCount
+                            targetCount,
+                            title
                     );
 
             log.info(
