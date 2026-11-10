@@ -10,15 +10,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class VideoShortsHighlightSelector {
 
+    // 한국어 형태소 분석기 없이도 반복되는 고유명사(예: 아담, 조성모, 노을)를
+    // 감지할 수 있도록 주요 단어를 비교한다. 일반적인 영상 설명 단어는 제외한다.
+    private static final Set<String> GENERIC_TOPIC_WORDS = Set.of(
+            "영상", "쇼츠", "구간", "장면", "내용", "소개", "이야기", "사연", "주제",
+            "핵심", "대화", "발표", "과정", "당시", "실제", "이유", "공개", "폭로",
+            "가수", "노래", "음악", "무대", "방송", "제작", "비용", "출연", "사건",
+            "반응", "상황", "시절", "관련", "대한", "통해", "때문", "정도", "진짜",
+            "그리고", "하지만", "어떻게", "이렇게", "저렇게", "사람", "모습", "설명",
+            "탄생", "비화", "진행", "최초", "최고", "과거", "현재", "시작", "마지막"
+    );
     private final VideoHighlightSelector videoHighlightSelector;
     private final ChatFileChunkRepository chatFileChunkRepository;
     private final ChatModelProvider chatModelProvider;
@@ -134,6 +142,34 @@ public class VideoShortsHighlightSelector {
             );
         }
 
+        // 시간 중복을 먼저 제거한 뒤, 이미 선택한 쇼츠와 주제가 다른 후보를 우선한다.
+        // 모든 후보가 같은 주제라면 시간 중복이 없는 기존 후보 목록으로 되돌린다.
+        if (excludeSegments != null && !excludeSegments.isEmpty()) {
+            List<VideoHighlightSegment> distinctTopicCandidates = availableCandidates.stream()
+                    .filter(candidate -> excludeSegments.stream()
+                            .noneMatch(excluded -> isSameTopic(candidate.reason(), excluded.reason())))
+                    .toList();
+
+            if (!distinctTopicCandidates.isEmpty()) {
+                log.info("쇼츠 주제 중복 후보 제외. fileId={}, beforeCount={}, afterCount={}",
+                        fileId, availableCandidates.size(), distinctTopicCandidates.size());
+                availableCandidates = distinctTopicCandidates;
+            } else {
+                log.info("쇼츠 다른 주제 후보 없음. 시간 중복 없는 후보로 선택 계속. fileId={}, candidateCount={}",
+                        fileId, availableCandidates.size());
+            }
+        }
+
+        String previousTopics = (excludeSegments == null || excludeSegments.isEmpty())
+                ? "없음 (첫 번째 쇼츠)"
+                : excludeSegments.stream()
+                .map(VideoHighlightSegment::reason)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .reduce((first, second) -> first + System.lineSeparator() + "- " + second)
+                .map(value -> "- " + value)
+                .orElse("없음");
+
         Map<Integer, VideoHighlightSegment> candidateMap =
                 new LinkedHashMap<>();
 
@@ -209,6 +245,17 @@ public class VideoShortsHighlightSelector {
                             System.lineSeparator()
                     )
                     .append(
+                            "suggestedTitle: "
+                    )
+                    .append(
+                            StringUtils.hasText(candidate.suggestedTitle())
+                                    ? candidate.suggestedTitle()
+                                    : "없음"
+                    )
+                    .append(
+                            System.lineSeparator()
+                    )
+                    .append(
                             System.lineSeparator()
                     );
         }
@@ -223,14 +270,27 @@ public class VideoShortsHighlightSelector {
                 목표 영상 길이:
                 약 %d초
 
-                선택 기준:
-                - 짧은 영상 하나만 봐도 상황이나 사건을 이해할 수 있어야 합니다.
-                - 시작부터 끝까지 하나의 사건이나 대화 흐름이 자연스럽게 이어져야 합니다.
-                - 중요한 사건, 강한 반응, 흥미로운 대화, 갈등, 반전, 웃긴 상황 등
-                  짧은 영상으로 봤을 때 관심을 끌 만한 장면을 우선하세요.
+                선택 기준 (아래 순서대로 비교하세요):
+                1. 시작 3초의 흡입력: 도입부터 궁금증, 강한 대사, 예상 밖의 반응 등
+                   바로 보고 싶게 만드는 요소가 있는가?
+                2. 독립적 이해 가능성: 원본의 앞뒤 장면을 몰라도 누가 무엇을
+                   왜 하는지 이해할 수 있는가?
+                3. 재미와 몰입도: 웃음, 반전, 놀람, 긴장, 감동, 솔직한 고백처럼
+                   영상 안에서 확인되는 구체적 사건과 반응이 있는가?
+                4. 짧은 구간의 완결성: 하나의 대화나 사건이 진행되어 의미 있는
+                   반응 또는 마무리까지 이어지는가?
+                5. 제목 적합성: 후보의 suggestedTitle이 실제 장면과 일치하고
+                   짧은 쇼츠의 핵심 사건을 잘 드러내는가?
+                - 단순히 줄거리에서 중요하다는 이유만으로 선택하지 마세요.
+                - 후보 reason과 suggestedTitle에서 확인할 수 있는 근거만 평가하고,
+                  실제 영상에 없는 장면이나 감정을 추측하지 마세요.
                 - 단순 이동, 반복 장면, 의미 없는 화면 변화는 선택하지 마세요.
                 - 원본 영상 전체를 요약하려고 하지 마세요.
                 - 여러 후보를 합치지 마세요.
+                - 같은 인물이 등장해도 사건이나 대화 주제가 다르면 선택할 수 있습니다.
+                - 이전에 선택한 쇼츠와 실질적으로 같은 사건이나 대화 주제인 후보는 피하세요.
+                - 이전 쇼츠와 다른 주제인 후보 중 가장 흥미로운 장면을 선택하세요.
+                - 다른 주제가 전혀 없다면 남은 후보 중 가장 흥미로운 장면을 선택하세요.
                 - 반드시 제공된 candidateId 하나만 선택하세요.
                 - 새로운 timestamp를 만들지 마세요.
 
@@ -241,10 +301,14 @@ public class VideoShortsHighlightSelector {
                   "candidateId": 3
                 }
 
+                이미 선택한 쇼츠의 주제:
+                %s
+
                 후보:
                 %s
                 """.formatted(
                         targetDurationMillis / 1000,
+                        previousTopics,
                         candidateText
                 );
 
@@ -259,6 +323,8 @@ public class VideoShortsHighlightSelector {
                                                 당신은 긴 영상에서 짧은 숏폼 영상으로
                                                 사용할 가치가 가장 높은 장면을 선정하는 영상 편집자입니다.
 
+                                                시작 3초의 흡입력, 독립적인 이해 가능성,
+                                                재미·몰입도와 구간의 완결성을 우선하세요.
                                                 제공된 후보 중 하나만 선택하고
                                                 제공되지 않은 장면이나 시간을 만들지 마세요.
                                                 """,
@@ -321,6 +387,41 @@ public class VideoShortsHighlightSelector {
         );
 
         return fitted;
+    }
+
+    private boolean isSameTopic(String firstReason, String secondReason) {
+        if (!StringUtils.hasText(firstReason) || !StringUtils.hasText(secondReason)) {
+            return false;
+        }
+
+        Set<String> firstKeywords = topicKeywords(firstReason);
+        Set<String> secondKeywords = topicKeywords(secondReason);
+        if (firstKeywords.isEmpty() || secondKeywords.isEmpty()) {
+            return false;
+        }
+        int smallerSize = Math.min(firstKeywords.size(), secondKeywords.size());
+        firstKeywords.retainAll(secondKeywords);
+
+        // 동일 인물 이름 하나만 겹친다고 같은 사건으로 판단하지 않는다.
+        // 공통 핵심 단어가 2개 이상이고, 짧은 쪽 설명의 절반 이상이 일치해야 한다.
+        return firstKeywords.size() >= 2
+                && (double) firstKeywords.size() / smallerSize >= 0.5;
+    }
+
+    private Set<String> topicKeywords(String reason) {
+        Set<String> keywords = new HashSet<>();
+        for (String raw : reason.split("[^\\p{L}\\p{N}]+")) {
+            String word = raw.trim().toLowerCase(java.util.Locale.ROOT);
+            if (word.length() < 2 || GENERIC_TOPIC_WORDS.contains(word)) {
+                continue;
+            }
+            // 흔한 조사만 제거해 같은 고유명사의 조사 차이를 흡수한다.
+            String stem = word.replaceFirst("(에서는|에게서|으로는|이라는|에게|에서|으로|와는|과는|에는|이나|라고|부터|까지|의|은|는|이|가|을|를|와|과|도|만)$", "");
+            if (stem.length() >= 2 && !GENERIC_TOPIC_WORDS.contains(stem)) {
+                keywords.add(stem);
+            }
+        }
+        return keywords;
     }
 
     private Integer parseCandidateId(
@@ -431,7 +532,8 @@ public class VideoShortsHighlightSelector {
             return new VideoHighlightSegment(
                     start,
                     start + targetDurationMillis,
-                    segment.reason()
+                    segment.reason(),
+                    segment.suggestedTitle()
             );
         }
 
@@ -449,7 +551,8 @@ public class VideoShortsHighlightSelector {
         return new VideoHighlightSegment(
                 fittedStart,
                 fittedEnd,
-                segment.reason()
+                segment.reason(),
+                segment.suggestedTitle()
         );
     }
 

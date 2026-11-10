@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -29,6 +31,13 @@ public class GeminiClient {
 
     private static final Duration REQUEST_TIMEOUT =
             Duration.ofSeconds(60);
+
+    private static final Duration VIDEO_ANALYSIS_TIMEOUT = Duration.ofMinutes(10);
+    private static final int MAX_RATE_LIMIT_RETRIES = 2;
+    private static final long DEFAULT_RETRY_DELAY_SECONDS = 35;
+    private static final long MAX_RETRY_DELAY_SECONDS = 120;
+    private static final Pattern RETRY_DELAY_PATTERN =
+            Pattern.compile("retryDelay[^0-9]{1,30}(\\d+)s");
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -99,8 +108,43 @@ public class GeminiClient {
                         Map.of("text", prompt)
                 )
         )));
-        body.put("generationConfig", Map.of("maxOutputTokens", 4096));
-        return executeGenerateContent(body);
+        body.put("generationConfig", Map.of("maxOutputTokens", 8192));
+        return executeGenerateContent(body, VIDEO_ANALYSIS_TIMEOUT, false);
+    }
+
+    /** Gemini Files API 영상의 지정 구간만 분석한다. 시간 단위는 초다. */
+    public JsonNode analyzeVideoSegment(
+            String fileUri, String mimeType, String prompt,
+            long startSeconds, long endSeconds
+    ) {
+        if (fileUri == null || !fileUri.startsWith("https://generativelanguage.googleapis.com/")) {
+            throw new IllegalArgumentException("올바른 Gemini Files URI가 아닙니다.");
+        }
+        if (!"video/mp4".equalsIgnoreCase(mimeType)) {
+            throw new IllegalArgumentException("현재는 video/mp4만 지원합니다.");
+        }
+        if (prompt == null || prompt.isBlank() || startSeconds < 0 || endSeconds <= startSeconds) {
+            throw new IllegalArgumentException("영상 분석 구간 또는 프롬프트가 올바르지 않습니다.");
+        }
+
+        Map<String, Object> fileData = Map.of(
+                "mimeType", mimeType,
+                "fileUri", fileUri
+        );
+        Map<String, Object> videoMetadata = Map.of(
+                "startOffset", startSeconds + "s",
+                "endOffset", endSeconds + "s"
+        );
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("contents", List.of(Map.of(
+                "role", "user",
+                "parts", List.of(
+                        Map.of("fileData", fileData, "videoMetadata", videoMetadata),
+                        Map.of("text", prompt)
+                )
+        )));
+        body.put("generationConfig", Map.of("maxOutputTokens", 8192));
+        return executeGenerateContent(body, VIDEO_ANALYSIS_TIMEOUT, false);
     }
 
     public Flux<JsonNode> streamGenerateContent(
@@ -380,24 +424,55 @@ public class GeminiClient {
     private JsonNode executeGenerateContent(
             Map<String, Object> requestBody
     ) {
+        return executeGenerateContent(requestBody, REQUEST_TIMEOUT, true);
+    }
+
+    private JsonNode executeGenerateContent(
+            Map<String, Object> requestBody,
+            Duration timeout,
+            boolean retryOnRateLimit
+    ) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException(
-                    "GEMINI_API_KEY 환경변수가 설정되지 않았습니다."
-            );
+            throw new IllegalStateException("GEMINI_API_KEY 환경변수가 설정되지 않았습니다.");
         }
 
-        log.info(
-                "Gemini API 호출 시작. model={}, toolsEnabled={}",
-                model,
-                requestBody.containsKey("tools")
-        );
+        int maxAttempts = retryOnRateLimit ? MAX_RATE_LIMIT_RETRIES + 1 : 1;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return executeGenerateContentOnce(requestBody, timeout);
+            } catch (GeminiRateLimitException e) {
+                if (attempt >= maxAttempts) {
+                    log.warn("Gemini 호출 제한으로 최종 실패. model={}, attempts={}", model, attempt);
+                    throw e;
+                }
+
+                long delaySeconds = e.retryDelaySeconds();
+                log.warn("Gemini 429 호출 제한. model={}, attempt={}/{}, retryAfter={}s",
+                        model, attempt, maxAttempts, delaySeconds);
+
+                try {
+                    Thread.sleep(Duration.ofSeconds(delaySeconds));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Gemini 재시도 대기 중 작업이 중단되었습니다.", interrupted);
+                }
+            }
+        }
+
+        throw new IllegalStateException("Gemini API 재시도 횟수를 초과했습니다.");
+    }
+
+    private JsonNode executeGenerateContentOnce(
+            Map<String, Object> requestBody,
+            Duration timeout
+    ) {
+        log.info("Gemini API 호출 시작. model={}, toolsEnabled={}",
+                model, requestBody.containsKey("tools"));
 
         try {
             String responseBody = webClient.post()
-                    .uri(
-                            "/v1beta/models/{model}:generateContent",
-                            model
-                    )
+                    .uri("/v1beta/models/{model}:generateContent", model)
                     .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -405,69 +480,74 @@ public class GeminiClient {
                     .retrieve()
                     .onStatus(
                             status -> status.isError(),
-                            response -> response
-                                    .bodyToMono(String.class)
+                            response -> response.bodyToMono(String.class)
                                     .defaultIfEmpty("")
-                                    .flatMap(body -> Mono.error(
-                                            new IllegalStateException(
-                                                    "Gemini API 오류. HTTP "
-                                                            + response.statusCode().value()
-                                                            + ", body="
-                                                            + body
-                                            )
-                                    ))
+                                    .flatMap(body -> {
+                                        int status = response.statusCode().value();
+                                        if (status == 429) {
+                                            return Mono.error(new GeminiRateLimitException(
+                                                    body, parseRetryDelaySeconds(body)));
+                                        }
+                                        return Mono.error(new IllegalStateException(
+                                                "Gemini API 오류. HTTP " + status + ", body=" + body));
+                                    })
                     )
                     .bodyToMono(String.class)
-                    .timeout(REQUEST_TIMEOUT)
+                    .timeout(timeout)
                     .block();
 
             if (responseBody == null || responseBody.isBlank()) {
-                throw new IllegalStateException(
-                        "Gemini API 응답이 비어 있습니다."
-                );
+                throw new IllegalStateException("Gemini API 응답이 비어 있습니다.");
             }
 
-            JsonNode result =
-                    objectMapper.readTree(responseBody);
-
-            JsonNode usage =
-                    result.path("usageMetadata");
-
-            log.info(
-                    "Gemini API 호출 완료. model={}, "
-                            + "promptTokens={}, outputTokens={}, totalTokens={}",
+            JsonNode result = objectMapper.readTree(responseBody);
+            JsonNode usage = result.path("usageMetadata");
+            log.info("Gemini API 호출 완료. model={}, promptTokens={}, outputTokens={}, totalTokens={}",
                     model,
                     usage.path("promptTokenCount").asInt(0),
                     usage.path("candidatesTokenCount").asInt(0),
-                    usage.path("totalTokenCount").asInt(0)
-            );
-
+                    usage.path("totalTokenCount").asInt(0));
             return result;
-
         } catch (WebClientRequestException e) {
-            log.error(
-                    "Gemini 연결 실패. message={}",
-                    e.getMessage()
-            );
-
-            throw new IllegalStateException(
-                    "Gemini API 서버에 연결하지 못했습니다.",
-                    e
-            );
-
+            log.error("Gemini 연결 실패. message={}", e.getMessage());
+            throw new IllegalStateException("Gemini API 서버에 연결하지 못했습니다.", e);
         } catch (Exception e) {
             if (e instanceof IllegalStateException) {
                 throw e;
             }
-
-            throw new IllegalStateException(
-                    "Gemini API 호출 중 오류가 발생했습니다.",
-                    e
-            );
+            throw new IllegalStateException("Gemini API 호출 중 오류가 발생했습니다.", e);
         }
+    }
+
+    private long parseRetryDelaySeconds(String responseBody) {
+        if (responseBody != null) {
+            Matcher matcher = RETRY_DELAY_PATTERN.matcher(responseBody);
+            if (matcher.find()) {
+                try {
+                    long seconds = Long.parseLong(matcher.group(1));
+                    return Math.max(1, Math.min(seconds + 2, MAX_RETRY_DELAY_SECONDS));
+                } catch (NumberFormatException ignored) {
+                    // Gemini 응답이 예상과 다르면 기본 대기 시간을 사용한다.
+                }
+            }
+        }
+        return DEFAULT_RETRY_DELAY_SECONDS;
     }
 
     public String getModel() {
         return model;
+    }
+
+    private static final class GeminiRateLimitException extends IllegalStateException {
+        private final long retryDelaySeconds;
+
+        private GeminiRateLimitException(String responseBody, long retryDelaySeconds) {
+            super("Gemini API 오류. HTTP 429, body=" + responseBody);
+            this.retryDelaySeconds = retryDelaySeconds;
+        }
+
+        private long retryDelaySeconds() {
+            return retryDelaySeconds;
+        }
     }
 }

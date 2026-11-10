@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -24,6 +25,9 @@ public class GeminiFileClient {
 
     private static final Logger log =
             LoggerFactory.getLogger(GeminiFileClient.class);
+
+    private static final Duration LARGE_UPLOAD_TIMEOUT = Duration.ofMinutes(45);
+    private static final Duration METADATA_TIMEOUT = Duration.ofMinutes(1);
 
     private final WebClient webClient;
     private final String apiKey;
@@ -93,7 +97,7 @@ public class GeminiFileClient {
                     .body(BodyInserters.fromResource(new FileSystemResource(path)))
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(LARGE_UPLOAD_TIMEOUT);
             if (response == null || response.isBlank()) {
                 throw new IllegalStateException("Gemini 파일 업로드 응답이 비어 있습니다.");
             }
@@ -113,7 +117,7 @@ public class GeminiFileClient {
                 .header("x-goog-api-key", apiKey)
                 .retrieve()
                 .bodyToMono(String.class)
-                .block();
+                .block(METADATA_TIMEOUT);
     }
 
     private String startUpload(String filename, long fileSize) {
@@ -163,7 +167,7 @@ public class GeminiFileClient {
                     return response.releaseBody()
                             .thenReturn(URI.create(uploadUrl));
                 })
-                .block();
+                .block(METADATA_TIMEOUT);
 
         if (uploadUri == null ||
                 !"https".equalsIgnoreCase(uploadUri.getScheme()) ||

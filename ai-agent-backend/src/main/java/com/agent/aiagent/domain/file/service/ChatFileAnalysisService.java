@@ -17,15 +17,20 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatFileAnalysisService {
+
+    private static final long GEMINI_SEGMENT_SECONDS = 600L;
+    private static final long GEMINI_SEGMENT_INTERVAL_MILLIS = 20_000L;
 
     private static final Set<String> VIDEO_EXTENSIONS =
             Set.of(
@@ -272,7 +277,7 @@ public class ChatFileAnalysisService {
 
         fileAnalysisProgressService.running(fileId, "gemini_processing", "Gemini 영상 처리 대기 중...");
         boolean active = false;
-        for (int attempt = 0; attempt < 60; attempt++) {
+        for (int attempt = 0; attempt < 240; attempt++) {
             cancellationManager.checkCancelled(fileId);
             JsonNode state = objectMapper.readTree(geminiFileClient.getFile(fileName));
             String status = state.path("state").asText("");
@@ -287,26 +292,98 @@ public class ChatFileAnalysisService {
                 throw new IllegalStateException("Gemini 영상 처리 실패: " + state);
             }
             try {
-                Thread.sleep(2000);
+                Thread.sleep(5000);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Gemini 영상 처리 대기가 중단되었습니다.", exception);
             }
         }
         if (!active) {
-            throw new IllegalStateException("Gemini 영상 처리 대기 시간이 초과되었습니다.");
+            throw new IllegalStateException("Gemini 영상 처리 대기 시간이 초과되었습니다(최대 20분).");
         }
 
         cancellationManager.checkCancelled(fileId);
         fileAnalysisProgressService.running(fileId, "gemini_analysis", "Gemini 영상 분석 중...");
-        String prompt = "이 영상을 처음부터 끝까지 분석하고, 주요 장면과 대화 및 음성 내용을 "
-                + "시간대별 타임스탬프와 함께 한국어로 상세하게 정리해줘. "
-                + "영상에 없는 내용은 추측하지 마.";
-        String content = geminiFileService.analyze(fileUri, prompt).content();
-        cancellationManager.checkCancelled(fileId);
-        chatFileChunkService.saveGeminiVideoAnalysisChunks(chatFile, content);
-        fileAnalysisProgressService.completed(fileId, "gemini_analysis", "Gemini 영상 분석 완료");
-        log.info("Gemini 영상 분석 및 청크 저장 완료. fileId={}, contentLength={}", fileId, content.length());
+        long durationSeconds = probeVideoDurationSeconds(Path.of(chatFile.getStoredPath()));
+        int segmentCount = Math.toIntExact(
+                (durationSeconds + GEMINI_SEGMENT_SECONDS - 1) / GEMINI_SEGMENT_SECONDS
+        );
+        log.info("Gemini 구간 분석 시작. fileId={}, durationSeconds={}, segments={}",
+                fileId, durationSeconds, segmentCount);
+
+        for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+            cancellationManager.checkCancelled(fileId);
+            long startSeconds = segmentIndex * GEMINI_SEGMENT_SECONDS;
+            long endSeconds = Math.min(durationSeconds, startSeconds + GEMINI_SEGMENT_SECONDS);
+            fileAnalysisProgressService.running(fileId, "gemini_analysis",
+                    "Gemini 영상 구간 분석 중... (" + (segmentIndex + 1) + "/" + segmentCount + ")");
+
+            String prompt = "이 영상의 지정된 구간(" + formatVideoTime(startSeconds)
+                    + " ~ " + formatVideoTime(endSeconds) + ")만 분석해줘. "
+                    + "실제 화면과 음성에서 확인되는 사실을 바탕으로 주요 진행, 출연자, "
+                    + "대화 내용, 곡과 순위, 중요한 사건을 발생 순서대로 한국어로 상세히 기록해줘. "
+                    + "구간 내부의 주요 장면마다 영상 전체 기준 HH:MM:SS 시각을 적어줘. "
+                    + "구간 밖 내용은 다루지 말고, 확인되지 않은 대사나 사건은 추측하지 마. "
+                    + "간단한 총평보다 구체적인 장면 기록을 우선해줘.";
+
+            String content = geminiFileService.analyzeSegment(
+                    fileUri, prompt, startSeconds, endSeconds
+            ).content();
+            cancellationManager.checkCancelled(fileId);
+            chatFileChunkService.saveGeminiVideoSegmentChunk(
+                    chatFile, segmentIndex, startSeconds * 1000L,
+                    endSeconds * 1000L, content
+            );
+            log.info("Gemini 구간 분석 완료. fileId={}, segment={}/{}, contentLength={}",
+                    fileId, segmentIndex + 1, segmentCount, content.length());
+
+            if (segmentIndex + 1 < segmentCount) {
+                try {
+                    Thread.sleep(GEMINI_SEGMENT_INTERVAL_MILLIS);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Gemini 구간 분석 대기가 중단되었습니다.", exception);
+                }
+            }
+        }
+        fileAnalysisProgressService.completed(fileId, "gemini_analysis", "Gemini 구간별 영상 분석 완료");
+        log.info("Gemini 영상 구간별 분석 및 청크 저장 완료. fileId={}, segmentCount={}",
+                fileId, segmentCount);
+    }
+
+    private long probeVideoDurationSeconds(Path videoPath) {
+        try {
+            Process process = new ProcessBuilder(
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", videoPath.toString()
+            ).redirectErrorStream(true).start();
+            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new IllegalStateException("ffprobe 영상 길이 조회 시간이 초과되었습니다.");
+            }
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            if (process.exitValue() != 0) {
+                throw new IllegalStateException("ffprobe 영상 길이 조회 실패: " + output);
+            }
+            long seconds = (long) Math.ceil(Double.parseDouble(output));
+            if (seconds <= 0) {
+                throw new IllegalStateException("영상 길이가 올바르지 않습니다: " + output);
+            }
+            return seconds;
+        } catch (IOException exception) {
+            throw new IllegalStateException("ffprobe 실행에 실패했습니다. ffprobe 설치 및 PATH를 확인하세요.", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("영상 길이 조회가 중단되었습니다.", exception);
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("ffprobe 영상 길이 응답을 해석할 수 없습니다.", exception);
+        }
+    }
+
+    private String formatVideoTime(long seconds) {
+        return String.format("%02d:%02d:%02d", seconds / 3600,
+                (seconds % 3600) / 60, seconds % 60);
     }
 
     private void analyzeVideoAudio(

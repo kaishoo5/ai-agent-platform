@@ -21,6 +21,7 @@ public class VideoShortsGenerator {
     private final VideoShortsHighlightSelector videoShortsHighlightSelector;
     private final VideoShortsSubtitleGenerator videoShortsSubtitleGenerator;
     private final VideoShortsClipGenerator videoShortsClipGenerator;
+    private final VideoShortsTitleGenerator videoShortsTitleGenerator;
 
     public Path generate(
             String fileId,
@@ -148,10 +149,6 @@ public class VideoShortsGenerator {
                             selectedSegments
                     );
 
-            selectedSegments.add(
-                    segment
-            );
-
             log.info(
                     "AI 쇼츠 구간 선정 결과. fileId={}, currentIndex={}, startMillis={}, endMillis={}, durationMillis={}, reason={}",
                     fileId,
@@ -163,17 +160,33 @@ public class VideoShortsGenerator {
                     segment.reason()
             );
 
+            String generatedTitle = videoShortsTitleGenerator.generate(segment);
+
+            log.info(
+                    "AI 쇼츠 제목 자동 생성 완료. fileId={}, currentIndex={}, title={}",
+                    fileId, index + 1, generatedTitle
+            );
+
             Path subtitlePath =
                     null;
 
             try {
-                subtitlePath =
-                        videoShortsSubtitleGenerator.generate(
+                VideoShortsSubtitleGenerator.PreparedShorts prepared =
+                        videoShortsSubtitleGenerator.prepare(
                                 fileId,
                                 videoPath,
                                 segment.startMillis(),
                                 segment.endMillis()
                         );
+                subtitlePath = prepared.subtitlePath();
+                VideoHighlightSegment adjustedSegment = new VideoHighlightSegment(
+                        prepared.startMillis(),
+                        prepared.endMillis(),
+                        segment.reason(),
+                        segment.suggestedTitle()
+                );
+                // 다음 쇼츠는 실제 편집된 시간 구간을 기준으로 중복을 피한다.
+                selectedSegments.add(adjustedSegment);
 
                 log.info(
                         "AI 쇼츠 자막 준비 완료. fileId={}, currentIndex={}, subtitlePath={}, hasSubtitle={}",
@@ -186,10 +199,10 @@ public class VideoShortsGenerator {
                 Path outputPath =
                         videoShortsClipGenerator.generate(
                                 videoPath,
-                                segment,
+                                adjustedSegment,
                                 subtitlePath,
                                 chatFile.getOriginalName(),
-                                title
+                                generatedTitle
                         );
 
                 outputPaths.add(

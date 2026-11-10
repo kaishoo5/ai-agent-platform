@@ -122,6 +122,99 @@ public class VideoShortsSubtitleGenerator {
         }
     }
 
+    /**
+     * Whisper를 한 번만 호출해 편집 경계와 해당 경계 기준 ASS 자막을 함께 준비한다.
+     */
+    public PreparedShorts prepare(
+            String fileId,
+            Path videoPath,
+            long requestedStartMillis,
+            long requestedEndMillis
+    ) {
+        validate(fileId, videoPath, requestedStartMillis, requestedEndMillis);
+
+        Path normalizedVideoPath = videoPath.toAbsolutePath().normalize();
+        long padding = 5_000L;
+        long analysisStart = Math.max(0L, requestedStartMillis - padding);
+        long analysisEnd = requestedEndMillis + padding;
+        Path audioPath = createAudioPath(normalizedVideoPath);
+        Path subtitlePath = createSubtitlePath(normalizedVideoPath);
+
+        try {
+            extractShortsAudio(normalizedVideoPath, audioPath, analysisStart, analysisEnd);
+            VideoTranscript transcript = whisperTranscriber.transcribe(fileId, audioPath);
+            if (transcript == null || transcript.segments() == null || transcript.segments().isEmpty()) {
+                log.info("쇼츠 경계 보정 생략. fileId={}, reason=noTranscript", fileId);
+                return new PreparedShorts(requestedStartMillis, requestedEndMillis, null);
+            }
+
+            // Whisper의 타임스탬프는 추출된 오디오의 시작점을 0으로 한다.
+            List<VideoTranscriptSegment> segments = transcript.segments();
+            long targetDuration = requestedEndMillis - requestedStartMillis;
+            long bestStart = requestedStartMillis;
+            long bestEnd = requestedEndMillis;
+            double bestScore = Double.MAX_VALUE;
+
+            for (VideoTranscriptSegment first : segments) {
+                if (first == null || first.text() == null || first.text().isBlank()) {
+                    continue;
+                }
+                long candidateStart = analysisStart + first.startMillis();
+                if (candidateStart < 0 || Math.abs(candidateStart - requestedStartMillis) > 2_500L) {
+                    continue;
+                }
+                for (VideoTranscriptSegment last : segments) {
+                    if (last == null || last.text() == null || last.text().isBlank()) {
+                        continue;
+                    }
+                    long candidateEnd = analysisStart + last.endMillis();
+                    long duration = candidateEnd - candidateStart;
+                    // 문장 경계 보정은 요청한 쇼츠 길이를 초과하지 않아야 한다.
+                    if (candidateEnd <= candidateStart
+                            || Math.abs(candidateEnd - requestedEndMillis) > 2_500L
+                            || duration > targetDuration
+                            || targetDuration - duration > 2_500L) {
+                        continue;
+                    }
+                    double score = Math.abs(duration - targetDuration) * 1.5
+                            + Math.abs(candidateStart - requestedStartMillis)
+                            + Math.abs(candidateEnd - requestedEndMillis);
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestStart = candidateStart;
+                        bestEnd = candidateEnd;
+                    }
+                }
+            }
+
+            // 경계 탐색이 실패하면 원래 요청 구간을 유지한다.
+            // 향후 조건 변경이 있더라도 최종 반환 길이가 목표를 초과하지 않도록 방어한다.
+            if (bestEnd - bestStart > targetDuration) {
+                log.warn("쇼츠 문장 경계 길이 초과 방지. fileId={}, adjustedStart={}, adjustedEnd={}, targetDuration={}",
+                        fileId, bestStart, bestEnd, targetDuration);
+                bestStart = requestedStartMillis;
+                bestEnd = requestedEndMillis;
+            }
+
+            // 기존 VideoTranscriptSegment 객체를 재생성하지 않고 ASS 출력 시점만 변환한다.
+            String ass = createAss(segments, analysisStart - bestStart, bestEnd - bestStart);
+            Path resultPath = null;
+            if (ass.contains("Dialogue: 0,")) {
+                Files.writeString(subtitlePath, ass, StandardCharsets.UTF_8);
+                resultPath = subtitlePath;
+            }
+            log.info("쇼츠 문장 경계 보정 완료. fileId={}, originalStart={}, originalEnd={}, adjustedStart={}, adjustedEnd={}, targetDuration={}, adjustedDuration={}, boundaryMatched={}, subtitleCount={}",
+                    fileId, requestedStartMillis, requestedEndMillis, bestStart, bestEnd,
+                    targetDuration, bestEnd - bestStart, bestScore != Double.MAX_VALUE, segments.size());
+            return new PreparedShorts(bestStart, bestEnd, resultPath);
+        } catch (IOException exception) {
+            deleteIfExists(subtitlePath);
+            throw new IllegalStateException("쇼츠 경계 보정/자막 파일 생성 실패", exception);
+        } finally {
+            deleteIfExists(audioPath);
+        }
+    }
+
     public void cleanup(
             Path subtitlePath
     ) {
@@ -301,6 +394,10 @@ public class VideoShortsSubtitleGenerator {
      * 강조 대상은 의미 분석 결과가 아니라 시각적 리듬을 위한 규칙이다.
      */
     private String createAss(List<VideoTranscriptSegment> segments) {
+        return createAss(segments, 0L, Long.MAX_VALUE);
+    }
+
+    private String createAss(List<VideoTranscriptSegment> segments, long offsetMillis, long clipDurationMillis) {
         StringBuilder ass = new StringBuilder("""
                 [Script Info]
                 ScriptType: v4.00+
@@ -322,8 +419,8 @@ public class VideoShortsSubtitleGenerator {
                 continue;
             }
             String text = normalizeText(segment.text());
-            long start = Math.max(0L, segment.startMillis());
-            long end = Math.max(start, segment.endMillis());
+            long start = Math.max(0L, segment.startMillis() + offsetMillis);
+            long end = Math.min(clipDurationMillis, segment.endMillis() + offsetMillis);
             if (text.isBlank() || end <= start) {
                 continue;
             }
@@ -633,5 +730,8 @@ public class VideoShortsSubtitleGenerator {
                     exception
             );
         }
+    }
+
+    public record PreparedShorts(long startMillis, long endMillis, Path subtitlePath) {
     }
 }

@@ -344,6 +344,38 @@ public class ChatFileChunkService {
                 chatFile.getId(), entities.size());
     }
 
+    /** 구간별 결과를 즉시 저장한다. 첫 구간에서만 기존 청크를 초기화한다. */
+    @Transactional
+    public void saveGeminiVideoSegmentChunk(
+            ChatFile chatFile, int segmentIndex, long startMillis,
+            long endMillis, String content
+    ) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("Gemini 구간 분석 결과가 비어 있습니다.");
+        }
+        List<List<Double>> embeddings = embedVideoContents(List.of(content));
+        if (embeddings.size() != 1) {
+            throw new IllegalStateException("Gemini 구간 임베딩 결과가 올바르지 않습니다.");
+        }
+        ChatFileChunk entity = ChatFileChunk.builder()
+                .id(UUID.randomUUID().toString())
+                .fileId(chatFile.getId())
+                .roomId(chatFile.getRoomId())
+                .chunkIndex(segmentIndex)
+                .startMillis(startMillis)
+                .endMillis(endMillis)
+                .content(content)
+                .embedding(embeddingJsonConverter.serialize(embeddings.get(0)))
+                .createdAt(LocalDateTime.now())
+                .build();
+        if (segmentIndex == 0) {
+            chatFileChunkRepository.deleteAllByFileId(chatFile.getId());
+        }
+        chatFileChunkRepository.save(entity);
+        log.info("Gemini 영상 구간 chunk 저장 완료. fileId={}, segment={}, startMillis={}, endMillis={}",
+                chatFile.getId(), segmentIndex, startMillis, endMillis);
+    }
+
     private List<VideoTranscriptSegment> mergeVideoTranscriptSegments(
             List<VideoTranscriptSegment> segments
     ) {

@@ -26,6 +26,14 @@ public class VideoHighlightSelector {
     private static final String VISION_PREFIX =
             "[화면 분석]";
 
+    // Gemini 구간 분석 결과의 장면별 시간 표기 (HH:mm:ss 또는 mm:ss).
+    private static final Pattern GEMINI_SCENE_TIME_PATTERN =
+            Pattern.compile("(?<![0-9])(?:\\*\\*)?(\\d{1,2}:\\d{2}(?::\\d{2})?)(?:\\*\\*)?(?![0-9:])");
+
+    private static final int MAX_GEMINI_SCENE_LINES_PER_WINDOW = 100;
+    private static final int MAX_GEMINI_SCENE_LINE_LENGTH = 260;
+
+
     private static final long WINDOW_DURATION_MILLIS =
             10 * 60 * 1000L;
 
@@ -37,6 +45,13 @@ public class VideoHighlightSelector {
 
     private static final long MAX_CANDIDATE_DURATION_MILLIS =
             60_000L;
+
+    // Gemini가 60초를 조금 넘긴 후보를 반환하면 자막/장면 경계로 재조정한다.
+    private static final long MAX_REPAIRABLE_CANDIDATE_DURATION_MILLIS =
+            90_000L;
+
+    private static final long MIN_REPAIRED_CANDIDATE_DURATION_MILLIS =
+            45_000L;
 
     private static final long MIN_PARTIAL_SEGMENT_MILLIS =
             5_000L;
@@ -61,7 +76,15 @@ public class VideoHighlightSelector {
                     "(\\d{5,})\\s*~\\s*(\\d{5,})"
             );
 
+    private static final int MAX_CACHED_VIDEOS = 16;
     public final ChatFileChunkRepository chatFileChunkRepository;
+    private final Map<String, CandidateCacheEntry> candidateCache =
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CandidateCacheEntry> eldest) {
+                    return size() > MAX_CACHED_VIDEOS;
+                }
+            };
     private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
 
@@ -111,7 +134,8 @@ public class VideoHighlightSelector {
 
         List<VideoHighlightSegment> rawCandidates =
                 selectWindowCandidates(
-                        chunks
+                        chunks,
+                        SelectionPurpose.SUMMARY
                 );
 
         if (rawCandidates.isEmpty()) {
@@ -217,7 +241,7 @@ public class VideoHighlightSelector {
         );
     }
 
-    public List<VideoHighlightSegment> selectCandidates(
+    public synchronized List<VideoHighlightSegment> selectCandidates(
             String fileId
     ) {
         if (!StringUtils.hasText(fileId)) {
@@ -232,7 +256,23 @@ public class VideoHighlightSelector {
                 );
 
         if (chunks.isEmpty()) {
+            candidateCache.remove(fileId);
             return List.of();
+        }
+
+        // 청크 내용이 바뀌면 기존 캐시를 사용하지 않는다.
+        int fingerprint = 1;
+        for (ChatFileChunk chunk : chunks) {
+            fingerprint = 31 * fingerprint + Objects.hash(
+                    chunk.getChunkIndex(), chunk.getStartMillis(),
+                    chunk.getEndMillis(), chunk.getContent()
+            );
+        }
+        CandidateCacheEntry cached = candidateCache.get(fileId);
+        if (cached != null && cached.fingerprint() == fingerprint) {
+            log.info("영상 하이라이트 후보 캐시 사용. fileId={}, candidateCount={}",
+                    fileId, cached.candidates().size());
+            return cached.candidates();
         }
 
         long videoEndMillis =
@@ -245,7 +285,8 @@ public class VideoHighlightSelector {
 
         List<VideoHighlightSegment> rawCandidates =
                 selectWindowCandidates(
-                        chunks
+                        chunks,
+                        SelectionPurpose.SHORTS
                 );
 
         if (rawCandidates.isEmpty()) {
@@ -275,7 +316,11 @@ public class VideoHighlightSelector {
                 mergedCandidates.size()
         );
 
-        return mergedCandidates;
+        List<VideoHighlightSegment> result = List.copyOf(mergedCandidates);
+        candidateCache.put(fileId, new CandidateCacheEntry(fingerprint, result));
+        log.info("영상 하이라이트 후보 캐시 저장. fileId={}, candidateCount={}",
+                fileId, result.size());
+        return result;
     }
 
     private List<ChatFileChunk> loadVideoChunks(
@@ -301,7 +346,8 @@ public class VideoHighlightSelector {
     }
 
     private List<VideoHighlightSegment> selectWindowCandidates(
-            List<ChatFileChunk> chunks
+            List<ChatFileChunk> chunks,
+            SelectionPurpose purpose
     ) {
         long videoEndMillis =
                 chunks.stream()
@@ -352,7 +398,8 @@ public class VideoHighlightSelector {
                                         selectWindowCandidates(
                                                 windowChunks,
                                                 currentWindowStart,
-                                                currentWindowEnd
+                                                currentWindowEnd,
+                                                purpose
                                         ),
                                 executorService
                         );
@@ -421,7 +468,8 @@ public class VideoHighlightSelector {
     private WindowCandidateResult selectWindowCandidates(
             List<ChatFileChunk> windowChunks,
             long windowStart,
-            long windowEnd
+            long windowEnd,
+            SelectionPurpose purpose
     ) {
         try {
             log.info(
@@ -437,7 +485,8 @@ public class VideoHighlightSelector {
                     selectCandidatesFromWindow(
                             windowChunks,
                             windowStart,
-                            windowEnd
+                            windowEnd,
+                            purpose
                     );
 
             List<VideoHighlightSegment> adjustedCandidates =
@@ -500,7 +549,8 @@ public class VideoHighlightSelector {
     private List<VideoHighlightSegment> selectCandidatesFromWindow(
             List<ChatFileChunk> chunks,
             long windowStart,
-            long windowEnd
+            long windowEnd,
+            SelectionPurpose purpose
     ) {
         // 모델에는 window 기준 상대 밀리초를 전달한다.
         // 절대 timestamp를 생성하면서 자릿수나 범위를 잘못 해석하는 문제를 줄인다.
@@ -513,31 +563,103 @@ public class VideoHighlightSelector {
 
         long windowDurationMillis = windowEnd - windowStart;
 
-        String userPrompt =
-                """
+        String userPrompt = purpose == SelectionPurpose.SUMMARY
+                ? """
                 다음은 긴 영상의 한 구간에서 추출한 자막과 화면 분석입니다.
-                줄거리 전개에 중요한 사건, 갈등, 결정, 폭로, 핵심 대화만 선택하세요.
-                단순 이동, 배경 변화, 반복 설명, 추측성 장면은 제외하세요.
+                전체 영상을 하나의 요약 MP4로 편집할 때 필요한 핵심 장면 후보를 찾으세요.
+                시청자의 관심을 끄는 짧은 쇼츠가 아니라, 영상 전체의 내용과 흐름을
+                정확하게 이해할 수 있도록 대표 장면을 선정하는 작업입니다.
+
+                후보 평가 기준 (중요도 순):
+                1. 핵심 사실, 주요 사건, 결정, 중요한 발언과 결과
+                2. 사건의 원인과 결과, 앞뒤 맥락을 이해하는 데 필요한 장면
+                3. 이야기의 전환점과 의미 있는 변화
+                4. 영상 전체를 대표하는 정보와 주요 인물의 입장
+                5. 시간순으로 이어 붙였을 때 내용이 자연스럽게 전달되는가
+
+                단순한 자극, 반응, 웃음, 쇼츠용 후킹만으로 후보를 선정하지 마세요.
+                광고, 반복 설명, 무의미한 장면, 오프닝과 엔딩 크레딧은 제외하세요.
+                같은 사건을 반복 설명하는 구간은 대표 장면만 선택하세요.
+                실제 데이터에 없는 사건, 발언, 시간은 추측하지 마세요.
 
                 시간 규칙 (매우 중요):
                 - 아래 [startMillis,endMillis]는 이 구간의 시작을 0으로 둔 상대 밀리초입니다.
                 - 출력도 반드시 상대 밀리초를 사용하세요. 원본 영상의 절대 시간을 출력하지 마세요.
+                - 이 window의 원본 절대 시작 시각은 %dms입니다.
+                - 예: [SCENE_AT 111000ms]라면 startMillis는 111000 부근이어야 합니다.
+                  111000에 원본 절대 시작 시각을 다시 더하지 마세요.
+                - [SCENE_AT]에 제시되지 않은 시각으로 이동해 후보를 만들지 마세요.
+                - 모든 startMillis/endMillis는 0 이상 %d 이하여야 합니다.
+                - endMillis는 startMillis보다 커야 합니다.
+                - 각 장면은 15,000~60,000ms 길이로 선택하세요.
+                - 중요한 장면을 최대 4개까지 선택하고, 없으면 []을 반환하세요.
+                - [SCENE_AT Nms]는 장면 시작 시각이지 종료 시각이 아닙니다.
+                - 10분짜리 분석 청크 전체를 하나의 장면으로 취급하지 마세요.
+                - 시간은 대략적인 편집 후보이며 실제 컷 경계 검증이 필요합니다.
+
+                reason에는 해당 장면이 전체 요약에 필요한 이유를 구체적으로 작성하세요.
+                suggestedTitle에는 해당 장면의 핵심 사건을 짧게 적거나 빈 문자열을 사용하세요.
+                JSON 배열만 반환하세요. 예시:
+                [{"startMillis":15000,"endMillis":45000,"reason":"사건의 원인을 설명하는 핵심 발언","suggestedTitle":"사건의 원인"}]
+
+                영상 분석 데이터 (각 줄의 숫자는 상대 밀리초):
+                %s
+                """.formatted(windowStart, windowDurationMillis, context)
+                : """
+                다음은 긴 영상의 한 구간에서 추출한 자막과 화면 분석입니다.
+                이 구간에서 30~60초짜리 쇼츠로 독립 편집할 가치가 있는 장면을 찾으세요.
+                줄거리상 중요하더라도 맥락 없이는 이해하기 어려운 장면보다,
+                짧은 영상만 봐도 재미와 사건의 의미가 전달되는 장면을 우선하세요.
+
+                후보 평가 기준 (중요도 순):
+                1. 시작 3초: 첫 대사나 반응부터 시청자의 궁금증을 유발하는가?
+                2. 독립적 이해: 긴 영상의 앞뒤 내용을 몰라도 상황을 이해할 수 있는가?
+                3. 재미와 몰입: 웃음, 의외의 반전, 놀람, 긴장, 갈등, 솔직한 고백 등
+                   명확한 감정 반응이나 흥미로운 사건이 있는가?
+                4. 완결성: 한 가지 사건이나 대화가 짧은 구간 안에서 전개되고
+                   의미 있는 반응 또는 마무리까지 이어지는가?
+                5. 편집 적합성: 단순 설명, 긴 도입, 반복, 무의미한 이동이 적은가?
+                억지로 재미를 만들어내지 말고 입력 자료에서 확인되는 근거만 사용하세요.
+                쇼츠로 독립 편집하기 어려운 장면은 후보로 내지 마세요.
+
+                시간 규칙 (매우 중요):
+                - 아래 [startMillis,endMillis]는 이 구간의 시작을 0으로 둔 상대 밀리초입니다.
+                - 출력도 반드시 상대 밀리초를 사용하세요. 원본 영상의 절대 시간을 출력하지 마세요.
+                - 이 window의 원본 절대 시작 시각은 %dms입니다.
+                - 예: [SCENE_AT 111000ms]라면 startMillis는 111000 부근이어야 합니다.
+                  111000에 원본 절대 시작 시각을 다시 더하지 마세요.
+                - [SCENE_AT]에 제시되지 않은 시각으로 이동해 후보를 만들지 마세요.
                 - 모든 startMillis/endMillis는 0 이상 %d 이하여야 합니다.
                 - endMillis는 startMillis보다 커야 합니다.
                 - 각 장면은 15,000~60,000ms 길이로 선택하세요.
                 - 가능한 경우 2~4개만 선택하고, 중요한 장면이 없으면 []을 반환하세요.
                 - 입력에 없는 사건이나 시간을 만들어내지 마세요.
+                - [SCENE_AT Nms]는 Gemini가 기록한 장면 시작 시각입니다.
+                  장면의 종료 시각이 아니므로 인접 장면과 대화 흐름을 참고하세요.
+                - [SCENE_AT]가 있는 구간에서는 실제 기록된 장면 시각에
+                  근거해 후보를 선정하고, 10분 청크 전체를 한 장면으로 취급하지 마세요.
+                - 시간은 대략적인 편집 후보이며 실제 컷 경계 검증이 필요합니다.
+
+                각 후보에 suggestedTitle도 반드시 작성하세요.
+                - suggestedTitle은 영상의 실제 사건을 표현하는 한국어 쇼츠 제목입니다.
+                - 24자 이내의 자연스럽고 완결된 제목으로 작성하세요.
+                - 인물·사건·반응 중 실제로 확인되는 핵심을 구체적으로 드러내세요.
+                - 짧은 영상만 봐도 무엇에 관한 장면인지 알 수 있게 작성하세요.
+                - 낚시성 과장, 허위 결과, 확인되지 않은 감정이나 사실은 넣지 마세요.
+                - reason을 그대로 복사하거나 문장 중간을 잘라 쓰지 마세요.
+                - 제공되지 않은 인물, 결과, 사건을 지어내지 마세요.
+                - 제목을 만들기 어려우면 빈 문자열로 반환하세요.
 
                 JSON 배열만 반환하세요. 예시:
-                [{"startMillis":15000,"endMillis":45000,"reason":"핵심 사건을 설명하는 대화"}]
+                [{"startMillis":15000,"endMillis":45000,"reason":"핵심 사건을 설명하는 대화","suggestedTitle":"핵심 사건의 진실이 밝혀진 순간"}]
 
                 영상 분석 데이터 (각 줄의 숫자는 상대 밀리초):
                 %s
                 """.formatted(
-                        windowDurationMillis,
-                        context
-                );
-
+                windowStart,
+                windowDurationMillis,
+                context
+        );
         ChatModelResponse response =
                 chatModelProvider.chatOnce(
                         new ChatModelRequest(
@@ -545,12 +667,23 @@ public class VideoHighlightSelector {
                                 List.of(
                                         new ChatModelMessage(
                                                 "system",
+                                                purpose == SelectionPurpose.SUMMARY
+                                                        ? """
+                                                당신은 긴 영상의 핵심 내용을 충실하게 전달하는
+                                                요약 영상 전문 편집자입니다.
+                                                사건의 중요도, 원인과 결과, 시간적 흐름,
+                                                대표성, 정보의 정확성을 기준으로 장면을 선택하세요.
+                                                쇼츠용 자극이나 반응보다 전체 내용의 이해를 우선하세요.
+                                                제공되지 않은 내용을 추측하지 마세요.
                                                 """
+                                                        : """
                                                 당신은 영화, 드라마, 다큐멘터리 등
-                                                긴 영상의 핵심 줄거리를 짧은 영상으로 편집하는 전문 편집자입니다.
+                                                긴 영상에서 독립적인 쇼츠로 재미있게 볼 수 있는
+                                                장면을 고르는 전문 숏폼 영상 편집자입니다.
 
-                                                단순히 시각적으로 눈에 띄는 장면이 아니라
-                                                이야기 전체를 이해하는 데 중요한 사건과 대화를 선정하세요.
+                                                줄거리의 중요도만이 아니라 초반 흡입력,
+                                                맥락 없이 이해되는지, 감정 반응과 짧은 구간의
+                                                완결성을 중점 평가하세요.
 
                                                 제공되지 않은 내용을 추측하지 마세요.
                                                 """,
@@ -586,18 +719,30 @@ public class VideoHighlightSelector {
                 continue;
             }
 
-            long relativeStart = candidate.startMillis();
-            long relativeEnd = candidate.endMillis();
+            long rawStart = candidate.startMillis();
+            long rawEnd = candidate.endMillis();
+            long relativeStart;
+            long relativeEnd;
 
-            if (relativeStart < 0
-                    || relativeEnd <= relativeStart
-                    || relativeEnd > windowDurationMillis) {
+            // 정상 상대 시각을 우선한다. windowStart=0인 경우에도 동일하게 동작한다.
+            if (rawStart >= 0 && rawEnd > rawStart
+                    && rawEnd <= windowDurationMillis) {
+                relativeStart = rawStart;
+                relativeEnd = rawEnd;
+            } else if (rawStart >= windowStart && rawEnd > rawStart
+                    && rawEnd <= windowEnd) {
+                // 모델이 window 내 절대 밀리초를 반환했을 때만 안전하게 변환한다.
+                relativeStart = rawStart - windowStart;
+                relativeEnd = rawEnd - windowStart;
+                log.info(
+                        "영상 하이라이트 절대 시각을 상대 시각으로 보정. rawStart={}, rawEnd={}, windowStart={}",
+                        rawStart, rawEnd, windowStart
+                );
+            } else {
+                // 다른 window의 절대 시각은 현재 구간으로 억지 이동시키지 않는다.
                 log.warn(
-                        "영상 하이라이트 상대 시간 범위 오류. start={}, end={}, windowStart={}, windowEnd={}",
-                        relativeStart,
-                        relativeEnd,
-                        windowStart,
-                        windowEnd
+                        "영상 하이라이트 window 밖 후보 제외. rawStart={}, rawEnd={}, windowStart={}, windowEnd={}",
+                        rawStart, rawEnd, windowStart, windowEnd
                 );
                 continue;
             }
@@ -605,15 +750,23 @@ public class VideoHighlightSelector {
             long absoluteStart = windowStart + relativeStart;
             long absoluteEnd = windowStart + relativeEnd;
 
+            if (absoluteEnd - absoluteStart > MAX_CANDIDATE_DURATION_MILLIS) {
+                VideoHighlightSegment repaired = repairOversizedCandidate(
+                        absoluteStart,
+                        absoluteEnd,
+                        candidate,
+                        chunks
+                );
+                if (repaired != null) {
+                    absoluteStart = repaired.startMillis();
+                    absoluteEnd = repaired.endMillis();
+                }
+            }
+
             if (!isValidCandidateDuration(absoluteStart, absoluteEnd)) {
                 log.warn(
                         "영상 하이라이트 후보 길이 오류. relativeStart={}, relativeEnd={}, absoluteStart={}, absoluteEnd={}, windowStart={}, windowEnd={}",
-                        relativeStart,
-                        relativeEnd,
-                        absoluteStart,
-                        absoluteEnd,
-                        windowStart,
-                        windowEnd
+                        relativeStart, relativeEnd, absoluteStart, absoluteEnd, windowStart, windowEnd
                 );
                 continue;
             }
@@ -632,12 +785,111 @@ public class VideoHighlightSelector {
                     new VideoHighlightSegment(
                             absoluteStart,
                             absoluteEnd,
-                            candidate.reason()
+                            candidate.reason(),
+                            candidate.suggestedTitle()
                     )
             );
         }
 
         return absoluteCandidates;
+    }
+
+    /**
+     * 60초 초과 후보는 자막/장면 청크 경계 중 가장 자연스러운 45~60초 구간으로 보정한다.
+     * 원본 영상의 실제 문장 완결성은 이 단계에서 보장할 수 없으므로,
+     * 경계를 찾지 못하면 임의로 60초를 잘라내지 않고 기존 검증에서 제외한다.
+     */
+    private VideoHighlightSegment repairOversizedCandidate(
+            long originalStart,
+            long originalEnd,
+            VideoHighlightSegment candidate,
+            List<ChatFileChunk> chunks
+    ) {
+        long originalDuration = originalEnd - originalStart;
+        if (originalDuration <= MAX_CANDIDATE_DURATION_MILLIS
+                || originalDuration > MAX_REPAIRABLE_CANDIDATE_DURATION_MILLIS
+                || chunks == null || chunks.isEmpty()) {
+            return null;
+        }
+
+        TreeSet<Long> boundaries = new TreeSet<>();
+        boundaries.add(originalStart);
+        boundaries.add(originalEnd);
+        for (ChatFileChunk chunk : chunks) {
+            if (chunk == null) {
+                continue;
+            }
+            long start = chunk.getStartMillis();
+            long end = chunk.getEndMillis();
+            if (start > originalStart && start < originalEnd) {
+                boundaries.add(start);
+            }
+            if (end > originalStart && end < originalEnd) {
+                boundaries.add(end);
+            }
+
+            // Gemini 장면 분석은 긴 청크의 본문에 개별 장면 시각을 기록한다.
+            // 청크 자체의 경계만 사용하면 60~90초 후보 안에 경계가 없어
+            // 보정이 불가능하므로 본문에 기록된 실제 장면 시작 시각도 사용한다.
+            if (isGeminiSegmentChunk(chunk)) {
+                for (String line : chunk.getContent().split("\\R")) {
+                    Matcher matcher = GEMINI_SCENE_TIME_PATTERN.matcher(line);
+                    if (!matcher.find()) {
+                        continue;
+                    }
+                    long sceneMillis = parseSceneTimeMillis(matcher.group(1));
+                    if (sceneMillis > originalStart && sceneMillis < originalEnd
+                            && sceneMillis >= chunk.getStartMillis()
+                            && sceneMillis < chunk.getEndMillis()) {
+                        boundaries.add(sceneMillis);
+                    }
+                }
+            }
+        }
+
+        long bestStart = -1;
+        long bestEnd = -1;
+        long bestScore = Long.MAX_VALUE;
+        for (long start : boundaries) {
+            for (long end : boundaries.tailSet(start, false)) {
+                long duration = end - start;
+                if (duration < MIN_REPAIRED_CANDIDATE_DURATION_MILLIS) {
+                    continue;
+                }
+                if (duration > MAX_CANDIDATE_DURATION_MILLIS) {
+                    break;
+                }
+                // 긴 장면을 양쪽에서 조금씩 자르기보다 가능한 한
+                // 원래 시작/종료 중 하나를 유지하고 60초에 가깝게 선정한다.
+                long score = (MAX_CANDIDATE_DURATION_MILLIS - duration) * 3
+                        + Math.min(start - originalStart, originalEnd - end);
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestStart = start;
+                    bestEnd = end;
+                }
+            }
+        }
+
+        if (bestStart < 0) {
+            log.warn(
+                    "영상 하이라이트 초과 후보 경계 보정 실패. startMillis={}, endMillis={}, durationMillis={}, boundaryCount={}, boundaries={}",
+                    originalStart, originalEnd, originalDuration, boundaries.size(), boundaries
+            );
+            return null;
+        }
+
+        log.info(
+                "영상 하이라이트 초과 후보 경계 보정. originalStart={}, originalEnd={}, adjustedStart={}, adjustedEnd={}, originalDuration={}, adjustedDuration={}",
+                originalStart, originalEnd, bestStart, bestEnd,
+                originalDuration, bestEnd - bestStart
+        );
+        return new VideoHighlightSegment(
+                bestStart,
+                bestEnd,
+                candidate.reason(),
+                candidate.suggestedTitle()
+        );
     }
 
     private String buildWindowContext(
@@ -655,6 +907,11 @@ public class VideoHighlightSelector {
                 continue;
             }
 
+            if (isGeminiSegmentChunk(chunk)) {
+                appendGeminiSceneContext(context, chunk, windowStart, windowEnd);
+                continue;
+            }
+
             context.append('[')
                     .append(start)
                     .append(',')
@@ -666,6 +923,73 @@ public class VideoHighlightSelector {
         }
 
         return context.toString();
+    }
+
+    /**
+     * Gemini는 10분 구간 하나를 하나의 청크로 저장한다. 본문에 기록된
+     * 장면 시각을 사용하고, 10분짜리 청크 전체를 하나의 장면으로 취급하지 않는다.
+     * 타임스탬프는 시작 지점에 대한 단서일 뿐 정확한 편집 종료 시각은 아니다.
+     */
+    private boolean isGeminiSegmentChunk(ChatFileChunk chunk) {
+        return chunk.getEndMillis() - chunk.getStartMillis() >= 120_000L
+                && !isVisionChunk(chunk)
+                && GEMINI_SCENE_TIME_PATTERN.matcher(chunk.getContent()).find();
+    }
+
+    private void appendGeminiSceneContext(
+            StringBuilder context,
+            ChatFileChunk chunk,
+            long windowStart,
+            long windowEnd
+    ) {
+        int count = 0;
+        for (String line : chunk.getContent().split("\\R")) {
+            Matcher matcher = GEMINI_SCENE_TIME_PATTERN.matcher(line);
+            if (!matcher.find()) {
+                continue;
+            }
+
+            long absoluteMillis = parseSceneTimeMillis(matcher.group(1));
+            if (absoluteMillis < Math.max(windowStart, chunk.getStartMillis())
+                    || absoluteMillis >= Math.min(windowEnd, chunk.getEndMillis())) {
+                continue;
+            }
+
+            long relativeMillis = absoluteMillis - windowStart;
+            String description = line.trim();
+            if (description.length() > MAX_GEMINI_SCENE_LINE_LENGTH) {
+                description = description.substring(0, MAX_GEMINI_SCENE_LINE_LENGTH);
+            }
+
+            context.append("[SCENE_AT ")
+                    .append(relativeMillis)
+                    .append("ms] ")
+                    .append(description)
+                    .append('\n');
+
+            if (++count >= MAX_GEMINI_SCENE_LINES_PER_WINDOW) {
+                break;
+            }
+        }
+
+        if (count == 0) {
+            context.append("[구간 내 유효한 장면 시각 없음: 후보 추출 불가]\n");
+        }
+    }
+
+    private long parseSceneTimeMillis(String time) {
+        String[] parts = time.split(":");
+        try {
+            long seconds = parts.length == 3
+                    ? Long.parseLong(parts[0]) * 3600L
+                    + Long.parseLong(parts[1]) * 60L
+                    + Long.parseLong(parts[2])
+                    : Long.parseLong(parts[0]) * 60L
+                    + Long.parseLong(parts[1]);
+            return seconds * 1000L;
+        } catch (NumberFormatException exception) {
+            return -1L;
+        }
     }
 
     private List<VideoHighlightSegment> adjustWindowCandidates(
@@ -769,7 +1093,8 @@ public class VideoHighlightSelector {
                             new VideoHighlightSegment(
                                     adjustedStartMillis,
                                     adjustedEndMillis,
-                                    candidate.reason()
+                                    candidate.reason(),
+                                    candidate.suggestedTitle()
                             )
                     );
                 } else {
@@ -1061,7 +1386,8 @@ public class VideoHighlightSelector {
         return new VideoHighlightSegment(
                 startMillis,
                 endMillis,
-                reason
+                reason,
+                getStringValue(item, "suggestedTitle", "suggested_title")
         );
     }
 
@@ -1422,7 +1748,9 @@ public class VideoHighlightSelector {
                                     mergeReasons(
                                             current.reason(),
                                             next.reason()
-                                    )
+                                    ),
+                                    current.suggestedTitle() != null && !current.suggestedTitle().isBlank()
+                                            ? current.suggestedTitle() : next.suggestedTitle()
                             );
 
                     continue;
@@ -1546,6 +1874,12 @@ public class VideoHighlightSelector {
                             limitReason(
                                     candidate.reason()
                             )
+                    )
+                    .append("\n추천 제목: ")
+                    .append(
+                            StringUtils.hasText(candidate.suggestedTitle())
+                                    ? candidate.suggestedTitle()
+                                    : "없음"
                     )
                     .append("\n\n");
         }
@@ -2220,7 +2554,8 @@ public class VideoHighlightSelector {
                 candidate.startMillis(),
                 candidate.startMillis()
                         + remainingMillis,
-                candidate.reason()
+                candidate.reason(),
+                candidate.suggestedTitle()
         );
     }
 
@@ -2469,6 +2804,11 @@ public class VideoHighlightSelector {
                 minutes,
                 seconds
         );
+    }
+
+    private enum SelectionPurpose { SUMMARY, SHORTS }
+
+    private record CandidateCacheEntry(int fingerprint, List<VideoHighlightSegment> candidates) {
     }
 
     private record WindowCandidateResult(

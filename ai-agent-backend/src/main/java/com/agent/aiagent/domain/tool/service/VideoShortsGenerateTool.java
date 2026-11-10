@@ -59,15 +59,6 @@ public class VideoShortsGenerateTool implements AgentTool {
                                             + "여러 개를 요청한 경우 도구를 반복 호출하지 말고 "
                                             + "이 값에 요청한 개수를 지정합니다.",
                                     false
-                            ),
-                            "title",
-                            new ToolParameter(
-                                    "string",
-                                    "쇼츠 영상 상단에 표시할 제목입니다. "
-                                            + "사용자가 상단 제목이나 문구를 요청한 경우 "
-                                            + "한글과 이모지를 포함하여 원문 그대로 전달합니다. "
-                                            + "사용자가 제목을 요청하지 않았다면 생략합니다.",
-                                    false
                             )
                     )
             );

@@ -78,6 +78,30 @@ public class GeminiFileService {
         return new VideoAnalysisResponse(fileUri, answer.toString());
     }
 
+    public VideoAnalysisResponse analyzeSegment(
+            String fileUri, String prompt, long startSeconds, long endSeconds
+    ) {
+        JsonNode response = geminiClient.analyzeVideoSegment(
+                fileUri, "video/mp4", prompt, startSeconds, endSeconds
+        );
+        StringBuilder answer = new StringBuilder();
+        JsonNode candidates = response.path("candidates");
+        if (candidates.isArray() && !candidates.isEmpty()) {
+            JsonNode parts = candidates.get(0).path("content").path("parts");
+            if (parts.isArray()) {
+                for (JsonNode part : parts) {
+                    if (part.path("text").isTextual()) {
+                        answer.append(part.path("text").asText());
+                    }
+                }
+            }
+        }
+        if (answer.isEmpty()) {
+            throw new IllegalStateException("Gemini 구간 분석 결과에 텍스트가 없습니다: " + response);
+        }
+        return new VideoAnalysisResponse(fileUri, answer.toString());
+    }
+
     public record VideoAnalysisRequest(String fileUri, String prompt) {
     }
 
