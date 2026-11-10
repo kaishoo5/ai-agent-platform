@@ -471,66 +471,96 @@ public class VideoHighlightSelector {
             long windowEnd,
             SelectionPurpose purpose
     ) {
-        try {
-            log.info(
-                    "영상 하이라이트 window 후보 선정 시작. windowStart={}, windowEnd={}",
-                    windowStart,
-                    windowEnd
-            );
+        log.info(
+                "영상 하이라이트 window 후보 선정 시작. windowStart={}, windowEnd={}",
+                windowStart,
+                windowEnd
+        );
 
-            long startedAt =
-                    System.nanoTime();
+        long startedAt = System.nanoTime();
+        int maxAttempts = purpose == SelectionPurpose.SUMMARY ? 2 : 1;
 
-            List<VideoHighlightSegment> windowCandidates =
-                    selectCandidatesFromWindow(
-                            windowChunks,
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                List<VideoHighlightSegment> windowCandidates =
+                        selectCandidatesFromWindow(
+                                windowChunks,
+                                windowStart,
+                                windowEnd,
+                                purpose
+                        );
+
+                List<VideoHighlightSegment> adjustedCandidates =
+                        adjustWindowCandidates(
+                                windowCandidates,
+                                windowStart,
+                                windowEnd
+                        );
+
+                if (adjustedCandidates.isEmpty() && attempt < maxAttempts) {
+                    log.warn(
+                            "영상 요약 하이라이트 후보 없음. 1회 재시도. windowStart={}, windowEnd={}, attempt={}, rawCandidateCount={}",
                             windowStart,
                             windowEnd,
-                            purpose
+                            attempt,
+                            windowCandidates.size()
                     );
+                    continue;
+                }
 
-            List<VideoHighlightSegment> adjustedCandidates =
-                    adjustWindowCandidates(
-                            windowCandidates,
+                long elapsedMillis =
+                        (System.nanoTime() - startedAt) / 1_000_000L;
+
+                log.info(
+                        "영상 하이라이트 구간 후보 선정 완료. windowStart={}, windowEnd={}, rawCandidateCount={}, validCandidateCount={}, attempt={}, elapsedMillis={}",
+                        windowStart,
+                        windowEnd,
+                        windowCandidates.size(),
+                        adjustedCandidates.size(),
+                        attempt,
+                        elapsedMillis
+                );
+
+                return new WindowCandidateResult(
+                        windowStart,
+                        windowEnd,
+                        adjustedCandidates
+                );
+            } catch (Exception exception) {
+                if (attempt < maxAttempts) {
+                    log.warn(
+                            "영상 요약 하이라이트 후보 선정 오류. 1회 재시도. windowStart={}, windowEnd={}, attempt={}",
                             windowStart,
-                            windowEnd
+                            windowEnd,
+                            attempt,
+                            exception
                     );
+                    continue;
+                }
 
-            long elapsedMillis =
-                    (
-                            System.nanoTime()
-                                    - startedAt
-                    )
-                            / 1_000_000L;
-
-            log.info(
-                    "영상 하이라이트 구간 후보 선정 완료. windowStart={}, windowEnd={}, rawCandidateCount={}, validCandidateCount={}, elapsedMillis={}",
-                    windowStart,
-                    windowEnd,
-                    windowCandidates.size(),
-                    adjustedCandidates.size(),
-                    elapsedMillis
-            );
-
-            return new WindowCandidateResult(
-                    windowStart,
-                    windowEnd,
-                    adjustedCandidates
-            );
-        } catch (Exception exception) {
-            log.warn(
-                    "영상 하이라이트 구간 후보 선정 실패. windowStart={}, windowEnd={}",
-                    windowStart,
-                    windowEnd,
-                    exception
-            );
-
-            return new WindowCandidateResult(
-                    windowStart,
-                    windowEnd,
-                    List.of()
-            );
+                log.warn(
+                        "영상 하이라이트 구간 후보 선정 실패. windowStart={}, windowEnd={}, attempt={}",
+                        windowStart,
+                        windowEnd,
+                        attempt,
+                        exception
+                );
+            }
         }
+
+        log.info(
+                "영상 하이라이트 구간 후보 선정 완료 (후보 없음). windowStart={}, windowEnd={}, attemptCount={}, elapsedMillis={}",
+                windowStart,
+                windowEnd,
+                maxAttempts,
+                (System.nanoTime() - startedAt) / 1_000_000L
+        );
+
+        return new WindowCandidateResult(
+                windowStart,
+                windowEnd,
+                List.of()
+        );
     }
 
     private List<ChatFileChunk> findWindowChunks(
@@ -755,7 +785,8 @@ public class VideoHighlightSelector {
                         absoluteStart,
                         absoluteEnd,
                         candidate,
-                        chunks
+                        chunks,
+                        purpose
                 );
                 if (repaired != null) {
                     absoluteStart = repaired.startMillis();
@@ -797,25 +828,26 @@ public class VideoHighlightSelector {
     /**
      * 60초 초과 후보는 자막/장면 청크 경계 중 가장 자연스러운 45~60초 구간으로 보정한다.
      * 원본 영상의 실제 문장 완결성은 이 단계에서 보장할 수 없으므로,
-     * 경계를 찾지 못하면 임의로 60초를 잘라내지 않고 기존 검증에서 제외한다.
+     * SUMMARY에서만 적절한 경계가 없을 경우 60초 고정 길이로 대체한다.
+     * SHORTS는 기존대로 경계가 없으면 후보를 제외한다.
      */
     private VideoHighlightSegment repairOversizedCandidate(
             long originalStart,
             long originalEnd,
             VideoHighlightSegment candidate,
-            List<ChatFileChunk> chunks
+            List<ChatFileChunk> chunks,
+            SelectionPurpose purpose
     ) {
         long originalDuration = originalEnd - originalStart;
         if (originalDuration <= MAX_CANDIDATE_DURATION_MILLIS
-                || originalDuration > MAX_REPAIRABLE_CANDIDATE_DURATION_MILLIS
-                || chunks == null || chunks.isEmpty()) {
+                || originalDuration > MAX_REPAIRABLE_CANDIDATE_DURATION_MILLIS) {
             return null;
         }
 
         TreeSet<Long> boundaries = new TreeSet<>();
         boundaries.add(originalStart);
         boundaries.add(originalEnd);
-        for (ChatFileChunk chunk : chunks) {
+        for (ChatFileChunk chunk : chunks == null ? List.<ChatFileChunk>of() : chunks) {
             if (chunk == null) {
                 continue;
             }
@@ -869,6 +901,22 @@ public class VideoHighlightSelector {
                     bestEnd = end;
                 }
             }
+        }
+
+        if (bestStart < 0 && purpose == SelectionPurpose.SUMMARY) {
+            // 자연스러운 경계를 찾지 못했을 때만 적용하는 마지막 대체 처리.
+            // 원래 시작점을 보존하여 문맥이 갑자기 중간에서 시작되는 일을 줄인다.
+            long fallbackEnd = originalStart + MAX_CANDIDATE_DURATION_MILLIS;
+            log.info(
+                    "영상 요약 하이라이트 후보 길이 대체 보정. originalStart={}, originalEnd={}, adjustedStart={}, adjustedEnd={}, originalDuration={}",
+                    originalStart, originalEnd, originalStart, fallbackEnd, originalDuration
+            );
+            return new VideoHighlightSegment(
+                    originalStart,
+                    fallbackEnd,
+                    candidate.reason(),
+                    candidate.suggestedTitle()
+            );
         }
 
         if (bestStart < 0) {
