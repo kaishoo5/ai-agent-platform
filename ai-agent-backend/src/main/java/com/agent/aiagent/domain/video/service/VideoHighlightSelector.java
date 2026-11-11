@@ -65,6 +65,9 @@ public class VideoHighlightSelector {
     private static final int HIGHLIGHT_WINDOW_CONCURRENCY =
             2;
 
+    private static final int TRANSIENT_API_MAX_RETRIES = 3;
+    private static final long TRANSIENT_API_RETRY_INITIAL_DELAY_MILLIS = 2_000L;
+
     /*
      * qwen이 JSON 대신 아래와 같은 텍스트를 반환하는 경우를 위한 fallback.
      *
@@ -478,9 +481,13 @@ public class VideoHighlightSelector {
         );
 
         long startedAt = System.nanoTime();
-        int maxAttempts = purpose == SelectionPurpose.SUMMARY ? 2 : 1;
+        int maxEmptyCandidateAttempts = purpose == SelectionPurpose.SUMMARY ? 2 : 1;
+        int emptyCandidateAttempts = 0;
+        int transientRetries = 0;
+        int totalAttempts = 0;
 
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        while (true) {
+            totalAttempts++;
             try {
                 List<VideoHighlightSegment> windowCandidates =
                         selectCandidatesFromWindow(
@@ -497,13 +504,12 @@ public class VideoHighlightSelector {
                                 windowEnd
                         );
 
-                if (adjustedCandidates.isEmpty() && attempt < maxAttempts) {
+                emptyCandidateAttempts++;
+                if (adjustedCandidates.isEmpty()
+                        && emptyCandidateAttempts < maxEmptyCandidateAttempts) {
                     log.warn(
-                            "영상 요약 하이라이트 후보 없음. 1회 재시도. windowStart={}, windowEnd={}, attempt={}, rawCandidateCount={}",
-                            windowStart,
-                            windowEnd,
-                            attempt,
-                            windowCandidates.size()
+                            "영상 요약 하이라이트 후보 없음. 재시도. windowStart={}, windowEnd={}, attempt={}, rawCandidateCount={}",
+                            windowStart, windowEnd, emptyCandidateAttempts, windowCandidates.size()
                     );
                     continue;
                 }
@@ -513,12 +519,8 @@ public class VideoHighlightSelector {
 
                 log.info(
                         "영상 하이라이트 구간 후보 선정 완료. windowStart={}, windowEnd={}, rawCandidateCount={}, validCandidateCount={}, attempt={}, elapsedMillis={}",
-                        windowStart,
-                        windowEnd,
-                        windowCandidates.size(),
-                        adjustedCandidates.size(),
-                        attempt,
-                        elapsedMillis
+                        windowStart, windowEnd, windowCandidates.size(),
+                        adjustedCandidates.size(), totalAttempts, elapsedMillis
                 );
 
                 return new WindowCandidateResult(
@@ -527,40 +529,68 @@ public class VideoHighlightSelector {
                         adjustedCandidates
                 );
             } catch (Exception exception) {
-                if (attempt < maxAttempts) {
+                boolean transientApiError = isTransientGeminiApiError(exception);
+                if (transientApiError && transientRetries < TRANSIENT_API_MAX_RETRIES) {
+                    long delayMillis = TRANSIENT_API_RETRY_INITIAL_DELAY_MILLIS << transientRetries;
+                    transientRetries++;
+                    log.warn(
+                            "Gemini 일시적 오류. 하이라이트 구간 재시도 대기. windowStart={}, windowEnd={}, retry={}/{}, delayMillis={}, error={}",
+                            windowStart, windowEnd, transientRetries,
+                            TRANSIENT_API_MAX_RETRIES, delayMillis, exception.getMessage()
+                    );
+                    try {
+                        Thread.sleep(delayMillis);
+                    } catch (InterruptedException interruptedException) {
+                        Thread.currentThread().interrupt();
+                        log.warn("하이라이트 구간 재시도 중단 (스레드 인터럽트). windowStart={}, windowEnd={}",
+                                windowStart, windowEnd);
+                        break;
+                    }
+                    continue;
+                }
+
+                // SUMMARY 모드의 기존 일반 오류 재시도 동작은 유지한다.
+                if (!transientApiError && emptyCandidateAttempts + 1 < maxEmptyCandidateAttempts) {
+                    emptyCandidateAttempts++;
                     log.warn(
                             "영상 요약 하이라이트 후보 선정 오류. 1회 재시도. windowStart={}, windowEnd={}, attempt={}",
-                            windowStart,
-                            windowEnd,
-                            attempt,
-                            exception
+                            windowStart, windowEnd, totalAttempts, exception
                     );
                     continue;
                 }
 
                 log.warn(
-                        "영상 하이라이트 구간 후보 선정 실패. windowStart={}, windowEnd={}, attempt={}",
-                        windowStart,
-                        windowEnd,
-                        attempt,
-                        exception
+                        "영상 하이라이트 구간 후보 선정 최종 실패. windowStart={}, windowEnd={}, attempts={}, transientRetries={}, error={}",
+                        windowStart, windowEnd, totalAttempts, transientRetries, exception.getMessage(), exception
                 );
+                break;
             }
         }
 
         log.info(
                 "영상 하이라이트 구간 후보 선정 완료 (후보 없음). windowStart={}, windowEnd={}, attemptCount={}, elapsedMillis={}",
-                windowStart,
-                windowEnd,
-                maxAttempts,
+                windowStart, windowEnd, totalAttempts,
                 (System.nanoTime() - startedAt) / 1_000_000L
         );
 
-        return new WindowCandidateResult(
-                windowStart,
-                windowEnd,
-                List.of()
-        );
+        return new WindowCandidateResult(windowStart, windowEnd, List.of());
+    }
+
+    private boolean isTransientGeminiApiError(Throwable throwable) {
+        for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message == null) {
+                continue;
+            }
+            String normalized = message.toLowerCase(Locale.ROOT);
+            if ((normalized.contains("gemini") || normalized.contains("429") || normalized.contains("503"))
+                    && (normalized.matches("(?s).*\\b(http\\s*)?(429|503)\\b.*")
+                    || normalized.contains("resource_exhausted")
+                    || normalized.contains("service_unavailable"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<ChatFileChunk> findWindowChunks(
@@ -827,9 +857,7 @@ public class VideoHighlightSelector {
 
     /**
      * 60초 초과 후보는 자막/장면 청크 경계 중 가장 자연스러운 45~60초 구간으로 보정한다.
-     * 원본 영상의 실제 문장 완결성은 이 단계에서 보장할 수 없으므로,
-     * SUMMARY에서만 적절한 경계가 없을 경우 60초 고정 길이로 대체한다.
-     * SHORTS는 기존대로 경계가 없으면 후보를 제외한다.
+     * 적절한 경계가 없으면 60초 길이로 보정한다. 실제 문장 완결성은 보장하지 않는다.
      */
     private VideoHighlightSegment repairOversizedCandidate(
             long originalStart,
@@ -903,13 +931,15 @@ public class VideoHighlightSelector {
             }
         }
 
-        if (bestStart < 0 && purpose == SelectionPurpose.SUMMARY) {
-            // 자연스러운 경계를 찾지 못했을 때만 적용하는 마지막 대체 처리.
-            // 원래 시작점을 보존하여 문맥이 갑자기 중간에서 시작되는 일을 줄인다.
+        if (bestStart < 0) {
+            // 청크 경계로 45~60초 구간을 만들 수 없다면 후보 자체를 버리지 않고
+            // 원래 시작 시점을 유지한 60초 구간으로 보정한다.
+            // SHORTS에서도 적용하되, 실제 문장 완결성은 후속 자막 경계 보정에서 확인한다.
             long fallbackEnd = originalStart + MAX_CANDIDATE_DURATION_MILLIS;
-            log.info(
-                    "영상 요약 하이라이트 후보 길이 대체 보정. originalStart={}, originalEnd={}, adjustedStart={}, adjustedEnd={}, originalDuration={}",
-                    originalStart, originalEnd, originalStart, fallbackEnd, originalDuration
+            log.warn(
+                    "영상 하이라이트 초과 후보 고정 길이 보정. purpose={}, originalStart={}, originalEnd={}, adjustedStart={}, adjustedEnd={}, originalDuration={}, boundaryCount={}",
+                    purpose, originalStart, originalEnd, originalStart, fallbackEnd,
+                    originalDuration, boundaries.size()
             );
             return new VideoHighlightSegment(
                     originalStart,
@@ -917,14 +947,6 @@ public class VideoHighlightSelector {
                     candidate.reason(),
                     candidate.suggestedTitle()
             );
-        }
-
-        if (bestStart < 0) {
-            log.warn(
-                    "영상 하이라이트 초과 후보 경계 보정 실패. startMillis={}, endMillis={}, durationMillis={}, boundaryCount={}, boundaries={}",
-                    originalStart, originalEnd, originalDuration, boundaries.size(), boundaries
-            );
-            return null;
         }
 
         log.info(

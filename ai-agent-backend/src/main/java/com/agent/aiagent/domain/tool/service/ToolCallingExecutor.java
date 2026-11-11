@@ -643,6 +643,18 @@ public class ToolCallingExecutor {
                             )
                     );
 
+            long dramaCallCount = response.toolCalls().stream()
+                    .filter(call -> DRAMA_SUMMARY_GENERATE_TOOL_NAME.equals(call.name()))
+                    .count();
+            if (dramaCallCount > 1) {
+                log.warn("한 라운드에 드라마 생성 도구가 중복 요청되었습니다. round={}, count={}",
+                        round, dramaCallCount);
+                return chatStreamingExecutor.executeCompletedResponse(
+                        emitter, request, "드라마 영상 생성 모드가 중복 요청되어 실행을 중단했습니다.",
+                        videoResults, safeSources
+                );
+            }
+
             List<ToolResult> toolResults =
                     toolCallProcessor.execute(
                             response.toolCalls(),
@@ -654,6 +666,33 @@ public class ToolCallingExecutor {
                         "tool_execution",
                         "도구 실행 완료"
                 );
+            }
+
+            // 영상 생성 도구가 실패한 경우 모델에게 다른 모드로 재호출할 기회를 주지 않는다.
+            // STORY 실패 후 NARRATION으로 전환되는 문제를 방지한다.
+            for (int index = 0; index < response.toolCalls().size(); index++) {
+                ChatModelToolCall toolCall = response.toolCalls().get(index);
+                if (!isVideoGenerationTool(toolCall.name())) {
+                    continue;
+                }
+
+                ToolResult toolResult = index < toolResults.size()
+                        ? toolResults.get(index) : null;
+                if (toolResult == null || !toolResult.success()) {
+                    String reason = toolResult == null || toolResult.content() == null
+                            || toolResult.content().isBlank()
+                            ? "영상 생성 도구 실행에 실패했습니다."
+                            : toolResult.content();
+                    log.warn("영상 생성 도구 실패. 추가 Tool Calling 중단. round={}, tool={}, reason={}",
+                            round, toolCall.name(), reason);
+                    if (progressReporter != null) {
+                        progressReporter.completed("tool_execution", "영상 생성 실패");
+                    }
+                    return chatStreamingExecutor.executeCompletedResponse(
+                            emitter, request, "영상 생성에 실패했습니다. " + reason,
+                            videoResults, safeSources
+                    );
+                }
             }
 
             /*

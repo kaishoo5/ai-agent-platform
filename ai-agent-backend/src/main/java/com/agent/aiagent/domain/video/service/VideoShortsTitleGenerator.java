@@ -35,17 +35,17 @@ public class VideoShortsTitleGenerator {
                     .lines().findFirst().orElse("").strip();
             if (StringUtils.hasText(title) && title.length() <= 40) {
                 log.info("쇼츠 후보 추천 제목 사용. title={}", title);
-                return title;
+                return withEmoji(title);
             }
         }
         if (!StringUtils.hasText(reason)) {
-            return "영상 속 흥미로운 순간";
+            return withEmoji("영상 속 흥미로운 순간");
         }
 
         if (!aiTitleEnabled) {
             String title = buildLocalTitle(reason);
             log.info("쇼츠 제목 로컬 생성 완료. title={}", title);
-            return title;
+            return withEmoji(title);
         }
 
         String prompt = """
@@ -57,7 +57,8 @@ public class VideoShortsTitleGenerator {
                 - 등장인물, 사건, 수치 등은 제공된 내용에 근거해야 합니다.
                 - 과장하거나 확인되지 않은 결과를 단정하지 마세요.
                 - 짧고 읽기 쉽게, 24자 이내로 작성하세요.
-                - 이모지와 해시태그, 따옴표, 설명 문장 없이 제목 한 줄만 반환하세요.
+                - 해시태그, 따옴표, 설명 문장 없이 제목 한 줄만 반환하세요.
+                - 제목에 어울리는 이모지는 있어도 됩니다.
 
                 선택된 장면 설명:
                 """ + reason;
@@ -89,15 +90,46 @@ public class VideoShortsTitleGenerator {
                         .orElse("")
                         .strip();
                 if (StringUtils.hasText(title) && title.length() <= 40) {
-                    return title;
+                    return withEmoji(title);
                 }
             }
         } catch (Exception exception) {
             log.warn("쇼츠 제목 AI 생성 실패. 기본 제목으로 대체합니다. reason={}", reason, exception);
         }
 
-        return buildLocalTitle(reason);
+        return withEmoji(buildLocalTitle(reason));
     }
+    // 추천 제목을 그대로 사용하더라도 이모지는 항상 보강한다.
+    private String withEmoji(String title) {
+        if (title == null || title.isBlank()) {
+            return "✨ 영상 속 흥미로운 순간";
+        }
+        String normalized = title.strip();
+        // 기존 이모지가 있으면 중복 삽입하지 않는다.
+        if (normalized.codePoints().anyMatch(cp ->
+                (cp >= 0x1F000 && cp <= 0x1FAFF)
+                        || (cp >= 0x2600 && cp <= 0x27BF))) {
+            return normalized;
+        }
+        String emoji;
+        if (normalized.matches(".*(사진|촬영|카메라|포즈).*")) {
+            emoji = "📸";
+        } else if (normalized.matches(".*(웃음|폭소|웃긴|유쾌|개그).*")) {
+            emoji = "😂";
+        } else if (normalized.matches(".*(놀라|충격|반전|깜짝).*")) {
+            emoji = "😲";
+        } else if (normalized.matches(".*(사랑|연애|남편|아내|결혼).*")) {
+            emoji = "💖";
+        } else if (normalized.matches(".*(음식|먹방|요리|맛집).*")) {
+            emoji = "🍽️";
+        } else if (normalized.matches(".*(달리|뛰|질주|추격).*")) {
+            emoji = "🏃";
+        } else {
+            emoji = "✨";
+        }
+        return normalized + " " + emoji;
+    }
+
     private String buildLocalTitle(String reason) {
         String normalized = reason.strip().replaceAll("\\s+", " ")
                 .replaceAll("(하는|했던|보여주는) 장면$", "")

@@ -1,4 +1,3 @@
-
 package com.agent.aiagent.domain.tool.service;
 
 import com.agent.aiagent.domain.file.entity.ChatFile;
@@ -7,10 +6,10 @@ import com.agent.aiagent.domain.tool.model.ToolParameter;
 import com.agent.aiagent.domain.tool.model.ToolResult;
 import com.agent.aiagent.domain.tool.model.ToolSpecification;
 import com.agent.aiagent.domain.video.model.DramaEditPlan;
-import com.agent.aiagent.domain.video.model.DramaEpisodeAnalysis;
 import com.agent.aiagent.domain.video.model.DramaSummaryMode;
-import com.agent.aiagent.domain.video.service.DramaAiStoryPlanner;
-import com.agent.aiagent.domain.video.service.DramaEpisodeAnalyzer;
+import com.agent.aiagent.domain.video.service.DramaStoryStrategy;
+import com.agent.aiagent.provider.chat.ModelProviderType;
+import com.agent.aiagent.settings.service.ModelSettingsService;
 import com.agent.aiagent.domain.video.service.DramaNarrationVideoGenerator;
 import com.agent.aiagent.domain.video.service.DramaStoryVideoGenerator;
 import lombok.RequiredArgsConstructor;
@@ -42,8 +41,8 @@ public class DramaSummaryGenerateTool implements AgentTool {
     private static final Pattern EPISODE_PATTERN = Pattern.compile("(?i)(?:S(\\d{1,2})[ ._-]*)?E(\\d{1,3})(?!\\d)");
 
     private final ChatFileRepository chatFileRepository;
-    private final DramaEpisodeAnalyzer dramaEpisodeAnalyzer;
-    private final DramaAiStoryPlanner dramaAiStoryPlanner;
+    private final ModelSettingsService modelSettingsService;
+    private final List<DramaStoryStrategy> dramaStoryStrategies;
     private final DramaStoryVideoGenerator dramaStoryVideoGenerator;
     private final DramaNarrationVideoGenerator dramaNarrationVideoGenerator;
 
@@ -144,11 +143,17 @@ public class DramaSummaryGenerateTool implements AgentTool {
                     mode
             );
 
-            List<DramaEpisodeAnalysis> episodes =
-                    dramaEpisodeAnalyzer.analyzeEpisodes(fileIds);
+            ModelProviderType providerType = ModelProviderType.fromModelId(modelSettingsService.getTextModel());
+            DramaStoryStrategy strategy = dramaStoryStrategies.stream()
+                    .filter(candidate -> candidate.providerType() == providerType)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("드라마 전략이 없습니다. provider=" + providerType));
 
-            DramaEditPlan plan = dramaAiStoryPlanner.plan(
-                    episodes,
+            log.info("드라마 전략 선택. provider={}, strategy={}",
+                    providerType, strategy.getClass().getSimpleName());
+
+            DramaEditPlan plan = strategy.plan(
+                    fileIds,
                     mode,
                     Math.multiplyExact(durationSeconds, 1000L)
             );
